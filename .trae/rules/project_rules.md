@@ -1,0 +1,65 @@
+1. 当前项目使用的框架版本、依赖都已安装
+
+# 安装Vue Router
+
+npm install vue-router@4
+
+# 安装Pinia
+
+npm install pinia
+
+# 安装pinia-plugin-persistedstate (用于持久化存储)
+
+npm install pinia-plugin-persistedstate
+
+# 安装Element Plus
+
+npm install element-plus
+
+# 安装Element Plus图标
+
+npm install @element-plus/icons-vue
+
+# 安装Axios
+
+npm install axios
+
+# 安装Echarts (数据可视化)
+
+npm install echarts
+
+# 安装高德地图API (用于物流路线规划)
+
+npm install @amap/amap-jsapi-loader
+
+# 安装sass预处理器 (用于样式处理)
+
+npm install -D sass
+
+# 安装dayjs (用于日期处理)
+
+npm install dayjs
+
+# 安装mockjs (用于模拟数据)
+
+npm install mockjs
+
+```
+
+2. 根据[text](../../task.md)task.md中的任务，[text](../../api.md)api.md文档里的后端接口信息和参数、返回信息，一步一步完成项目，并且测试，项目是pc端的，后端用mockjs模拟数据和接口，mock模拟数据和接口分块模拟，比如用户模拟只涉及用户，商店和商品只涉及商品，数据都通过axios发送请求从mockjs获得模拟数据返回
+
+# 重点根据[text](../../task.md)中的任务和[text](../../api.md)文档里的后端接口和参数、返回信息，传参不要传错了，还有返回信息
+# 后端接口和参数、返回信息，传参不要传错了，还有返回信息
+# 后端接口和参数、返回信息，传参不要传错了，还有返回信息
+
+# 每完成一个功能都测试一下，进入网页看是否有问题，有问题就修改，没有问题就继续
+3. 已完成功能模块的不要重复
+4. 代码风格要统一
+5. 代码注释要详细
+6. 代码要规范
+7. 代码要易读
+8. 代码要易维护
+9. 代码要易扩展
+10. 代码要易测试
+11. 代码要易复用
+12. 完成的每个功能时，联系其他功能，不要出现冲突，不要出现bug
