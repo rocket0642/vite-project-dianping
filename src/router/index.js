@@ -70,7 +70,7 @@ const routes = [
     meta: { title: '订单列表', requiresAuth: true }
   },
   {
-    path: '/order/:id',
+    path: '/order/detail/:id',
     component: () => import('../views/order/detail.vue'),
     meta: { title: '订单详情', requiresAuth: true }
   },
