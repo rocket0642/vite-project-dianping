@@ -1,7 +1,7 @@
 <script setup>
 import { ref, computed, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
-import { ElMessage, ElRadioGroup, ElRadio, ElInput, ElButton } from 'element-plus'
+import { ElMessage, ElRadioGroup, ElRadio, ElInput, ElButton, ElDivider } from 'element-plus'
 import AppLayout from '../../components/AppLayout.vue'
 import { useCartStore } from '../../stores/cart'
 import { useOrderStore } from '../../stores/order'
@@ -33,8 +33,27 @@ const addresses = ref([
 // 选中的地址
 const selectedAddress = ref(addresses.value[0])
 
-// 购物车选中商品
-const checkedItems = computed(() => cartStore.checkedItems)
+// 按店铺分组的购物车选中商品
+const groupedCheckedItems = computed(() => {
+  const items = cartStore.checkedItems
+  const groups = {}
+  
+  items.forEach(item => {
+    if (!groups[item.shopId]) {
+      groups[item.shopId] = {
+        shopId: item.shopId,
+        shopName: item.shopName || `店铺${item.shopId}`,
+        items: [],
+        totalAmount: 0
+      }
+    }
+    
+    groups[item.shopId].items.push(item)
+    groups[item.shopId].totalAmount += item.price * item.count
+  })
+  
+  return Object.values(groups)
+})
 
 // 商品总金额
 const totalAmount = computed(() => cartStore.totalPrice)
@@ -56,7 +75,7 @@ const createOrder = async () => {
     return
   }
   
-  if (checkedItems.value.length === 0) {
+  if (groupedCheckedItems.value.length === 0) {
     ElMessage.warning('请选择要购买的商品')
     return
   }
@@ -64,33 +83,56 @@ const createOrder = async () => {
   loading.value = true
   
   try {
-    // 准备订单数据
-    const orderData = {
-      // 商品信息（假设接口只需要第一个商品信息和总金额）
-      goodsId: checkedItems.value[0].id,
-      goodsName: checkedItems.value[0].name,
-      count: checkedItems.value.reduce((sum, item) => sum + item.count, 0),
-      amount: totalAmount.value,
-      // 收货信息
-      addressId: selectedAddress.value.id,
-      addressName: selectedAddress.value.name,
-      addressPhone: selectedAddress.value.phone,
-      addressDetail: selectedAddress.value.address,
-      // 其他信息
-      payType: orderForm.value.payType,
-      remark: orderForm.value.remark
+    const orderIds = []
+    
+    // 按照店铺分别创建订单
+    for (const group of groupedCheckedItems.value) {
+      // 准备订单数据
+      const orderData = {
+        // 店铺信息
+        shopId: group.shopId,
+        shopName: group.shopName,
+        // 商品信息列表
+        items: group.items.map(item => ({
+          goodsId: item.id,
+          goodsName: item.name,
+          count: item.count,
+          price: item.price,
+          skuId: item.skuId || null,
+          skuName: item.skuName || null,
+        })),
+        // 订单总金额
+        amount: group.totalAmount,
+        // 收货信息
+        addressId: selectedAddress.value.id,
+        addressName: selectedAddress.value.name,
+        addressPhone: selectedAddress.value.phone,
+        addressDetail: selectedAddress.value.address,
+        // 其他信息
+        payType: orderForm.value.payType,
+        remark: orderForm.value.remark
+      }
+      
+      const orderId = await orderStore.createNewOrder(orderData)
+      
+      if (orderId) {
+        orderIds.push(orderId)
+      }
     }
     
-    const orderId = await orderStore.createNewOrder(orderData)
-    
-    if (orderId) {
-      ElMessage.success('订单创建成功')
+    if (orderIds.length > 0) {
+      ElMessage.success(`成功创建${orderIds.length}个订单`)
       
       // 清除购物车中已购买的商品
       cartStore.removeCheckedItems()
       
-      // 跳转到支付页面
-      router.push(`/order/pay/${orderId}`)
+      // 如果只有一个订单，直接跳转到支付页面
+      if (orderIds.length === 1) {
+        router.push(`/order/pay/${orderIds[0]}`)
+      } else {
+        // 如果有多个订单，跳转到订单列表页面
+        router.push('/order/list')
+      }
     } else {
       ElMessage.error('订单创建失败')
     }
@@ -117,7 +159,7 @@ onMounted(() => {
     return
   }
   
-  if (checkedItems.value.length === 0) {
+  if (cartStore.checkedCount === 0) {
     ElMessage.warning('请先选择要购买的商品')
     router.push('/cart')
   }
@@ -155,30 +197,42 @@ onMounted(() => {
         </div>
       </div>
       
-      <!-- 订单商品 -->
+      <!-- 订单商品（按店铺分组） -->
       <div class="section goods-section">
         <h2 class="section-title">商品信息</h2>
-        <div class="goods-list">
-          <div 
-            v-for="item in checkedItems" 
-            :key="`${item.id}-${item.skuId || 0}`"
-            class="goods-item"
-          >
-            <div class="goods-image">
-              <img :src="item.imageUrl" :alt="item.name">
-            </div>
-            <div class="goods-info">
-              <div class="goods-name">{{ item.name }}</div>
-              <div v-if="item.skuName" class="goods-sku">{{ item.skuName }}</div>
-              <div class="goods-price">¥{{ formatPrice(item.price) }}</div>
-            </div>
-            <div class="goods-count">
-              x{{ item.count }}
-            </div>
-            <div class="goods-subtotal">
-              ¥{{ formatPrice(item.price * item.count) }}
+        
+        <div v-for="group in groupedCheckedItems" :key="group.shopId" class="shop-group">
+          <div class="shop-header">
+            <h3 class="shop-name">{{ group.shopName }}</h3>
+            <div class="shop-total">
+              小计：<span class="price">¥{{ formatPrice(group.totalAmount) }}</span>
             </div>
           </div>
+          
+          <div class="goods-list">
+            <div 
+              v-for="item in group.items" 
+              :key="`${item.id}-${item.skuId || 0}`"
+              class="goods-item"
+            >
+              <div class="goods-image">
+                <img :src="item.imageUrl" :alt="item.name">
+              </div>
+              <div class="goods-info">
+                <div class="goods-name">{{ item.name }}</div>
+                <div v-if="item.skuName" class="goods-sku">规格：{{ item.skuName }}</div>
+                <div class="goods-price">¥{{ formatPrice(item.price) }}</div>
+              </div>
+              <div class="goods-count">
+                x{{ item.count }}
+              </div>
+              <div class="goods-subtotal">
+                ¥{{ formatPrice(item.price * item.count) }}
+              </div>
+            </div>
+          </div>
+          
+          <el-divider v-if="groupedCheckedItems.indexOf(group) < groupedCheckedItems.length - 1" />
         </div>
       </div>
       
@@ -213,6 +267,10 @@ onMounted(() => {
         <div class="summary-row">
           <span>订单总额：</span>
           <span class="total-price">¥{{ formatPrice(totalAmount) }}</span>
+        </div>
+        <div class="summary-row">
+          <span>生成订单数：</span>
+          <span>{{ groupedCheckedItems.length }}个</span>
         </div>
       </div>
       
@@ -258,33 +316,17 @@ onMounted(() => {
   font-size: 18px;
   margin-bottom: 15px;
   color: #333;
-  position: relative;
-  padding-left: 12px;
 }
 
-.section-title::before {
-  content: '';
-  position: absolute;
-  left: 0;
-  top: 50%;
-  transform: translateY(-50%);
-  width: 4px;
-  height: 18px;
-  background-color: #409EFF;
-  border-radius: 2px;
-}
-
-/* 地址样式 */
 .address-list {
-  display: flex;
-  flex-wrap: wrap;
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
   gap: 15px;
 }
 
 .address-item {
-  width: calc(50% - 10px);
   border: 1px solid #e0e0e0;
-  border-radius: 8px;
+  border-radius: 6px;
   padding: 15px;
   display: flex;
   justify-content: space-between;
@@ -293,7 +335,7 @@ onMounted(() => {
 }
 
 .address-item:hover {
-  border-color: #c0c4cc;
+  box-shadow: 0 2px 12px rgba(0, 0, 0, 0.1);
 }
 
 .address-item.active {
@@ -302,7 +344,7 @@ onMounted(() => {
 }
 
 .contact {
-  margin-bottom: 8px;
+  margin-bottom: 10px;
 }
 
 .name {
@@ -310,19 +352,33 @@ onMounted(() => {
   margin-right: 10px;
 }
 
-.phone {
-  color: #666;
-}
-
 .detail {
   color: #666;
-  line-height: 1.4;
 }
 
-/* 商品样式 */
+.shop-group {
+  margin-bottom: 20px;
+}
+
+.shop-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 10px;
+}
+
+.shop-name {
+  font-size: 16px;
+  font-weight: bold;
+}
+
+.shop-total {
+  font-size: 16px;
+}
+
 .goods-list {
-  border: 1px solid #e0e0e0;
-  border-radius: 8px;
+  border: 1px solid #f0f0f0;
+  border-radius: 6px;
 }
 
 .goods-item {
@@ -337,8 +393,8 @@ onMounted(() => {
 }
 
 .goods-image {
-  width: 80px;
-  height: 80px;
+  width: 60px;
+  height: 60px;
   margin-right: 15px;
   border-radius: 4px;
   overflow: hidden;
@@ -355,45 +411,39 @@ onMounted(() => {
 }
 
 .goods-name {
-  font-size: 16px;
-  margin-bottom: 6px;
+  font-weight: bold;
+  margin-bottom: 5px;
 }
 
 .goods-sku {
   font-size: 14px;
   color: #999;
-  margin-bottom: 6px;
+  margin-bottom: 5px;
 }
 
 .goods-price {
-  font-size: 16px;
   color: #f60;
 }
 
 .goods-count {
   margin: 0 20px;
-  color: #666;
 }
 
 .goods-subtotal {
-  font-size: 16px;
   font-weight: bold;
   color: #f60;
   width: 100px;
   text-align: right;
 }
 
-/* 支付方式样式 */
-.payment-section .el-radio-group {
-  display: flex;
-  gap: 20px;
+.payment-section {
+  margin-top: 30px;
 }
 
-/* 订单总结样式 */
 .summary-section {
   background-color: #f8f8f8;
   padding: 15px;
-  border-radius: 8px;
+  border-radius: 6px;
 }
 
 .summary-row {
@@ -404,15 +454,16 @@ onMounted(() => {
 
 .summary-row:last-child {
   margin-bottom: 0;
+  border-top: 1px dashed #e0e0e0;
+  padding-top: 10px;
 }
 
 .total-price {
-  font-size: 20px;
+  font-size: 18px;
   font-weight: bold;
   color: #f60;
 }
 
-/* 底部按钮样式 */
 .order-footer {
   display: flex;
   justify-content: flex-end;
@@ -420,10 +471,9 @@ onMounted(() => {
   margin-top: 30px;
 }
 
-/* 响应式设计 */
 @media (max-width: 768px) {
-  .address-item {
-    width: 100%;
+  .address-list {
+    grid-template-columns: 1fr;
   }
   
   .goods-item {
@@ -431,28 +481,12 @@ onMounted(() => {
   }
   
   .goods-info {
-    width: calc(100% - 100px);
+    width: calc(100% - 75px);
+    margin-bottom: 10px;
   }
   
   .goods-count, .goods-subtotal {
-    margin-top: 10px;
-  }
-  
-  .goods-subtotal {
-    text-align: left;
-  }
-  
-  .payment-section .el-radio-group {
-    flex-direction: column;
-    gap: 10px;
-  }
-  
-  .order-footer {
-    flex-direction: column;
-  }
-  
-  .order-footer .el-button {
-    width: 100%;
+    margin-left: 75px;
   }
 }
 </style>

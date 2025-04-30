@@ -1,200 +1,325 @@
 import Mock from 'mockjs'
 
-// 模拟订单数据
-const orders = [
+// 初始订单数据
+const defaultOrders = [
   {
     id: 10001,
     userId: 1,
     shopId: 1,
+    shopName: '店铺1',
     goodsId: 1,
-    goodsName: "经典牛肉汉堡",
+    goodsName: '经典牛肉汉堡',
     count: 2,
     goodsPrice: 2800,
     amount: 5600,
-    status: 2, // 1-未支付，2-已支付，3-已取消，4-已完成
-    createTime: "2023-06-15 12:00:00",
-    payTime: "2023-06-15 12:05:00",
-    payType: 1 // 1-微信支付，2-支付宝
+    addressId: 1,
+    addressName: '张三',
+    addressPhone: '13800138000',
+    addressDetail: '北京市海淀区中关村大街1号',
+    status: 2, // 已支付
+    createTime: '2023-06-15 12:00:00',
+    payTime: '2023-06-15 12:05:00',
+    payType: 1
   },
   {
     id: 10002,
     userId: 1,
     shopId: 2,
-    goodsId: 3,
-    goodsName: "舒适大床房",
+    shopName: '舒适酒店',
+    goodsId: 5,
+    goodsName: '舒适大床房',
     count: 1,
     goodsPrice: 29900,
     amount: 29900,
-    status: 1, // 未支付
-    createTime: "2023-06-16 14:30:00",
+    addressId: 1,
+    addressName: '张三',
+    addressPhone: '13800138000',
+    addressDetail: '北京市海淀区中关村大街1号',
+    status: 3, // 已取消
+    createTime: '2023-06-16 14:30:00',
     payTime: null,
     payType: null
   }
-]
+];
+
+// 从localStorage获取订单数据，如果没有则使用默认数据
+let orders = JSON.parse(localStorage.getItem('mock_orders') || JSON.stringify(defaultOrders));
+
+// 保存订单数据到localStorage
+const saveOrders = () => {
+  localStorage.setItem('mock_orders', JSON.stringify(orders));
+};
 
 // 创建订单接口
 Mock.mock('/api/order/create', 'post', (options) => {
-  const { body } = options
-  const orderData = JSON.parse(body)
+  const { body } = options;
+  const orderData = JSON.parse(body);
   
   // 生成新订单ID
-  const newOrderId = orders.length > 0 ? Math.max(...orders.map(o => o.id)) + 1 : 10001
+  const newOrderId = orders.length > 0 ? Math.max(...orders.map(o => o.id)) + 1 : 10001;
+  
+  // 获取当前时间
+  const now = new Date();
+  const formattedTime = now.toLocaleString('zh-CN', {
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+    hour: '2-digit',
+    minute: '2-digit',
+    second: '2-digit',
+    hour12: false
+  }).replace(/\//g, '-');
   
   // 创建新订单
   const newOrder = {
     id: newOrderId,
-    userId: 1, // 假设当前用户ID为1
-    ...orderData,
-    status: 1, // 初始状态为未支付
-    createTime: new Date().toISOString().replace('T', ' ').substring(0, 19),
+    userId: 1,
+    shopId: orderData.shopId,
+    shopName: orderData.shopName || `店铺${orderData.shopId}`,
+    goodsId: orderData.items ? orderData.items[0].goodsId : orderData.goodsId,
+    goodsName: orderData.items ? orderData.items[0].goodsName : orderData.goodsName,
+    count: orderData.items ? orderData.items.reduce((sum, item) => sum + item.count, 0) : orderData.count,
+    goodsPrice: orderData.items ? orderData.items[0].price : orderData.price,
+    items: orderData.items || [],
+    amount: orderData.amount,
+    addressId: orderData.addressId,
+    addressName: orderData.addressName,
+    addressPhone: orderData.addressPhone,
+    addressDetail: orderData.addressDetail,
+    remark: orderData.remark || '',
+    status: 1, // 未支付
+    createTime: formattedTime,
     payTime: null,
     payType: null
-  }
+  };
   
   // 添加到订单列表
-  orders.push(newOrder)
+  orders.push(newOrder);
+  
+  // 保存数据
+  saveOrders();
   
   return {
     success: true,
     data: newOrderId
-  }
-})
+  };
+});
 
 // 获取订单详情
-Mock.mock(new RegExp('/api/order/status/\\d+'), 'get', (options) => {
-  const orderId = parseInt(options.url.match(/\/api\/order\/status\/(\d+)/)[1])
-  const order = orders.find(o => o.id === orderId)
+Mock.mock(/\/api\/order\/detail\/\d+/, 'get', (options) => {
+  const id = parseInt(options.url.match(/\/api\/order\/detail\/(\d+)/)[1]);
+  const order = orders.find(o => o.id === id);
   
   if (order) {
     return {
       success: true,
       data: order
-    }
-  } else {
-    return {
-      success: false,
-      errorMsg: "订单不存在"
-    }
+    };
   }
-})
+  
+  return {
+    success: false,
+    errorMsg: '订单不存在'
+  };
+});
+
+// 获取订单状态（新增接口，与API接口路径匹配）
+Mock.mock(/\/api\/order\/status\/\d+/, 'get', (options) => {
+  const id = parseInt(options.url.match(/\/api\/order\/status\/(\d+)/)[1]);
+  const order = orders.find(o => o.id === id);
+  
+  if (order) {
+    return {
+      success: true,
+      data: order
+    };
+  }
+  
+  return {
+    success: false,
+    errorMsg: '订单不存在'
+  };
+});
 
 // 获取用户订单列表
-Mock.mock(new RegExp('/api/order/list.*'), 'get', (options) => {
-  const url = new URL(`http://localhost${options.url}`)
-  const params = Object.fromEntries(url.searchParams)
+Mock.mock(/\/api\/order\/list(\?.*)?$/, 'get', (options) => {
+  // 获取查询参数
+  const url = new URL(`http://localhost${options.url}`);
+  const status = url.searchParams.get('status');
   
-  let filteredOrders = [...orders]
+  let filteredOrders = [...orders];
   
-  // 按状态筛选
-  if (params.status && params.status !== '0') {
-    const status = parseInt(params.status)
-    filteredOrders = filteredOrders.filter(o => o.status === status)
+  // 根据状态筛选
+  if (status) {
+    filteredOrders = filteredOrders.filter(o => o.status === parseInt(status));
   }
-  
-  // 分页处理
-  const current = parseInt(params.current) || 1
-  const pageSize = 10
-  const start = (current - 1) * pageSize
-  const end = start + pageSize
-  const pagedOrders = filteredOrders.slice(start, end)
   
   return {
     success: true,
-    data: pagedOrders,
+    data: filteredOrders,
     total: filteredOrders.length
-  }
-})
+  };
+});
 
 // 支付订单
-Mock.mock(new RegExp('/api/order/pay/\\d+'), 'post', (options) => {
-  const orderId = parseInt(options.url.match(/\/api\/order\/pay\/(\d+)/)[1])
-  const url = new URL(`http://localhost${options.url}`)
-  const params = Object.fromEntries(url.searchParams)
-  const payType = parseInt(params.payType) || 1
-  
-  const orderIndex = orders.findIndex(o => o.id === orderId)
-  
-  if (orderIndex === -1) {
+Mock.mock('/api/order/pay', 'post', (options) => {
+  try {
+    const { body } = options;
+    const data = JSON.parse(body);
+    const orderId = parseInt(data.orderId);
+    const payType = data.payType || 1;
+    
+    const orderIndex = orders.findIndex(o => o.id === orderId);
+    
+    if (orderIndex === -1) {
+      return {
+        success: false,
+        errorMsg: '订单不存在'
+      };
+    }
+    
+    // 检查订单状态是否为未支付
+    if (orders[orderIndex].status !== 1) {
+      return {
+        success: false,
+        errorMsg: '订单状态错误，不能支付'
+      };
+    }
+    
+    // 更新订单状态
+    orders[orderIndex].status = 2; // 已支付
+    orders[orderIndex].payTime = new Date().toLocaleString('zh-CN', {
+      year: 'numeric',
+      month: '2-digit',
+      day: '2-digit',
+      hour: '2-digit',
+      minute: '2-digit',
+      second: '2-digit',
+      hour12: false
+    }).replace(/\//g, '-');
+    orders[orderIndex].payType = payType;
+    
+    // 保存到localStorage
+    localStorage.setItem('mock_orders', JSON.stringify(orders));
+    
+    return {
+      success: true,
+      data: true
+    };
+  } catch (error) {
+    console.error('支付订单处理错误:', error);
     return {
       success: false,
-      errorMsg: "订单不存在"
-    }
+      errorMsg: '支付处理异常'
+    };
   }
-  
-  if (orders[orderIndex].status !== 1) {
-    return {
-      success: false,
-      errorMsg: "订单状态错误，无法支付"
-    }
-  }
-  
-  // 更新订单状态
-  orders[orderIndex].status = 2
-  orders[orderIndex].payTime = new Date().toISOString().replace('T', ' ').substring(0, 19)
-  orders[orderIndex].payType = payType
-  
-  return {
-    success: true,
-    data: null
-  }
-})
+});
 
 // 取消订单
-Mock.mock(new RegExp('/api/order/cancel/\\d+'), 'post', (options) => {
-  const orderId = parseInt(options.url.match(/\/api\/order\/cancel\/(\d+)/)[1])
-  
-  const orderIndex = orders.findIndex(o => o.id === orderId)
+Mock.mock('/api/order/cancel', 'post', (options) => {
+  const { body } = options;
+  const { orderId, reason = '用户取消' } = JSON.parse(body);
+  const orderIndex = orders.findIndex(o => o.id === parseInt(orderId));
   
   if (orderIndex === -1) {
     return {
       success: false,
-      errorMsg: "订单不存在"
-    }
-  }
-  
-  if (orders[orderIndex].status !== 1) {
-    return {
-      success: false,
-      errorMsg: "订单已支付，无法取消"
-    }
+      errorMsg: '订单不存在'
+    };
   }
   
   // 更新订单状态
-  orders[orderIndex].status = 3
+  orders[orderIndex].status = 3; // 已取消
+  orders[orderIndex].cancelReason = reason;
+  
+  // 保存数据
+  saveOrders();
   
   return {
     success: true,
-    data: null
-  }
-})
+    data: true
+  };
+});
 
-// 确认收货
-Mock.mock(new RegExp('/api/order/confirm/\\d+'), 'post', (options) => {
-  const orderId = parseInt(options.url.match(/\/api\/order\/confirm\/(\d+)/)[1])
+// 取消订单（新增接口，与API接口路径匹配）
+Mock.mock(/\/api\/order\/cancel\/\d+/, 'post', (options) => {
+  const id = parseInt(options.url.match(/\/api\/order\/cancel\/(\d+)/)[1]);
+  const { body } = options;
+  const data = body ? JSON.parse(body) : {};
+  const reason = data.reason || '用户取消';
   
-  const orderIndex = orders.findIndex(o => o.id === orderId)
+  const orderIndex = orders.findIndex(o => o.id === id);
   
   if (orderIndex === -1) {
     return {
       success: false,
-      errorMsg: "订单不存在"
-    }
+      errorMsg: '订单不存在'
+    };
   }
   
-  if (orders[orderIndex].status !== 2) {
-    return {
-      success: false,
-      errorMsg: "订单未支付或已完成，无法确认收货"
-    }
-  }
+  // 更新订单状态
+  orders[orderIndex].status = 3; // 已取消
+  orders[orderIndex].cancelReason = reason;
   
-  // 更新订单状态为已完成
-  orders[orderIndex].status = 4
+  // 保存数据
+  saveOrders();
   
   return {
     success: true,
-    data: null
-  }
-})
+    data: true
+  };
+});
 
-export default {}
+// 确认收货
+Mock.mock('/api/order/confirm', 'post', (options) => {
+  const { body } = options;
+  const { orderId } = JSON.parse(body);
+  const orderIndex = orders.findIndex(o => o.id === parseInt(orderId));
+  
+  if (orderIndex === -1) {
+    return {
+      success: false,
+      errorMsg: '订单不存在'
+    };
+  }
+  
+  // 更新订单状态
+  orders[orderIndex].status = 4; // 已完成
+  
+  // 保存数据
+  saveOrders();
+  
+  return {
+    success: true,
+    data: true
+  };
+});
+
+// 确认收货（新增接口，与API接口路径匹配）
+Mock.mock(/\/api\/order\/confirm\/\d+/, 'post', (options) => {
+  const id = parseInt(options.url.match(/\/api\/order\/confirm\/(\d+)/)[1]);
+  
+  const orderIndex = orders.findIndex(o => o.id === id);
+  
+  if (orderIndex === -1) {
+    return {
+      success: false,
+      errorMsg: '订单不存在'
+    };
+  }
+  
+  // 更新订单状态
+  orders[orderIndex].status = 4; // 已完成
+  
+  // 保存数据
+  saveOrders();
+  
+  return {
+    success: true,
+    data: true
+  };
+});
+
+export default {
+  orders
+};

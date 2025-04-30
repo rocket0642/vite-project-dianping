@@ -11,6 +11,7 @@ export const useOrderStore = defineStore('order', () => {
   const orderList = ref([])
   const loading = ref(false)
   const total = ref(0)
+  const orderTimers = ref({}) // 存储订单倒计时信息
   
   /**
    * 创建订单
@@ -88,11 +89,22 @@ export const useOrderStore = defineStore('order', () => {
   async function payUserOrder(orderId, payType = 1) {
     try {
       loading.value = true
-      const res = await payOrder(orderId, payType)
+      // 确保orderId是数字
+      const id = parseInt(orderId);
+      const res = await payOrder(id, payType)
+      
+      // 支付成功后刷新订单详情
+      if (res.success) {
+        await fetchOrderDetail(id)
+      }
+      
       return res
     } catch (error) {
       console.error('支付订单失败:', error)
-      throw error
+      return {
+        success: false,
+        errorMsg: '支付请求失败，请稍后重试'
+      }
     } finally {
       loading.value = false
     }
@@ -101,12 +113,13 @@ export const useOrderStore = defineStore('order', () => {
   /**
    * 取消订单
    * @param {number} orderId - 订单ID
+   * @param {string} reason - 取消原因
    * @returns {Promise} - 取消结果
    */
-  async function cancelUserOrder(orderId) {
+  async function cancelUserOrder(orderId, reason = "用户取消") {
     try {
       loading.value = true
-      const res = await cancelOrder(orderId)
+      const res = await cancelOrder(orderId, { reason })
       return res
     } catch (error) {
       console.error('取消订单失败:', error)
@@ -133,6 +146,50 @@ export const useOrderStore = defineStore('order', () => {
       loading.value = false
     }
   }
+
+  /**
+   * 开始订单倒计时 - 第一次点击支付才开始
+   * @param {number} orderId - 订单ID
+   */
+  function startOrderCountdown(orderId) {
+    // 检查是否已经存在倒计时，如果不存在才设置
+    if (!orderTimers.value[orderId]) {
+      // 设置30分钟倒计时，从当前时间开始
+      const expireTime = Date.now() + 30 * 60 * 1000;
+      orderTimers.value[orderId] = expireTime;
+      
+      // 持久化保存
+      localStorage.setItem(`order_timer_${orderId}`, expireTime.toString());
+    }
+  }
+  
+  /**
+   * 获取订单剩余时间（秒）
+   * @param {number} orderId - 订单ID
+   * @returns {number} - 剩余时间（秒）
+   */
+  function getOrderRemainingTime(orderId) {
+    // 从本地存储获取倒计时信息
+    const savedTime = localStorage.getItem(`order_timer_${orderId}`);
+    const expireTime = savedTime ? parseInt(savedTime) : orderTimers.value[orderId];
+    
+    if (!expireTime) return 0;
+    
+    const now = Date.now();
+    const remainingMs = expireTime - now;
+    
+    // 返回剩余秒数，如果已经过期则返回0
+    return Math.max(0, Math.floor(remainingMs / 1000));
+  }
+  
+  /**
+   * 清除订单倒计时
+   * @param {number} orderId - 订单ID
+   */
+  function clearOrderCountdown(orderId) {
+    delete orderTimers.value[orderId];
+    localStorage.removeItem(`order_timer_${orderId}`);
+  }
   
   // 计算属性
   const isLoading = computed(() => loading.value)
@@ -144,6 +201,7 @@ export const useOrderStore = defineStore('order', () => {
     orderList,
     loading,
     total,
+    orderTimers,
     
     // 计算属性
     isLoading,
@@ -155,6 +213,9 @@ export const useOrderStore = defineStore('order', () => {
     fetchOrderList,
     payUserOrder,
     cancelUserOrder,
-    confirmUserOrder
+    confirmUserOrder,
+    startOrderCountdown,
+    getOrderRemainingTime,
+    clearOrderCountdown
   }
 })

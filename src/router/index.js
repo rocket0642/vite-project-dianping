@@ -50,26 +50,30 @@ const routes = [
     component: () => import('../views/cart/index.vue'),
     meta: { title: '购物车', requiresAuth: false }
   },
-  // {
-  //   path: '/order/create',
-  //   component: () => import('../views/order/create.vue'),
-  //   meta: { title: '创建订单', requiresAuth: true }
-  // },
-  // {
-  //   path: '/order/pay/:id',
-  //   component: () => import('../views/order/pay.vue'),
-  //   meta: { title: '支付订单', requiresAuth: true }
-  // },
-  // {
-  //   path: '/order/list',
-  //   component: () => import('../views/order/list.vue'),
-  //   meta: { title: '订单列表', requiresAuth: true }
-  // },
-  // {
-  //   path: '/order/:id',
-  //   component: () => import('../views/order/detail.vue'),
-  //   meta: { title: '订单详情', requiresAuth: true }
-  // },
+  {
+    path: '/order/create',
+    component: () => import('../views/order/create.vue'),
+    meta: { title: '创建订单', requiresAuth: true }
+  },
+  {
+    path: '/order/pay/:id',
+    name: 'OrderPay',
+    component: () => import('../views/order/pay.vue'),
+    meta: {
+      requiresAuth: true,
+      title: '订单支付'
+    }
+  },
+  {
+    path: '/order/list',
+    component: () => import('../views/order/list.vue'),
+    meta: { title: '订单列表', requiresAuth: true }
+  },
+  {
+    path: '/order/:id',
+    component: () => import('../views/order/detail.vue'),
+    meta: { title: '订单详情', requiresAuth: true }
+  },
   // {
   //   path: '/voucher/:shopId',
   //   component: () => import('../views/voucher/index.vue'),
@@ -100,6 +104,11 @@ const routes = [
     path: '/order/logistics/:id',
     name: 'OrderLogistics',
     component: () => import('../views/order/logistics.vue')
+  },
+  {
+    path: '/order/comment/:id',
+    component: () => import('../views/order/comment.vue'),
+    meta: { title: '订单评价', requiresAuth: true }
   }
 ]
 

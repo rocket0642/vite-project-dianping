@@ -46,23 +46,25 @@ export function getUserOrders(params) {
  * @param {number} payType - 支付方式: 1-微信支付，2-支付宝
  * @returns {Promise} - 支付结果
  */
-export function payOrder(orderId, payType) {
+export function payOrder(orderId, payType = 1) {
   return request({
-    url: `/order/pay/${orderId}`,
+    url: '/order/pay',
     method: 'post',
-    params: { payType }
+    data: { orderId, payType }
   })
 }
 
 /**
  * 取消订单
  * @param {number} orderId - 订单ID
+ * @param {Object} data - 取消原因等数据
  * @returns {Promise} - 取消结果
  */
-export function cancelOrder(orderId) {
+export function cancelOrder(orderId, data = {}) {
   return request({
     url: `/order/cancel/${orderId}`,
-    method: 'post'
+    method: 'post',
+    data
   })
 }
 

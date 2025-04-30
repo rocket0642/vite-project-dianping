@@ -1,16 +1,20 @@
 <script setup>
 import { ref, computed, onMounted, onBeforeUnmount } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
-import { ElMessage, ElButton } from 'element-plus'
+import { ElMessage, ElMessageBox, ElDialog, ElButton, ElRadio, ElEmpty } from 'element-plus'
 import AppLayout from '../../components/AppLayout.vue'
+import AddressForm from '../../components/AddressForm.vue'
 import { useOrderStore } from '../../stores/order'
+import { useUserStore } from '../../stores/user'
+import { getUserAddresses } from '../../api/address'
 
 // 路由实例
 const route = useRoute()
 const router = useRouter()
 
-// 订单状态管理
+// 状态管理
 const orderStore = useOrderStore()
+const userStore = useUserStore()
 
 // 状态
 const loading = ref(true)
@@ -18,8 +22,15 @@ const paying = ref(false)
 const order = ref({})
 const orderId = parseInt(route.params.id)
 const payType = ref(1) // 默认微信支付
-const countdown = ref(30 * 60) // 默认30分钟支付倒计时
+const countdown = ref(1800) // 默认30分钟倒计时（秒）
 const timer = ref(null)
+
+// 地址相关
+const addressDialogVisible = ref(false)
+const addressFormVisible = ref(false)
+const addresses = ref([])
+const addressesLoading = ref(false)
+const selectedAddress = ref(null)
 
 // 计算属性
 const formatAmount = computed(() => {
@@ -38,20 +49,110 @@ const countdownText = computed(() => {
 const loadOrder = async () => {
   loading.value = true
   try {
-    await orderStore.fetchOrderDetail(orderId)
+    const result = await orderStore.fetchOrderDetail(orderId)
+    
+    if (!result) {
+      ElMessage.error('订单不存在')
+      router.replace('/order/list')
+      return
+    }
+    
     order.value = orderStore.currentOrder
     
-    // 如果订单已支付，跳转到订单详情页
+    // 如果订单已支付或已取消，跳转到订单详情页
     if (order.value.status !== 1) {
-      ElMessage.info('订单已支付或已取消')
-      router.replace(`/order/${orderId}`)
+      ElMessage.info('该订单已不在待支付状态')
+      router.replace(`/order/detail/${orderId}`)
+      return
     }
+    
+    // 初始化地址
+    initAddress()
+    
+    // 初始化倒计时
+    initCountdown()
+    
   } catch (error) {
     console.error('加载订单失败:', error)
-    ElMessage.error('订单不存在或已失效')
+    ElMessage.error('订单加载失败')
     router.replace('/order/list')
   } finally {
     loading.value = false
+  }
+}
+
+/**
+ * 初始化倒计时
+ */
+const initCountdown = () => {
+  if (!order.value || !order.value.createTime) {
+    countdown.value = 1800; // 默认30分钟
+    startCountdown();
+    return;
+  }
+  
+  try {
+    // 从订单创建时间计算剩余时间
+    const createTime = new Date(order.value.createTime.replace(/-/g, '/')).getTime();
+    const expireTime = createTime + 30 * 60 * 1000; // 30分钟后过期
+    const now = Date.now();
+    
+    // 计算剩余秒数
+    const remainingTime = Math.max(0, Math.floor((expireTime - now) / 1000));
+    
+    if (remainingTime <= 0) {
+      // 订单已超时，自动取消
+      handleExpiredOrder();
+      return;
+    }
+    
+    countdown.value = remainingTime;
+    startCountdown();
+  } catch (error) {
+    console.error('计算倒计时出错:', error);
+    countdown.value = 1800; // 出错时设置默认30分钟
+    startCountdown();
+  }
+}
+
+/**
+ * 启动倒计时
+ */
+const startCountdown = () => {
+  clearInterval(timer.value)
+  
+  timer.value = setInterval(() => {
+    countdown.value--
+    
+    if (countdown.value <= 0) {
+      clearInterval(timer.value)
+      handleExpiredOrder()
+    }
+  }, 1000)
+}
+
+/**
+ * 处理超时订单
+ */
+const handleExpiredOrder = async () => {
+  try {
+    // 取消订单
+    await orderStore.cancelUserOrder(orderId, "超时自动取消")
+    
+    ElMessageBox.alert(
+      '订单已超时自动取消',
+      '支付超时',
+      {
+        confirmButtonText: '返回订单列表',
+        callback: () => {
+          router.push('/order/list')
+        }
+      }
+    )
+  } catch (error) {
+    console.error('取消订单失败:', error)
+    ElMessage.error('系统错误，请稍后重试')
+    router.push('/order/list')
   }
 }
 
@@ -64,12 +165,15 @@ const payOrder = async () => {
   paying.value = true
   try {
     const res = await orderStore.payUserOrder(orderId, payType.value)
-    if (res.success) {
+    
+    if (res && res.success) {
       ElMessage.success('支付成功')
+      // 清除倒计时
+      clearInterval(timer.value)
       // 跳转到订单详情页
-      router.push(`/order/${orderId}`)
+      router.push(`/order/detail/${orderId}`)
     } else {
-      ElMessage.error(res.errorMsg || '支付失败')
+      ElMessage.error(res?.errorMsg || '支付失败，请稍后重试')
     }
   } catch (error) {
     console.error('支付订单失败:', error)
@@ -84,17 +188,50 @@ const payOrder = async () => {
  */
 const cancelOrder = async () => {
   try {
-    const res = await orderStore.cancelUserOrder(orderId)
-    if (res.success) {
-      ElMessage.success('订单已取消')
-      router.push('/order/list')
-    } else {
-      ElMessage.error(res.errorMsg || '取消订单失败')
-    }
+    ElMessageBox.confirm(
+      '确定要取消订单吗？',
+      '取消订单',
+      {
+        confirmButtonText: '确定',
+        cancelButtonText: '返回',
+        type: 'warning'
+      }
+    ).then(async () => {
+      const res = await orderStore.cancelUserOrder(orderId)
+      if (res.success) {
+        ElMessage.success('订单已取消')
+        // 清除倒计时
+        clearInterval(timer.value)
+        router.push('/order/list')
+      } else {
+        ElMessage.error(res.errorMsg || '取消订单失败')
+      }
+    }).catch(() => {
+      // 用户取消操作
+    })
   } catch (error) {
     console.error('取消订单失败:', error)
     ElMessage.error('取消订单失败，请稍后重试')
   }
+}
+
+/**
+ * 跳转到订单列表（暂不支付）
+ */
+const skipPayment = () => {
+  ElMessageBox.confirm(
+    '订单将保留在您的订单列表中，超时未支付将自动取消',
+    '暂不支付',
+    {
+      confirmButtonText: '确定',
+      cancelButtonText: '返回',
+      type: 'info'
+    }
+  ).then(() => {
+    router.push('/order/list')
+  }).catch(() => {
+    // 用户取消操作
+  })
 }
 
 /**
@@ -105,20 +242,106 @@ const selectPayType = (type) => {
 }
 
 /**
- * 启动倒计时
+ * 初始化地址信息
  */
-const startCountdown = () => {
-  clearInterval(timer.value)
-  
-  timer.value = setInterval(() => {
-    countdown.value--
-    
-    if (countdown.value <= 0) {
-      clearInterval(timer.value)
-      ElMessage.warning('支付超时，订单已自动取消')
-      router.push('/order/list')
+const initAddress = () => {
+  // 如果订单已有地址信息，则使用订单地址
+  if (order.value.addressName && order.value.addressPhone && order.value.addressDetail) {
+    selectedAddress.value = {
+      id: order.value.addressId || 0,
+      name: order.value.addressName,
+      phone: order.value.addressPhone,
+      address: order.value.addressDetail
     }
-  }, 1000)
+  }
+  
+  // 加载用户地址列表
+  loadUserAddresses()
+}
+
+/**
+ * 加载用户地址列表
+ */
+const loadUserAddresses = async () => {
+  addressesLoading.value = true
+  try {
+    const res = await getUserAddresses()
+    if (res.success) {
+      addresses.value = res.data
+      
+      // 如果没有选中地址，且有默认地址，则使用默认地址
+      if (!selectedAddress.value && addresses.value.length > 0) {
+        const defaultAddress = addresses.value.find(addr => addr.isDefault)
+        selectedAddress.value = defaultAddress || addresses.value[0]
+      }
+    }
+  } catch (error) {
+    console.error('加载地址列表失败:', error)
+    ElMessage.error('加载地址列表失败，请稍后重试')
+  } finally {
+    addressesLoading.value = false
+  }
+}
+
+/**
+ * 打开地址选择对话框
+ */
+const openAddressDialog = () => {
+  addressDialogVisible.value = true
+}
+
+/**
+ * 打开添加地址表单
+ */
+const openAddressForm = () => {
+  addressFormVisible.value = true
+  addressDialogVisible.value = false
+}
+
+/**
+ * 选择地址
+ */
+const selectAddress = (address) => {
+  selectedAddress.value = address
+}
+
+/**
+ * 更新订单地址
+ */
+const updateOrderAddress = async () => {
+  if (!selectedAddress.value) {
+    ElMessage.warning('请选择收货地址')
+    return
+  }
+  
+  try {
+    // 这里应该有一个更新订单地址的API，但目前没有实现
+    // 模拟更新成功
+    order.value.addressId = selectedAddress.value.id
+    order.value.addressName = selectedAddress.value.name
+    order.value.addressPhone = selectedAddress.value.phone
+    order.value.addressDetail = selectedAddress.value.address
+    
+    ElMessage.success('收货地址已更新')
+    addressDialogVisible.value = false
+  } catch (error) {
+    console.error('更新地址失败:', error)
+    ElMessage.error('更新地址失败，请稍后重试')
+  }
+}
+
+/**
+ * 地址添加成功回调
+ */
+const handleAddressSuccess = (address) => {
+  addressFormVisible.value = false
+  loadUserAddresses()
+  // 选中新添加的地址
+  selectedAddress.value = address
+  // 重新打开地址选择对话框
+  setTimeout(() => {
+    addressDialogVisible.value = true
+  }, 300)
 }
 
 /**
@@ -126,7 +349,6 @@ const startCountdown = () => {
  */
 onMounted(() => {
   loadOrder()
-  startCountdown()
 })
 
 /**
@@ -139,293 +361,392 @@ onBeforeUnmount(() => {
 
 <template>
   <AppLayout>
-    <div class="order-pay-container">
-      <div v-if="loading" class="loading-container">
-        <div class="loading-spinner"></div>
-        <p>正在加载订单信息...</p>
+    <div class="order-pay-container" v-loading="loading">
+      <div class="pay-header">
+        <h2>订单支付</h2>
+        
+        <div class="countdown">
+          <span class="countdown-label">支付剩余时间：</span>
+          <span class="countdown-time">{{ countdownText }}</span>
+        </div>
       </div>
       
-      <template v-else>
-        <div class="pay-header">
-          <h1>订单支付</h1>
-          <div class="countdown">
-            支付剩余时间：<span class="time">{{ countdownText }}</span>
+      <div class="order-info" v-if="order.id">
+        <div class="order-number">
+          <span>订单号：{{ order.id }}</span>
+          <span>下单时间：{{ order.createTime }}</span>
+        </div>
+        
+        <div class="order-amount">
+          <span class="amount-label">支付金额：</span>
+          <span class="amount-value">¥{{ formatAmount }}</span>
+        </div>
+        
+        <div class="order-goods">
+          <div class="goods-shop">{{ order.shopName }}</div>
+          <div class="goods-item">
+            <span class="goods-name">{{ order.goodsName }}</span>
+            <span class="goods-count">x{{ order.count }}</span>
           </div>
         </div>
         
-        <div class="order-info">
-          <div class="info-row">
-            <span class="label">订单号：</span>
-            <span class="value">{{ order.id }}</span>
+        <div class="order-address">
+          <div class="address-header">
+            <div class="address-title">收货信息</div>
+            <el-button type="primary" size="small" @click="openAddressDialog">修改地址</el-button>
           </div>
-          <div class="info-row">
-            <span class="label">商品名称：</span>
-            <span class="value">{{ order.goodsName }}</span>
+          <div class="address-content" v-if="selectedAddress">
+            <p>{{ selectedAddress.name }} {{ selectedAddress.phone }}</p>
+            <p>{{ selectedAddress.address }}</p>
           </div>
-          <div class="info-row">
-            <span class="label">商品数量：</span>
-            <span class="value">{{ order.count }}件</span>
-          </div>
-          <div class="info-row amount">
-            <span class="label">应付金额：</span>
-            <span class="value price">¥{{ formatAmount }}</span>
+          <div class="address-content" v-else>
+            <p>{{ order.addressName }} {{ order.addressPhone }}</p>
+            <p>{{ order.addressDetail }}</p>
           </div>
         </div>
+      </div>
+      
+      <div class="payment-methods">
+        <h3>支付方式</h3>
         
-        <div class="pay-methods">
-          <h2 class="section-title">支付方式</h2>
-          <div class="methods-container">
-            <div 
-              :class="['method-item', { active: payType === 1 }]"
-              @click="selectPayType(1)"
-            >
-              <div class="method-icon wechat"></div>
-              <div class="method-name">微信支付</div>
-            </div>
-            <div 
-              :class="['method-item', { active: payType === 2 }]"
-              @click="selectPayType(2)"
-            >
-              <div class="method-icon alipay"></div>
-              <div class="method-name">支付宝</div>
-            </div>
-          </div>
-        </div>
-        
-        <div class="pay-actions">
-          <el-button @click="cancelOrder">取消订单</el-button>
-          <el-button 
-            type="primary" 
-            :loading="paying"
-            @click="payOrder"
+        <div class="method-list">
+          <div 
+            class="method-item" 
+            :class="{ active: payType === 1 }"
+            @click="selectPayType(1)"
           >
-            立即支付
-          </el-button>
+            <span class="method-icon wechat-icon">
+              <i class="el-icon-wechat"></i>
+            </span>
+            <span class="method-name">微信支付</span>
+          </div>
+          
+          <div 
+            class="method-item" 
+            :class="{ active: payType === 2 }"
+            @click="selectPayType(2)"
+          >
+            <span class="method-icon alipay-icon">
+              <i class="el-icon-alipay"></i>
+            </span>
+            <span class="method-name">支付宝</span>
+          </div>
         </div>
-        
-        <div class="pay-tips">
-          <p>支付提示：</p>
-          <ul>
-            <li>请在下单后30分钟内完成支付，超时订单会自动取消</li>
-            <li>如有疑问，请联系客服电话：400-123-4567</li>
-          </ul>
+      </div>
+      
+      <div class="actions">
+        <button class="pay-btn" @click="payOrder" :disabled="paying">
+          {{ paying ? '支付中...' : '立即支付' }}
+        </button>
+        <button class="cancel-btn" @click="cancelOrder">取消订单</button>
+        <button class="skip-btn" @click="skipPayment">暂不支付</button>
+      </div>
+      
+      <!-- 地址选择对话框 -->
+      <el-dialog
+        v-model="addressDialogVisible"
+        title="选择收货地址"
+        width="600px"
+      >
+        <div class="address-dialog-header">
+          <el-button type="primary" @click="openAddressForm">添加新地址</el-button>
         </div>
-      </template>
+        <div class="address-dialog-content" v-loading="addressesLoading">
+          <el-empty v-if="addresses.length === 0" description="暂无收货地址" />
+          <div 
+            v-else
+            v-for="address in addresses" 
+            :key="address.id" 
+            :class="['address-dialog-item', { active: selectedAddress && selectedAddress.id === address.id }]"
+            @click="selectAddress(address)"
+          >
+            <div class="address-info">
+              <div class="contact">
+                <span class="name">{{ address.name }}</span>
+                <span class="phone">{{ address.phone }}</span>
+                <span v-if="address.isDefault" class="default-tag">默认</span>
+              </div>
+              <div class="detail">{{ address.address }}</div>
+            </div>
+            <div class="address-actions">
+              <el-radio 
+                v-model="selectedAddress.id" 
+                :label="address.id"
+                @change="selectAddress(address)"
+              >选择</el-radio>
+            </div>
+          </div>
+        </div>
+        <template #footer>
+          <span class="dialog-footer">
+            <el-button @click="addressDialogVisible = false">取消</el-button>
+            <el-button type="primary" @click="updateOrderAddress">确认</el-button>
+          </span>
+        </template>
+      </el-dialog>
+      
+      <!-- 添加地址对话框 -->
+      <el-dialog
+        v-model="addressFormVisible"
+        title="添加收货地址"
+        width="600px"
+      >
+        <address-form @success="handleAddressSuccess" @cancel="addressFormVisible = false" />
+      </el-dialog>
     </div>
   </AppLayout>
 </template>
 
 <style scoped>
 .order-pay-container {
+  width: 80%;
+  max-width: 800px;
+  margin: 20px auto;
   padding: 20px;
   background-color: #fff;
   border-radius: 8px;
   box-shadow: 0 2px 12px rgba(0, 0, 0, 0.1);
 }
 
-.loading-container {
-  text-align: center;
-  padding: 50px 0;
-}
-
-.loading-spinner {
-  width: 40px;
-  height: 40px;
-  margin: 0 auto 20px;
-  border: 4px solid #f3f3f3;
-  border-top: 4px solid #409EFF;
-  border-radius: 50%;
-  animation: spin 1s linear infinite;
-}
-
-@keyframes spin {
-  0% { transform: rotate(0deg); }
-  100% { transform: rotate(360deg); }
-}
-
 .pay-header {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  margin-bottom: 30px;
-  border-bottom: 1px solid #f0f0f0;
   padding-bottom: 15px;
+  border-bottom: 1px solid #eee;
+  margin-bottom: 20px;
 }
 
-.pay-header h1 {
-  font-size: 22px;
-  color: #333;
-}
-
-.countdown {
-  font-size: 16px;
-  color: #666;
-}
-
-.time {
-  color: #f56c6c;
+.countdown-time {
+  font-size: 18px;
   font-weight: bold;
+  color: #f56c6c;
 }
 
 .order-info {
-  background-color: #f8f8f8;
-  padding: 20px;
-  border-radius: 8px;
   margin-bottom: 30px;
 }
 
-.info-row {
+.order-number {
   display: flex;
-  margin-bottom: 10px;
+  justify-content: space-between;
+  color: #606266;
+  margin-bottom: 15px;
 }
 
-.info-row:last-child {
-  margin-bottom: 0;
+.order-amount {
+  margin: 20px 0;
 }
 
-.info-row.amount {
-  margin-top: 20px;
-  padding-top: 20px;
-  border-top: 1px dashed #e0e0e0;
+.amount-label {
+  font-size: 16px;
+  color: #606266;
 }
 
-.label {
-  width: 100px;
-  color: #666;
-}
-
-.value {
-  flex: 1;
-}
-
-.price {
+.amount-value {
   font-size: 24px;
   font-weight: bold;
   color: #f56c6c;
+  margin-left: 10px;
 }
 
-.section-title {
-  font-size: 18px;
+.order-goods {
+  background-color: #f8f8f8;
+  padding: 15px;
+  border-radius: 4px;
   margin-bottom: 20px;
-  color: #333;
-  position: relative;
-  padding-left: 12px;
 }
 
-.section-title::before {
-  content: '';
-  position: absolute;
-  left: 0;
-  top: 50%;
-  transform: translateY(-50%);
-  width: 4px;
-  height: 18px;
-  background-color: #409EFF;
-  border-radius: 2px;
+.goods-shop {
+  font-weight: bold;
+  margin-bottom: 10px;
+  color: #303133;
 }
 
-.methods-container {
+.goods-item {
   display: flex;
-  gap: 20px;
-  margin-bottom: 30px;
+  justify-content: space-between;
+  color: #606266;
 }
 
-.method-item {
-  width: 180px;
-  height: 80px;
-  border: 1px solid #e0e0e0;
-  border-radius: 8px;
+.order-address {
+  margin-bottom: 20px;
+  border: 1px solid #ebeef5;
+  border-radius: 4px;
+  padding: 15px;
+  background-color: #f8f8f8;
+}
+
+.address-header {
   display: flex;
-  flex-direction: column;
+  justify-content: space-between;
   align-items: center;
-  justify-content: center;
+  margin-bottom: 10px;
+}
+
+.address-title {
+  font-weight: bold;
+}
+
+.address-content {
+  color: #606266;
+  line-height: 1.5;
+}
+
+/* 地址选择对话框样式 */
+.address-dialog-header {
+  margin-bottom: 15px;
+  display: flex;
+  justify-content: flex-end;
+}
+
+.address-dialog-content {
+  max-height: 400px;
+  overflow-y: auto;
+}
+
+.address-dialog-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 15px;
+  border: 1px solid #ebeef5;
+  border-radius: 4px;
+  margin-bottom: 10px;
   cursor: pointer;
   transition: all 0.3s;
 }
 
-.method-item:hover {
-  border-color: #c0c4cc;
+.address-dialog-item:hover {
+  border-color: #409eff;
+  background-color: #f0f9ff;
+}
+
+.address-dialog-item.active {
+  border-color: #409eff;
+  background-color: #f0f9ff;
+}
+
+.address-info {
+  flex: 1;
+}
+
+.contact {
+  margin-bottom: 5px;
+}
+
+.name {
+  font-weight: bold;
+  margin-right: 10px;
+}
+
+.phone {
+  color: #606266;
+}
+
+.default-tag {
+  display: inline-block;
+  font-size: 12px;
+  padding: 2px 5px;
+  background-color: #f56c6c;
+  color: #fff;
+  border-radius: 2px;
+  margin-left: 5px;
+}
+
+.detail {
+  color: #606266;
+  line-height: 1.5;
+}
+
+.dialog-footer {
+  display: flex;
+  justify-content: flex-end;
+  margin-top: 20px;
+}
+
+.payment-methods {
+  margin-bottom: 30px;
+}
+
+.method-list {
+  display: flex;
+  gap: 20px;
+  margin-top: 15px;
+}
+
+.method-item {
+  display: flex;
+  align-items: center;
+  padding: 15px;
+  border: 1px solid #dcdfe6;
+  border-radius: 4px;
+  cursor: pointer;
+  transition: all 0.3s;
 }
 
 .method-item.active {
-  border-color: #409EFF;
+  border-color: #409eff;
   background-color: #f0f9ff;
 }
 
 .method-icon {
-  width: 40px;
-  height: 40px;
-  margin-bottom: 8px;
-  background-size: contain;
-  background-repeat: no-repeat;
-  background-position: center;
+  font-size: 24px;
+  margin-right: 10px;
 }
 
-.method-icon.wechat {
-  background-image: url('data:image/svg+xml;base64,PHN2ZyB0PSIxNjkwNTQzMjgyNzQ2IiBjbGFzcz0iaWNvbiIgdmlld0JveD0iMCAwIDEwMjQgMTAyNCIgdmVyc2lvbj0iMS4xIiB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHAtaWQ9IjMyMzciIHdpZHRoPSIyMDAiIGhlaWdodD0iMjAwIj48cGF0aCBkPSJNMzA4LjY1NiA0MDYuMTI4YTM4LjA4IDM4LjA4IDAgMSAwIDcxLjQ4OC0xNy4xNTIgMzguMDggMzguMDggMCAwIDAtNzEuNDg4IDE3LjE1MnoiIGZpbGw9IiM0QkQ3NUYiIHAtaWQ9IjMyMzgiPjwvcGF0aD48cGF0aCBkPSJNNjA2LjA4IDMxNC40OTZhMzMuMTUyIDMzLjE1MiAwIDEgMCA2Mi4yNzItMTUuMDQgMzMuMTUyIDMzLjE1MiAwIDAgMC02Mi4yNzIgMTUuMDR6IiBmaWxsPSIjNEJENzVGIiBwLWlkPSIzMjM5Ij48L3BhdGg+PHBhdGggZD0iTTUxMiA0LjYwOGMtMjgwLjc2OCAwLTUwOC4xNiAyMjcuMzkyLTUwOC4xNiA1MDguMTYgMCAyODAuNzY4IDIyNy4zOTIgNTA3LjM5MiA1MDguMTYgNTA3LjM5MiAyODAuNzY4IDAgNTA3LjM5Mi0yMjYuNjI0IDUwNy4zOTItNTA3LjM5MiAwLTI4MC43NjgtMjI2LjYyNC01MDguMTYtNTA3LjM5Mi01MDguMTZ6IG0tOTkuNDU2IDYzNi4yODhjLTI2LjQ5NiAwLTQ3LjYxNi01LjM3Ni03My45MzYtMTAuNzUybC03My45MzYgMzYuOTkyIDIxLjEyLTYzLjM2Yy01Mi45OTItMzYuOTkyLTg0LjY3Mi04NC42NzItODQuNjcyLTE0Mi44NDggMC04NC42NzIgNzMuOTM2LTE0Ny45NjggMjExLjQ1Ni0xNDcuOTY4IDEwMy44NTYgMCAxOTUuNDU2IDYzLjM2IDIxMS40NTYgMTQ4LjczNi00Ny42MTYtNS4zNzYtNDcuNjE2LTUuMzc2LTg5LjI4LTUuMzc2LTEwNS4zOTIgMC0xOTAuMDggNzkuMjk2LTE5MC4wOCAxNzQuNDY0IDAgMTYuMTI4IDBcIDEwLjc1MiA1LjM3NiAxNi4xMjhIM#ze1LjczNnogbTMyNi4yNzIgNzMuOTM2bDE1Ljc0NCA1Mi45OTItNTcuNjAtMzEuODcyYy0yMS4xMiA1LjM3Ni00Mi4yNCAMTAuNzUyLTYzLjM2IDEwLjc1Mi05NC43MiAwLTE2OS4wODgtNjMuMzYtMTY5LjA4OC0xNDIuODQ4IDAtNzkuMjk2IDc0LjM2OC0xNDIuODQ4IDE2OS4wODgtMTQyLjg0OCA4OS4yOCAwIDE2OC4zMiA2My4zNiAxNjguMzIgMTQyLjg0OCAwIDQ3LjYxNi0zMS44NzIgOS41LjM2OC04NC42NzIgMTMMS42NHoiIGZpbGw9IiM0QkQ3NUYiIHAtaWQ9IjMyNDAiPjwvcGF0aD48cGF0aCBkPSJNNTU4LjQ2NCA2OTguNjg4YTI3LjY0OCAyNy42NDggMCAxIDAgNTIuMDk2LTEzLjE4NCAyNy42NDggMjcuNjQ4IDAgMCAwLTUyLjA5NiAxMy4xODR6IiBmaWxsPSIjNEJENzVGIiBwLWlkPSIzMjQxIj48L3BhdGg+PHBhdGggZD0iTTcyNS40MDggNjI5Ljc2YTMzLjE1MiAzMy4xNTIgMCAxIDAgNjEuNTA0LTE1LjgwOCAzMy4xNTIgMzMuMTUyIDAgMCAwLTYxLjUwNCAxNS44MDh6IiBmaWxsPSIjNEJENzVGIiBwLWlkPSIzMjQyIj48L3BhdGg+PC9zdmc+');
+.wechat-icon {
+  color: #07c160;
 }
 
-.method-icon.alipay {
-  background-image: url('data:image/svg+xml;base64,PHN2ZyB0PSIxNjkwNTQzMjU5NDA2IiBjbGFzcz0iaWNvbiIgdmlld0JveD0iMCAwIDEwMjQgMTAyNCIgdmVyc2lvbj0iMS4xIiB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHAtaWQ9IjI2MTMiIHdpZHRoPSIyMDAiIGhlaWdodD0iMjAwIj48cGF0aCBkPSJNMjMwLjkgNzk5LjdjLTE0LjYgMC0yOS0yLjItNDIuOC02LjRsMCAwYy02Mi41LTE5LjEtOTguMi04Mi4yLTc5LjEtMTQ0LjcgMTkuMS02Mi41IDgyLjItOTguMiAxNDQuNy03OS4xIDYyLjUgMTkuMSA5OC4yIDgyLjIgNzkuMSAxNDQuNyAwIDAgMCAwIDAgMC0xNC43IDQ4LjEtNTguNyA4Mi4xLTEwOS40IDgyLjEgMCAwIDAgMCAwIDBsMi41IDMuNFpNNzEuNCA2MTEuM2MtMTUuNiA1MC45IDEzLjMgMTA0LjYgNjQuMiAxMjAuMiA1MC45IDE1LjYgMTA0LjYtMTMuMyAxMjAuMi02NC4yIDE1LjYtNTAuOS0xMy4zLTEwNC42LTY0LjItMTIwLjJzLTEwNC42IDEzLjMtMTIwLjIgNjQuMmMtMC4xLTAuMSAwIDAgMCAweiIgZmlsbD0iIzEyOTZEQiIgcC1pZD0iMjYxNCI+PC9wYXRoPjxwYXRoIGQ9Ik05NDkuNCA1MTJDOTQ5LjQgMjM0LjkgNzI2LjUgMTIgNDQ5LjQgMTJzLTUwMCAyMjMtNTAwIDUwMGMwIDI3Ni4xIDIyMi45IDUwMCA1MDAgNTAwIDg1LjYgMCAxNjYuMS0yMS42IDIzNi4zLTU5LjYgMi4yLTEuMiA0LjctMS45IDcuMy0xLjkgMi43IDAgNS4zIDAuNyA3LjYgMiA0LjQgMi44IDYuOSA3LjcgNi45IDEyLjkgMCAwLjQgMCAwLjkgMCAxLjMtMC4yIDQuMS0yLjQgNy45LTUuNyAxMC4yLTc1LjUgNDEuMS0xNjIuMSA2NC4zLTI1My45IDY0LjMtMjkxLjQgMC01MjgtMjM2LjYtNTI4LTUyOHMyMzYuNi01MjggNTI4LTUyOCA1MjggMjM2LjYgNTI4IDUyOHYwYzAgNTAuNC03LjIgOTkuMi0yMC44IDE0NS41IDAgMC0wLjUgMC43LTEuMSAxLjUtNTIuMyA4OC4xLTIyOS4yIDEzNi4zLTM2NC4xIDE1NS41LTUxLjcgNy4zLTc3IDExLTkxIDEzLjEgMCAwLTIuNyAwLjItNyAwLjYtMi43IDAuMi01LjYgMC42LTguOCAwLjl2LTk5LjZjMTMuMi0xMC4yIDMyLjctMjUuNyAzMi43LTI1LjdTNjczIDM3OC4xIDY4NSAzNjAuNGMyNC42LTM2LjYgNDYuNC04Ny45IDQ2LjQtMTI0LjEgMC0xMTIuNi0xMjcuMi0xNzAuOS0yMTcuMS0xMDIuNi01OS4xIDQ1LTYwLjMgMTExLjEtNjAuMyAxMTEuMXMyLjUgNDUuNyAzNy44IDQ3LjRjMC4xIDAgMC4zIDAgMC40IDAuMSA1LjcgMC45IDExLjUtMS41IDE1LjItNi4yIDEuMS0xLjQgMi4xLTIuOSAzLTQuNSA0LjctOC40IDcuMi0xOC40IDcuMi0yOS4yIDAtMi41LTAuMS00LjktMC40LTcuMy0yLjYtMjIuNyAzLjktNDUuNyAxOC4xLTY0IDQwLjItNTEuOCAxMDguNS0zNi4zIDEyNC44IDI0LjQgNi42IDI0LjEgMy43IDQ5LjgtOC41IDcxLjItMTEuMyAxOS44LTUwLjggODItNTAuOCA4MmwzMi45IDI1LjJWNDQwSDM0OHYtNTJoMjA1LjZ2LTQ0SDM0OHYtNTJoMTMwLjVWMjI1LjZjMC00LjQgMy42LTggOC04aDU1LjZjNC40IDAgOCAzLjYgOCA4VjI5MmgxMzEuMnY1MmgtMTMxLjJ2NDRIMTMwLjZ2MFYyOTJIMjYwVjIyNS42YzAtNC40IDMuNi04IDgtOGg1Ni43YzAuMSAwIDAuMyAwIDAuNCAwIDQuNSAwIDguMSAzLjYgOC4xIDguMXYxMTYuMmgyOC4yaDAuOXY1Mkg3NjEuOXYxNzkuNmMtMzcuMiA0LjktNzIuMSA3LjQtMTA0IDcuNHY0My4xYzM4LjUgMCA4MC42LTMuMyAxMjYuOC0xMC41IDI5MS43LTQ1LjYgMzU4LjYtMTE4LjUgMzU4LjYtMTE4LjV2Njl2OTEuOGMwIDQyLjMtOC44IDgyLjUtMjQuOSAxMTguOXM0OC4xLTQ0LjUgNDguMS00NC41di0yMC4xYzIgMCAzLjkgMC41IDUuNiAxLjNDOTM3LjIgNjQyLjEgOTQ5LjQgNTc4LjggOTQ5LjQgNTEyeiIgZmlsbD0iIzEyOTZEQiIgcC1pZD0iMjYxNSI+PC9wYXRoPjwvc3ZnPg==');
+.alipay-icon {
+  color: #1677ff;
 }
 
-.method-name {
-  font-size: 14px;
-  color: #333;
-}
-
-.pay-actions {
+.actions {
   display: flex;
-  justify-content: flex-end;
-  gap: 15px;
-  margin-bottom: 30px;
+  justify-content: center;
+  gap: 20px;
 }
 
-.pay-tips {
-  background-color: #f8f8f8;
-  padding: 15px;
-  border-radius: 8px;
-  color: #666;
-  font-size: 14px;
+.pay-btn, .cancel-btn, .skip-btn {
+  padding: 10px 20px;
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 16px;
+  transition: all 0.3s;
 }
 
-.pay-tips p {
-  margin-bottom: 10px;
+.pay-btn {
+  background-color: #409eff;
+  color: white;
 }
 
-.pay-tips ul {
-  margin-left: 20px;
+.pay-btn:hover {
+  background-color: #66b1ff;
 }
 
-.pay-tips li {
-  margin-bottom: 5px;
+.pay-btn:disabled {
+  background-color: #a0cfff;
+  cursor: not-allowed;
 }
 
-/* 响应式设计 */
-@media (max-width: 768px) {
-  .pay-header {
-    flex-direction: column;
-    align-items: flex-start;
-  }
-  
-  .countdown {
-    margin-top: 10px;
-  }
-  
-  .methods-container {
-    flex-direction: column;
-  }
-  
-  .method-item {
-    width: 100%;
-  }
-  
-  .pay-actions {
-    flex-direction: column;
-  }
-  
-  .pay-actions .el-button {
-    width: 100%;
-  }
+.cancel-btn {
+  background-color: #f56c6c;
+  color: white;
+}
+
+.cancel-btn:hover {
+  background-color: #f78989;
+}
+
+.skip-btn {
+  background-color: #909399;
+  color: white;
+}
+
+.skip-btn:hover {
+  background-color: #a6a9ad;
 }
 </style>

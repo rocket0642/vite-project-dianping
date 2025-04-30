@@ -5,6 +5,7 @@ import { ElMessage, ElMessageBox, ElSteps, ElStep, ElTag } from 'element-plus'
 import AppLayout from '../../components/AppLayout.vue'
 import { useOrderStore } from '../../stores/order'
 import { useUserStore } from '../../stores/user'
+import { checkOrderComment } from '../../api/comment'
 
 // 路由实例
 const route = useRoute()
@@ -18,6 +19,7 @@ const userStore = useUserStore()
 const loading = ref(true)
 const order = ref({})
 const orderId = parseInt(route.params.id)
+const isCommented = ref(false)
 
 // 订单状态步骤
 const orderSteps = computed(() => {
@@ -95,6 +97,18 @@ const getPayTypeText = (payType) => {
 }
 
 /**
+ * 检查订单是否已评价
+ */
+const checkOrderIsCommented = async () => {
+  try {
+    const res = await checkOrderComment(orderId)
+    isCommented.value = res
+  } catch (error) {
+    console.error('检查订单评价状态失败:', error)
+  }
+}
+
+/**
  * 加载订单详情
  */
 const loadOrderDetail = async () => {
@@ -102,6 +116,10 @@ const loadOrderDetail = async () => {
   try {
     await orderStore.fetchOrderDetail(orderId)
     order.value = orderStore.currentOrder
+    // 如果订单已完成，检查是否已评价
+    if (order.value.status === 4) {
+      await checkOrderIsCommented()
+    }
   } catch (error) {
     console.error('加载订单详情失败:', error)
     ElMessage.error('加载订单详情失败，请稍后重试')
@@ -202,6 +220,13 @@ const applyRefund = () => {
   router.push(`/order/after-sale/${orderId}`)
 }
 
+/**
+ * 评价订单
+ */
+const goToComment = () => {
+  router.push(`/order/comment/${orderId}`)
+}
+
 // 初始化
 onMounted(() => {
   if (!userStore.isLogin) {
@@ -271,6 +296,14 @@ onMounted(() => {
                 @click="viewLogistics"
               >
                 查看物流
+              </el-button>
+              <el-button 
+                v-if="order.status === 4 && !isCommented" 
+                type="warning" 
+                size="small" 
+                @click="goToComment"
+              >
+                评价订单
               </el-button>
               <el-button 
                 v-if="order.status === 2 || order.status === 4" 

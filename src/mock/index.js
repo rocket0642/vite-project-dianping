@@ -17,4 +17,10 @@ import './goods'
 // 引入订单模块的mock数据
 import './order'
 
+// 引入评价模块的mock数据
+import './comment'
+
+// 引入地址模块的mock数据
+import './address'
+
 export default Mock

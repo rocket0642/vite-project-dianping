@@ -1,12 +1,13 @@
 <script setup>
 import { ref, onMounted, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
-import { ElImage, ElTabs, ElTabPane, ElRate, ElIcon, ElSkeleton, ElSkeletonItem } from 'element-plus'
+import { ElImage, ElTabs, ElTabPane, ElRate, ElIcon, ElSkeleton, ElSkeletonItem, ElPagination } from 'element-plus'
 import { Location, Clock, Phone, Collection, Star } from '@element-plus/icons-vue'
 import AppLayout from '../../components/AppLayout.vue'
 import { useShopStore } from '../../stores/shop'
 import { useGoodsStore } from '../../stores/goods'
 import { getShopGoods } from '../../api/goods'
+import { getShopComments } from '../../api/comment'
 
 // 获取路由参数
 const route = useRoute()
@@ -25,6 +26,13 @@ const shop = ref({})
 const activeTab = ref('info')
 const isCollected = ref(false) // 假设初始未收藏
 const shopGoods = ref([])
+const commentsLoading = ref(false)
+const comments = ref([])
+const commentsTotal = ref(0)
+const commentsPagination = ref({
+  current: 1,
+  pageSize: 5
+})
 
 /**
  * 加载商铺详情数据
@@ -64,6 +72,35 @@ const loadShopGoods = async () => {
 }
 
 /**
+ * 加载商铺评价
+ */
+const loadShopComments = async () => {
+  commentsLoading.value = true
+  try {
+    const params = {
+      shopId: shopId,
+      current: commentsPagination.value.current,
+      pageSize: commentsPagination.value.pageSize
+    }
+    const res = await getShopComments(shopId, params)
+    
+    if (res && res.success) {
+      comments.value = res.data || []
+      commentsTotal.value = res.total || 0
+    } else {
+      comments.value = []
+      commentsTotal.value = 0
+    }
+  } catch (error) {
+    console.error('加载商铺评价失败:', error)
+    comments.value = []
+    commentsTotal.value = 0
+  } finally {
+    commentsLoading.value = false
+  }
+}
+
+/**
  * 跳转到商品详情页
  */
 const goToGoodsDetail = (goodsId) => {
@@ -71,11 +108,35 @@ const goToGoodsDetail = (goodsId) => {
 }
 
 /**
- * 在 activeTab 变更时加载商品
+ * 处理评价分页变化
+ */
+const handleCommentsPageChange = (page) => {
+  commentsPagination.value.current = page
+  loadShopComments()
+}
+
+/**
+ * 格式化评价日期
+ */
+const formatDate = (dateString) => {
+  const date = new Date(dateString)
+  return date.toLocaleDateString('zh-CN', {
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+    hour: '2-digit',
+    minute: '2-digit'
+  })
+}
+
+/**
+ * 在 activeTab 变更时加载对应数据
  */
 watch(activeTab, (newTab) => {
   if (newTab === 'goods' && shopGoods.value.length === 0) {
     loadShopGoods()
+  } else if (newTab === 'comments' && comments.value.length === 0) {
+    loadShopComments()
   }
 })
 
@@ -201,7 +262,68 @@ onMounted(() => {
               </el-tab-pane>
               <el-tab-pane label="评价" name="comments">
                 <div class="shop-comments">
-                  <p>评价功能正在开发中...</p>
+                  <el-skeleton :loading="commentsLoading" animated :count="3">
+                    <template #template>
+                      <div class="comment-skeleton" v-for="i in 3" :key="i">
+                        <div style="display: flex; align-items: center; margin-bottom: 10px;">
+                          <el-skeleton-item variant="circle" style="width: 40px; height: 40px;" />
+                          <div style="margin-left: 10px;">
+                            <el-skeleton-item variant="text" style="width: 100px;" />
+                          </div>
+                        </div>
+                        <el-skeleton-item variant="text" style="width: 30%; margin-bottom: 10px;" />
+                        <el-skeleton-item variant="p" style="width: 100%;" />
+                      </div>
+                    </template>
+                    
+                    <template #default>
+                      <div v-if="comments.length > 0" class="comments-list">
+                        <div v-for="comment in comments" :key="comment.id" class="comment-item">
+                          <div class="comment-header">
+                            <div class="user-avatar">
+                              <el-image :src="comment.userIcon" fit="cover" />
+                            </div>
+                            <div class="user-info">
+                              <div class="user-name">{{ comment.userNickName }}</div>
+                              <div class="comment-date">{{ formatDate(comment.createTime) }}</div>
+                            </div>
+                            <div class="comment-score">
+                              <el-rate v-model="comment.score" disabled />
+                            </div>
+                          </div>
+                          <div class="comment-content">
+                            {{ comment.content }}
+                          </div>
+                          <div v-if="comment.images && comment.images.length > 0" class="comment-images">
+                            <el-image 
+                              v-for="(image, index) in comment.images" 
+                              :key="index" 
+                              :src="image" 
+                              fit="cover"
+                              class="comment-image"
+                              :preview-src-list="comment.images"
+                            />
+                          </div>
+                          <div class="comment-good-info">
+                            <span class="goods-name">{{ comment.goodsName }}</span>
+                          </div>
+                        </div>
+                        
+                        <!-- 分页 -->
+                        <div class="comments-pagination">
+                          <el-pagination
+                            v-if="commentsTotal > commentsPagination.pageSize"
+                            :current-page="commentsPagination.current"
+                            :page-size="commentsPagination.pageSize"
+                            :total="commentsTotal"
+                            layout="prev, pager, next"
+                            @current-change="handleCommentsPageChange"
+                          />
+                        </div>
+                      </div>
+                      <el-empty v-else description="暂无评价" />
+                    </template>
+                  </el-skeleton>
                 </div>
               </el-tab-pane>
             </el-tabs>
@@ -379,5 +501,93 @@ onMounted(() => {
 .goods-sold {
   font-size: 12px;
   color: #999;
+}
+
+/* 评价样式 */
+.comments-list {
+  padding: 10px 0;
+}
+
+.comment-item {
+  margin-bottom: 25px;
+  padding-bottom: 20px;
+  border-bottom: 1px solid #f0f0f0;
+}
+
+.comment-header {
+  display: flex;
+  align-items: center;
+  margin-bottom: 10px;
+}
+
+.user-avatar {
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  overflow: hidden;
+  margin-right: 10px;
+}
+
+.user-avatar .el-image {
+  width: 100%;
+  height: 100%;
+}
+
+.user-info {
+  flex: 1;
+}
+
+.user-name {
+  font-weight: bold;
+  font-size: 14px;
+  margin-bottom: 3px;
+}
+
+.comment-date {
+  font-size: 12px;
+  color: #999;
+}
+
+.comment-score {
+  margin-left: auto;
+}
+
+.comment-content {
+  margin-bottom: 10px;
+  line-height: 1.6;
+}
+
+.comment-images {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-bottom: 10px;
+}
+
+.comment-image {
+  width: 80px;
+  height: 80px;
+  border-radius: 4px;
+  cursor: pointer;
+}
+
+.comment-good-info {
+  background-color: #f8f8f8;
+  padding: 5px 10px;
+  border-radius: 4px;
+  font-size: 12px;
+  color: #666;
+  display: inline-block;
+}
+
+.comments-pagination {
+  margin-top: 20px;
+  display: flex;
+  justify-content: center;
+}
+
+.comment-skeleton {
+  padding: 15px 0;
+  border-bottom: 1px solid #f0f0f0;
 }
 </style>
