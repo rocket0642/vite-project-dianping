@@ -15,7 +15,8 @@ const users = [
     gender: true,
     birthday: '2000-01-01',
     credits: 100,
-    level: false
+    level: false,
+    email: 'test@test.com',
   },
   {
     id: 2,
@@ -30,9 +31,35 @@ const users = [
     gender: true,
     birthday: '2000-01-01',
     credits: 100,
-    level: false
+    level: false,
+    email: 'test@test.com',
+  },
+  {
+    id: 3,
+    phone: '18739004120',
+    password: '123456',
+    nickName: '测试用户3',
+    icon: 'https://cube.elemecdn.com/0/88/03b0d39583f48206768a7534e55bcpng.png',
+    city: '杭州',
+    introduce: '这是一个测试账号',
+    fans: 10,
+    followee: 20,
+    gender: true,
+    birthday: '2000-01-01',
+    credits: 100,
+    level: false,
+    email: 'test@test.com',
   }
 ]
+
+// 从token中统一获取userPhone的辅助函数
+function getUserPhoneFromToken() {
+  const userStore = JSON.parse(localStorage.getItem('user-store') || '{}')
+  console.log(userStore)
+  const userPhone = userStore.userPhone
+  return userPhone? userPhone : ""
+}
+
 
 // 存储验证码
 const codeMaps = {}
@@ -230,21 +257,20 @@ Mock.mock('/api/user/register', 'post', (options) => {
  * 获取用户信息
  */
 Mock.mock('/api/user/me', 'get', (options) => {
-  // 从请求头获取token
-  const token = options.headers?.Authorization
   
-  if (!token) {
+  // 从token中提取用户ID
+  const userPhone = getUserPhoneFromToken()
+  console.log(userPhone)
+
+  if (userPhone === "") {
     return {
       success: false,
       errorMsg: '未登录'
     }
   }
-  
-  // 从token中提取用户ID
-  const userId = parseInt(token.split('_')[2])
-  
+
   // 查找用户
-  const user = users.find(u => u.id === userId)
+  const user = users.find(u => u.phone === userPhone)
   
   if (!user) {
     return {
@@ -266,24 +292,21 @@ Mock.mock('/api/user/me', 'get', (options) => {
  * 更新用户基本信息
  */
 Mock.mock('/api/user/update', 'put', (options) => {
-  // 从请求头获取token
-  const token = options.headers?.Authorization
   
-  if (!token) {
+  // 从token中提取用户ID
+  const userPhone = getUserPhoneFromToken()
+  
+  if (userPhone === "") {
     return {
       success: false,
       errorMsg: '未登录'
     }
   }
-  
-  // 从token中提取用户ID
-  const userId = parseInt(token.split('_')[2])
-  
   // 获取更新数据
   const { nickName, icon } = JSON.parse(options.body)
   
   // 查找用户
-  const userIndex = users.findIndex(u => u.id === userId)
+  const userIndex = users.findIndex(u => u.phone === userPhone)
   
   if (userIndex === -1) {
     return {
@@ -306,24 +329,22 @@ Mock.mock('/api/user/update', 'put', (options) => {
  * 更新用户详细信息
  */
 Mock.mock('/api/user/info', 'put', (options) => {
-  // 从请求头获取token
-  const token = options.headers?.Authorization
   
-  if (!token) {
+  // 从token中提取用户ID
+  const userPhone = getUserPhoneFromToken()
+  
+  if (userPhone === "") {
     return {
       success: false,
       errorMsg: '未登录'
     }
   }
   
-  // 从token中提取用户ID
-  const userId = parseInt(token.split('_')[2])
-  
   // 获取更新数据
   const { city, introduce, gender, birthday, email } = JSON.parse(options.body)
   
   // 查找用户
-  const userIndex = users.findIndex(u => u.id === userId)
+  const userIndex = users.findIndex(u => u.phone === userPhone)
   
   if (userIndex === -1) {
     return {

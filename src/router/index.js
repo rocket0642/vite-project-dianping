@@ -135,7 +135,10 @@ router.beforeEach((to, from, next) => {
   
   // 权限验证
   if (to.meta.requiresAuth) {
-    const token = localStorage.getItem('token')
+    // 从pinia持久化存储中获取token
+    const userStore = JSON.parse(localStorage.getItem('user-store') || '{}')
+    console.log(userStore)
+    const token = userStore.token
     if (!token) {
       next({ path: '/login', query: { redirect: to.fullPath } })
       return

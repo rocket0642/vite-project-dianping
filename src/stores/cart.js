@@ -1,11 +1,15 @@
 import { defineStore } from 'pinia'
-import { ref, computed } from 'vue'
+import { ref, computed, watch } from 'vue'
+import { useUserStore } from './user'
 
 /**
  * 购物车状态管理
  * 使用Pinia管理购物车数据
  */
 export const useCartStore = defineStore('cart', () => {
+  // 引入用户store
+  const userStore = useUserStore()
+  
   // 购物车商品列表
   const cartItems = ref([])
   
@@ -107,9 +111,7 @@ export const useCartStore = defineStore('cart', () => {
         checked
       })
     }
-    
-    // 持久化保存
-    saveToLocal()
+    saveCurrentCart()
   }
   
   /**
@@ -118,7 +120,7 @@ export const useCartStore = defineStore('cart', () => {
    */
   function removeFromCart(index) {
     cartItems.value.splice(index, 1)
-    saveToLocal()
+    saveCurrentCart()
   }
   
   /**
@@ -133,8 +135,8 @@ export const useCartStore = defineStore('cart', () => {
     
     if (index > -1) {
       cartItems.value.splice(index, 1)
-      saveToLocal()
     }
+    saveCurrentCart()
   }
   
   /**
@@ -145,7 +147,7 @@ export const useCartStore = defineStore('cart', () => {
   function updateItemCount(index, count) {
     if (count < 1) count = 1
     cartItems.value[index].count = count
-    saveToLocal()
+    saveCurrentCart()
   }
   
   /**
@@ -154,7 +156,7 @@ export const useCartStore = defineStore('cart', () => {
    */
   function toggleItemCheck(index) {
     cartItems.value[index].checked = !cartItems.value[index].checked
-    saveToLocal()
+    saveCurrentCart()
   }
   
   /**
@@ -169,8 +171,8 @@ export const useCartStore = defineStore('cart', () => {
     
     if (index > -1) {
       cartItems.value[index].checked = !cartItems.value[index].checked
-      saveToLocal()
     }
+    saveCurrentCart()
   }
   
   /**
@@ -184,7 +186,7 @@ export const useCartStore = defineStore('cart', () => {
         item.checked = checked
       }
     })
-    saveToLocal()
+    saveCurrentCart()
   }
   
   /**
@@ -195,7 +197,7 @@ export const useCartStore = defineStore('cart', () => {
     cartItems.value.forEach(item => {
       item.checked = checked
     })
-    saveToLocal()
+    saveCurrentCart()
   }
   
   /**
@@ -203,7 +205,7 @@ export const useCartStore = defineStore('cart', () => {
    */
   function clearCart() {
     cartItems.value = []
-    saveToLocal()
+    saveCurrentCart()
   }
   
   /**
@@ -211,55 +213,34 @@ export const useCartStore = defineStore('cart', () => {
    */
   function removeCheckedItems() {
     cartItems.value = cartItems.value.filter(item => !item.checked)
-    saveToLocal()
+    saveCurrentCart()
   }
   
-  /**
-   * 持久化保存到localStorage，与用户ID关联
-   */
-  function saveToLocal() {
-    // 获取当前用户ID
-    const userId = localStorage.getItem('userId')
-    // 如果用户已登录，将购物车与用户ID关联
-    if (userId) {
-      localStorage.setItem(`cart-items-${userId}`, JSON.stringify(cartItems.value))
+  // 监听用户登录状态变化，使用电话号码作为标识
+  watch(() => userStore.userInfo.phone, (newUserPhone, oldUserPhone) => {
+    // 检测从无电话号码到有电话号码的变化（表示用户刚登录）
+    if (newUserPhone && !oldUserPhone) {
+      // 用户刚登录，合并游客购物车到用户购物车
+      mergeGuestCartToUserCart(newUserPhone);
     } else {
-      // 未登录用户使用默认购物车
-      localStorage.setItem('cart-items-guest', JSON.stringify(cartItems.value))
+      // 其他情况正常切换购物车
+      switchUserCart(newUserPhone);
     }
-  }
+  }, { immediate: true })
   
   /**
-   * 从localStorage加载，根据用户ID加载对应购物车
+   * 根据用户ID切换购物车
+   * @param {string|null} userPhone - 用户ID
    */
-  function loadFromLocal() {
-    // 获取当前用户ID
-    const userId = localStorage.getItem('userId')
-    // 根据用户ID获取对应购物车
-    const saved = userId 
-      ? localStorage.getItem(`cart-items-${userId}`) 
-      : localStorage.getItem('cart-items-guest')
+  function switchUserCart(userPhone) {
     
-    // 兼容旧版本，如果没有找到用户关联的购物车，尝试加载旧版本的购物车数据
-    if (!saved && !userId) {
-      const oldCart = localStorage.getItem('cart-items')
-      if (oldCart) {
-        try {
-          cartItems.value = JSON.parse(oldCart)
-          // 迁移旧数据到新格式
-          saveToLocal()
-          // 删除旧数据
-          localStorage.removeItem('cart-items')
-          return
-        } catch (error) {
-          console.error('旧购物车数据解析失败', error)
-        }
-      }
-    }
+    // 然后加载对应用户的购物车
+    const cartKey = userPhone ? `cart-items-${userPhone}` : 'cart-items-guest'
+    const savedCart = localStorage.getItem(cartKey)
     
-    if (saved) {
+    if (savedCart) {
       try {
-        cartItems.value = JSON.parse(saved)
+        cartItems.value = JSON.parse(savedCart)
       } catch (error) {
         console.error('购物车数据解析失败', error)
         cartItems.value = []
@@ -269,8 +250,76 @@ export const useCartStore = defineStore('cart', () => {
     }
   }
   
-  // 初始化时加载本地数据
-  loadFromLocal()
+  /**
+   * 保存当前购物车到localStorage
+   */
+  function saveCurrentCart() {
+    const currentUserPhone = useUserStore().userPhone
+    const cartKey = currentUserPhone ? `cart-items-${currentUserPhone}` : 'cart-items-guest'
+    localStorage.setItem(cartKey, JSON.stringify(cartItems.value))
+  }
+  
+  // 添加通过商品对象操作的方法
+  function updateItemCountByObject(item, count) {
+    const index = cartItems.value.indexOf(item)
+    if (index > -1) {
+      updateItemCount(index, count)
+    }
+  }
+  
+  function removeItemByObject(item) {
+    const index = cartItems.value.indexOf(item)
+    if (index > -1) {
+      removeFromCart(index)
+    }
+  }
+  
+  /**
+   * 将游客购物车合并到用户购物车并清空游客购物车
+   * @param {string} userPhone - 用户电话号码
+   */
+  function mergeGuestCartToUserCart(userPhone) {
+    // 1. 获取游客购物车数据
+    const guestCartKey = 'cart-items-guest';
+    const guestCartData = JSON.parse(localStorage.getItem(guestCartKey) || '[]');
+    
+    // 2. 如果游客购物车为空，则直接加载用户购物车
+    if (guestCartData.length === 0) {
+      switchUserCart(userPhone);
+      return;
+    }
+    
+    // 3. 获取用户购物车数据
+    const userCartKey = `cart-items-${userPhone}`;
+    const userCartData = JSON.parse(localStorage.getItem(userCartKey) || '[]');
+    
+    // 4. 合并购物车数据(避免重复商品)
+    guestCartData.forEach(guestItem => {
+      const existingItemIndex = userCartData.findIndex(userItem => 
+        userItem.id === guestItem.id && 
+        (guestItem.skuId ? userItem.skuId === guestItem.skuId : true)
+      );
+      
+      if (existingItemIndex > -1) {
+        // 如果用户购物车已有该商品，合并数量
+        userCartData[existingItemIndex].count += guestItem.count;
+      } else {
+        // 否则添加到用户购物车
+        userCartData.push(guestItem);
+      }
+    });
+    
+    // 5. 保存合并后的用户购物车
+    localStorage.setItem(userCartKey, JSON.stringify(userCartData));
+    
+    // 6. 清空游客购物车
+    localStorage.removeItem(guestCartKey);
+    
+    // 7. 加载用户购物车数据到当前state
+    cartItems.value = userCartData;
+    
+    console.log(`已将游客购物车(${guestCartData.length}件商品)合并到用户[${userPhone}]的购物车`);
+  }
   
   return {
     // 状态
@@ -295,17 +344,10 @@ export const useCartStore = defineStore('cart', () => {
     toggleAllCheck,
     clearCart,
     removeCheckedItems,
-    loadFromLocal,
-    saveToLocal
+    switchUserCart,
+    updateItemCountByObject,
+    removeItemByObject
   }
 }, {
-  persist: {
-    enabled: true,
-    strategies: [
-      {
-        key: 'cart',
-        storage: localStorage
-      }
-    ]
-  }
+  persist: false 
 })

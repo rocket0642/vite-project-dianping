@@ -4,7 +4,7 @@ import Mock from 'mockjs'
 const comments = [
   {
     id: 1,
-    userId: 1,
+    userPhone: '13800138000',
     shopId: 1,
     orderId: 10001,
     goodsId: 1,
@@ -18,7 +18,7 @@ const comments = [
   },
   {
     id: 2,
-    userId: 2,
+    userPhone: '13800138001',
     shopId: 1,
     orderId: 10005,
     goodsId: 2,

@@ -16,11 +16,12 @@ const request = axios.create({
  */
 request.interceptors.request.use(
   config => {
-    // 从localStorage获取token
-    const token = localStorage.getItem('token')
-    if (token) {
-      config.headers.Authorization = token
+    // 从pinia持久化存储中获取token
+    const userStore = JSON.parse(localStorage.getItem('user-store') || '{}')
+    if (userStore.token) {
+      config.headers['Authorization'] = userStore.token
     }
+    console.log(config.headers['Authorization'])
     return config
   },
   error => Promise.reject(error)

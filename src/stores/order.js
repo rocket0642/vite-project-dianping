@@ -204,11 +204,7 @@ export const useOrderStore = defineStore('order', () => {
       uncommented: 0
     }
     
-    // 只计算当前用户的订单
-    const userId = parseInt(localStorage.getItem('userId') || '0')
-    const userOrders = orderList.value.filter(order => order.userId === userId)
-    
-    userOrders.forEach(order => {
+    orderList.value.forEach(order => {
       if (order.status === 1) stats.unpaid++
       else if (order.status === 2) stats.undelivered++
       else if (order.status === 3) stats.unreceived++

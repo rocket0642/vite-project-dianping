@@ -11,7 +11,7 @@ export const useUserStore = defineStore('user', () => {
   // 状态
   const token = ref('')
   const userInfo = ref({})
-  const userId = ref(null)
+  const userPhone = ref(null)
   
   // 计算属性
   const isLogin = computed(() => !!token.value)
@@ -27,17 +27,12 @@ export const useUserStore = defineStore('user', () => {
       const res = await login(phone, code)
       if (res.success) {
         token.value = res.data.token
-        localStorage.setItem('token', res.data.token)
-        // 保存用户ID到状态和localStorage
-        if (res.data.id) {
-          userId.value = res.data.id
-          localStorage.setItem('userId', res.data.id.toString())
-        }
+        userPhone.value = phone
         await fetchUserInfo()
         // 登录成功后重新加载购物车数据
         const cartStore = useCartStore()
-        if (cartStore && cartStore.loadFromLocal) {
-          cartStore.loadFromLocal()
+        if (cartStore) {
+          cartStore.switchUserCart(userPhone.value)
         }
       }
       return res
@@ -57,17 +52,12 @@ export const useUserStore = defineStore('user', () => {
       const res = await loginByPassword(phone, password)
       if (res.success) {
         token.value = res.data.token
-        localStorage.setItem('token', res.data.token)
-        // 保存用户ID到状态和localStorage
-        if (res.data.id) {
-          userId.value = res.data.id
-          localStorage.setItem('userId', res.data.id.toString())
-        }
+        userPhone.value = phone
         await fetchUserInfo()
         // 登录成功后重新加载购物车数据
         const cartStore = useCartStore()
-        if (cartStore && cartStore.loadFromLocal) {
-          cartStore.loadFromLocal()
+        if (cartStore) {
+          cartStore.switchUserCart(userPhone.value)
         }
       }
       return res
@@ -105,30 +95,21 @@ export const useUserStore = defineStore('user', () => {
    * 退出登录
    */
   function logout() {
-    token.value = ''
-    userInfo.value = {}
-    userId.value = null
-    localStorage.removeItem('token')
-    localStorage.removeItem('userId')
-    
+    // 清除user-store
+    localStorage.removeItem('user-store')
+
     // 退出登录后重新加载购物车数据（切换到游客购物车）
     const cartStore = useCartStore()
-    if (cartStore && cartStore.loadFromLocal) {
-      cartStore.loadFromLocal()
+    if (cartStore) {
+      cartStore.switchUserCart(null)
     }
   }
   
-  // 初始化时从localStorage加载token和userId
-  const savedToken = localStorage.getItem('token')
-  const savedUserId = localStorage.getItem('userId')
-  
-  if (savedToken) {
-    token.value = savedToken
-    if (savedUserId) {
-      userId.value = parseInt(savedUserId)
-    }
+  // 使用持久化的数据初始化
+  // 这个部分可以去掉，因为pinia-plugin-persistedstate会自动恢复状态
+  // 但可以保留fetchUserInfo以确保有最新数据
+  if (token.value) {
     fetchUserInfo().catch(() => {
-      // 如果获取用户信息失败，清除token
       logout()
     })
   }
@@ -136,7 +117,7 @@ export const useUserStore = defineStore('user', () => {
   return {
     token,
     userInfo,
-    userId,
+    userPhone,
     isLogin,
     userLogin,
     userLoginByPassword,
@@ -148,6 +129,6 @@ export const useUserStore = defineStore('user', () => {
   persist: {
     key: 'user-store',
     storage: localStorage,
-    paths: ['token', 'userId']
+    paths: ['token', 'userPhone', 'userInfo']
   }
 })

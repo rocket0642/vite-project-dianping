@@ -4,7 +4,7 @@ import Mock from 'mockjs'
 const defaultOrders = [
   {
     id: 10001,
-    userId: 1,
+    userPhone: '13800138000',
     shopId: 1,
     shopName: '店铺1',
     goodsId: 1,
@@ -23,7 +23,7 @@ const defaultOrders = [
   },
   {
     id: 10002,
-    userId: 1,
+    userPhone: '13800138001',
     shopId: 2,
     shopName: '舒适酒店',
     goodsId: 5,
@@ -42,16 +42,27 @@ const defaultOrders = [
   }
 ];
 
-// 从localStorage获取订单数据，如果没有则使用默认数据
-let orders = JSON.parse(localStorage.getItem('mock_orders') || JSON.stringify(defaultOrders));
+// 从localStorage获取订单数据
+let orders = JSON.parse(localStorage.getItem('mock_orders') || '[]');
 
 // 保存订单数据到localStorage
 const saveOrders = () => {
   localStorage.setItem('mock_orders', JSON.stringify(orders));
 };
 
+// 从token中统一获取userPhone的辅助函数
+function getUserPhoneFromToken() {
+  const userStore = JSON.parse(localStorage.getItem('user-store') || '{}')
+  console.log(userStore)
+  const userPhone = userStore.userPhone
+  return userPhone? userPhone : ""
+}
+
 // 创建订单接口
 Mock.mock('/api/order/create', 'post', (options) => {
+  // 从token中获取用户ID，而不是从localStorage
+  const userPhone = getUserPhoneFromToken();
+  
   const { body } = options;
   const orderData = JSON.parse(body);
   
@@ -73,7 +84,7 @@ Mock.mock('/api/order/create', 'post', (options) => {
   // 创建新订单
   const newOrder = {
     id: newOrderId,
-    userId: parseInt(localStorage.getItem('userId') || '0'),
+    userPhone: userPhone,
     shopId: orderData.shopId,
     shopName: orderData.shopName || `店铺${orderData.shopId}`,
     goodsId: orderData.items ? orderData.items[0].goodsId : orderData.goodsId,
@@ -109,12 +120,12 @@ Mock.mock('/api/order/create', 'post', (options) => {
 Mock.mock(/\/api\/order\/detail\/\d+/, 'get', (options) => {
   const id = parseInt(options.url.match(/\/api\/order\/detail\/(\d+)/)[1]);
   // 获取当前登录用户ID
-  const userId = parseInt(localStorage.getItem('userId') || '0');
+  const userPhone = getUserPhoneFromToken();
   const order = orders.find(o => o.id === id);
   
   if (order) {
     // 验证订单所属用户
-    if (order.userId !== userId) {
+    if (order.userPhone !== userPhone) {
       return {
         success: false,
         errorMsg: '无权访问此订单'
@@ -136,12 +147,12 @@ Mock.mock(/\/api\/order\/detail\/\d+/, 'get', (options) => {
 Mock.mock(/\/api\/order\/status\/\d+/, 'get', (options) => {
   const id = parseInt(options.url.match(/\/api\/order\/status\/(\d+)/)[1]);
   // 获取当前登录用户ID
-  const userId = parseInt(localStorage.getItem('userId') || '0');
+  const userPhone = getUserPhoneFromToken();
   const order = orders.find(o => o.id === id);
   
   if (order) {
     // 验证订单所属用户
-    if (order.userId !== userId) {
+    if (order.userPhone !== userPhone) {
       return {
         success: false,
         errorMsg: '无权访问此订单'
@@ -165,11 +176,11 @@ Mock.mock(/\/api\/order\/list(\?.*)?$/, 'get', (options) => {
   const url = new URL(`http://localhost${options.url}`);
   const status = url.searchParams.get('status');
   
-  // 获取当前登录用户ID
-  const userId = parseInt(localStorage.getItem('userId') || '0');
+  // 从token获取当前登录用户ID
+  const userPhone = getUserPhoneFromToken();
   
   // 根据用户ID筛选订单
-  let filteredOrders = [...orders].filter(o => o.userId === userId);
+  let filteredOrders = [...orders].filter(o => o.userPhone === userPhone);
   
   // 根据状态筛选
   if (status) {
@@ -192,7 +203,7 @@ Mock.mock('/api/order/pay', 'post', (options) => {
     const payType = data.payType || 1;
     
     // 获取当前登录用户ID
-    const userId = parseInt(localStorage.getItem('userId') || '0');
+    const userPhone = getUserPhoneFromToken();
     
     const orderIndex = orders.findIndex(o => o.id === orderId);
     
@@ -204,7 +215,7 @@ Mock.mock('/api/order/pay', 'post', (options) => {
     }
     
     // 验证订单所属用户
-    if (orders[orderIndex].userId !== userId) {
+    if (orders[orderIndex].userPhone !== userPhone) {
       return {
         success: false,
         errorMsg: '无权操作此订单'
@@ -282,7 +293,7 @@ Mock.mock(/\/api\/order\/cancel\/\d+/, 'post', (options) => {
   const reason = data.reason || '用户取消';
   
   // 获取当前登录用户ID
-  const userId = parseInt(localStorage.getItem('userId') || '0');
+  const userPhone = getUserPhoneFromToken();
   
   const orderIndex = orders.findIndex(o => o.id === id);
   
@@ -294,7 +305,7 @@ Mock.mock(/\/api\/order\/cancel\/\d+/, 'post', (options) => {
   }
   
   // 验证订单所属用户
-  if (orders[orderIndex].userId !== userId) {
+  if (orders[orderIndex].userPhone !== userPhone) {
     return {
       success: false,
       errorMsg: '无权操作此订单'
@@ -344,7 +355,7 @@ Mock.mock(/\/api\/order\/confirm\/\d+/, 'post', (options) => {
   const id = parseInt(options.url.match(/\/api\/order\/confirm\/(\d+)/)[1]);
   
   // 获取当前登录用户ID
-  const userId = parseInt(localStorage.getItem('userId') || '0');
+  const userPhone = getUserPhoneFromToken();
   
   const orderIndex = orders.findIndex(o => o.id === id);
   
@@ -356,7 +367,7 @@ Mock.mock(/\/api\/order\/confirm\/\d+/, 'post', (options) => {
   }
   
   // 验证订单所属用户
-  if (orders[orderIndex].userId !== userId) {
+  if (orders[orderIndex].userPhone !== userPhone) {
     return {
       success: false,
       errorMsg: '无权操作此订单'

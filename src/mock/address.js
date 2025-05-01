@@ -4,7 +4,7 @@ import Mock from 'mockjs'
 let addresses = [
   {
     id: 1,
-    userId: 1,
+    userPhone: '13800138000',
     name: '张三',
     phone: '13800138000',
     address: '浙江省杭州市西湖区文三路 100 号',
@@ -12,7 +12,7 @@ let addresses = [
   },
   {
     id: 2,
-    userId: 1,
+    userPhone: '13800138001',
     name: '李四',
     phone: '13800138001',
     address: '浙江省杭州市滨江区江南大道 200 号',
@@ -20,7 +20,7 @@ let addresses = [
   },
   {
     id: 3,
-    userId: 1,
+    userPhone: '13800138002',
     name: '王五',
     phone: '13800138002',
     address: '浙江省杭州市余杭区五常街道 300 号',
@@ -28,25 +28,32 @@ let addresses = [
   }
 ]
 
+// 从token中统一获取userPhone的辅助函数
+function getUserPhoneFromToken() {
+  const userStore = JSON.parse(localStorage.getItem('user-store') || '{}')
+  console.log(userStore)
+  const userPhone = userStore.userPhone
+  return userPhone? userPhone : ""
+}
+
 /**
  * 获取用户地址列表
  */
 Mock.mock('/api/user/address/list', 'get', (options) => {
-  // 从请求头获取token
-  const token = options.headers?.Authorization
   
-  if (!token) {
+  // 从token中提取用户
+  const userPhone = getUserPhoneFromToken()
+  
+  if (userPhone === "") {
     return {
       success: false,
       errorMsg: '未登录'
     }
   }
   
-  // 从token中提取用户ID
-  const userId = parseInt(token.split('_')[2])
-  
+
   // 过滤出用户的地址
-  const userAddresses = addresses.filter(addr => addr.userId === userId)
+  const userAddresses = addresses.filter(addr => addr.userPhone === userPhone)
   
   return {
     success: true,
@@ -58,19 +65,16 @@ Mock.mock('/api/user/address/list', 'get', (options) => {
  * 添加用户地址
  */
 Mock.mock('/api/user/address/add', 'post', (options) => {
-  // 从请求头获取token
-  const token = options.headers?.Authorization
   
-  if (!token) {
+  // 从token中提取用户
+  const userPhone = getUserPhoneFromToken()
+  
+  if (userPhone === "") {
     return {
       success: false,
       errorMsg: '未登录'
     }
   }
-  
-  // 从token中提取用户ID
-  const userId = parseInt(token.split('_')[2])
-  
   const { name, phone, address, isDefault } = JSON.parse(options.body)
   
   // 验证必填字段
@@ -84,16 +88,16 @@ Mock.mock('/api/user/address/add', 'post', (options) => {
   // 如果设置为默认地址，需要将其他地址设为非默认
   if (isDefault) {
     addresses.forEach(addr => {
-      if (addr.userId === userId) {
+      if (addr.userPhone === userPhone) {
         addr.isDefault = false
       }
     })
   }
   
-  // 创建新地址，确保包含userId
+  // 创建新地址，确保包含userPhone
   const newAddress = {
     id: addresses.length + 1,
-    userId,
+    userPhone,
     name,
     phone,
     address,
@@ -112,19 +116,16 @@ Mock.mock('/api/user/address/add', 'post', (options) => {
  * 更新用户地址
  */
 Mock.mock('/api/user/address/update', 'put', (options) => {
-  // 从请求头获取token
-  const token = options.headers?.Authorization
   
-  if (!token) {
+  // 从token中提取用户
+  const userPhone = getUserPhoneFromToken()
+  
+  if (userPhone === "") {
     return {
       success: false,
       errorMsg: '未登录'
     }
   }
-  
-  // 从token中提取用户ID
-  const userId = parseInt(token.split('_')[2])
-  
   const { id, name, phone, address, isDefault } = JSON.parse(options.body)
   
   // 验证必填字段
@@ -136,7 +137,7 @@ Mock.mock('/api/user/address/update', 'put', (options) => {
   }
   
   // 查找地址
-  const addressIndex = addresses.findIndex(addr => addr.id === id && addr.userId === userId)
+  const addressIndex = addresses.findIndex(addr => addr.id === id && addr.userPhone === userPhone)
   
   if (addressIndex === -1) {
     return {
@@ -148,7 +149,7 @@ Mock.mock('/api/user/address/update', 'put', (options) => {
   // 如果设置为默认地址，需要将其他地址设为非默认
   if (isDefault) {
     addresses.forEach(addr => {
-      if (addr.userId === userId) {
+      if (addr.userPhone === userPhone) {
         addr.isDefault = false
       }
     })
@@ -173,24 +174,21 @@ Mock.mock('/api/user/address/update', 'put', (options) => {
  * 删除用户地址
  */
 Mock.mock(new RegExp('/api/user/address/delete/\\d+'), 'delete', (options) => {
-  // 从请求头获取token
-  const token = options.headers?.Authorization
   
-  if (!token) {
+  // 从token中提取用户
+  const userPhone = getUserPhoneFromToken()
+  
+  if (userPhone === "") {
     return {
       success: false,
       errorMsg: '未登录'
     }
   }
-  
-  // 从token中提取用户ID
-  const userId = parseInt(token.split('_')[2])
-  
   // 从URL中提取地址ID
   const id = parseInt(options.url.match(/\/delete\/(\d+)/)[1])
   
   // 查找地址
-  const addressIndex = addresses.findIndex(addr => addr.id === id && addr.userId === userId)
+  const addressIndex = addresses.findIndex(addr => addr.id === id && addr.userPhone === userPhone)
   
   if (addressIndex === -1) {
     return {
@@ -201,7 +199,7 @@ Mock.mock(new RegExp('/api/user/address/delete/\\d+'), 'delete', (options) => {
   
   // 如果删除的是默认地址，需要将第一个地址设为默认
   if (addresses[addressIndex].isDefault) {
-    const otherAddresses = addresses.filter(addr => addr.userId === userId && addr.id !== id)
+    const otherAddresses = addresses.filter(addr => addr.userPhone === userPhone && addr.id !== id)
     if (otherAddresses.length > 0) {
       otherAddresses[0].isDefault = true
     }
@@ -220,24 +218,21 @@ Mock.mock(new RegExp('/api/user/address/delete/\\d+'), 'delete', (options) => {
  * 设置默认地址
  */
 Mock.mock(new RegExp('/api/user/address/default/\\d+'), 'put', (options) => {
-  // 从请求头获取token
-  const token = options.headers?.Authorization
   
-  if (!token) {
+  // 从token中提取用户
+  const userPhone = getUserPhoneFromToken()
+  
+  if (userPhone === "") {
     return {
       success: false,
       errorMsg: '未登录'
     }
   }
-  
-  // 从token中提取用户ID
-  const userId = parseInt(token.split('_')[2])
-  
   // 从URL中提取地址ID
   const id = parseInt(options.url.match(/\/default\/(\d+)/)[1])
   
   // 查找地址
-  const addressIndex = addresses.findIndex(addr => addr.id === id && addr.userId === userId)
+  const addressIndex = addresses.findIndex(addr => addr.id === id && addr.userPhone === userPhone)
   
   if (addressIndex === -1) {
     return {
@@ -248,7 +243,7 @@ Mock.mock(new RegExp('/api/user/address/default/\\d+'), 'put', (options) => {
   
   // 将其他地址设为非默认
   addresses.forEach(addr => {
-    if (addr.userId === userId) {
+    if (addr.userPhone === userPhone) {
       addr.isDefault = false
     }
   })

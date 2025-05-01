@@ -312,7 +312,7 @@ const continueShopping = () => {
               <!-- 商品数量 -->
               <div class="item-quantity">
                 <el-input-number 
-                  v-model="item.count" 
+                  :model-value="item.count" 
                   :min="1" 
                   :max="99"
                   size="small"
