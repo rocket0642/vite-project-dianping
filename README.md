@@ -15,7 +15,7 @@
 
 ### 1. 用户模块
 
-用户注册、登录和信息管理。
+用户注册、登录、信息管理、登出等功能。
 
 #### 接口详情
 
@@ -37,40 +37,31 @@
   }
   ```
 
-**1.2 用户登录**  
-
-- 请求方式：`POST /user/login`
-
-```java
-@PostMapping("/login")
-public Result login(@RequestBody LoginFormDTO loginForm) {
-
-    return userService.login(loginForm);
-}
-
-@Data
-public class LoginFormDTO {
-    private String phone;
-    private String code;
-    private String password;
-}
-```
-
-- 验证码登录请求参数：
+- 错误示例：
 
   ```json
   {
-    "phone": "13800138000",  // 手机号
-    "code": "123456"         // 验证码
+    "success": false,
+    "errorMsg": "手机号格式错误！"
   }
   ```
 
-- 密码登录请求参数：
+**1.2 用户注册**
+
+- 请求方式：`POST /user/register`
+- 请求头：
+
+  ```
+  Content-Type: application/json
+  ```
+
+- 请求参数：
 
   ```json
   {
     "phone": "13800138000",  // 手机号
-    "password": "123456"     // 密码
+    "code": "123456",        // 验证码
+    "password": "your_password" // 密码
   }
   ```
 
@@ -79,19 +70,91 @@ public class LoginFormDTO {
   ```json
   {
     "success": true,
-    "data": {
-      "id": 1,
-      "nickName": "用户昵称",
-      "icon": "头像地址",
-      "token": "jwt令牌"
-    }
+    "data": "jwt令牌"  // 注册成功后自动登录，返回token
   }
   ```
 
-**1.3 获取当前用户信息**  
+- 错误示例：
+
+  ```json
+  {
+    "success": false,
+    "errorMsg": "验证码错误"
+  }
+  ```
+
+**1.3 用户登录**  
+
+- 请求方式：`POST /user/login`
+- 请求头：
+
+  ```
+  Content-Type: application/json
+  ```
+
+- 请求参数：
+
+  ```json
+  {
+    "phone": "13800138000",  // 手机号
+    "code": "123456"         // 验证码登录
+  }
+  ```
+
+  或
+
+  ```json
+  {
+    "phone": "13800138000",     // 手机号
+    "password": "your_password" // 密码登录
+  }
+  ```
+
+- 返回示例：
+
+  ```json
+  {
+    "success": true,
+    "data": "jwt令牌"
+  }
+  ```
+
+- 错误示例：
+
+  ```json
+  {
+    "success": false,
+    "errorMsg": "用户不存在，请注册"
+  }
+  ```
+
+**1.4 用户登出**
+
+- 请求方式：`POST /user/logout`
+- 请求参数：
+
+  ```
+  phone: string  // 手机号码
+  ```
+
+- 请求头：
+
+  ```
+  Authorization: token值
+  ```
+
+- 返回示例：
+
+  ```json
+  {
+    "success": true,
+    "data": "登出成功"
+  }
+  ```
+
+**1.5 获取当前用户信息**  
 
 - 请求方式：`GET /user/me`
-
 - 请求头：
 
   ```
@@ -111,7 +174,7 @@ public class LoginFormDTO {
   }
   ```
 
-**1.4 查询用户详情**  
+**1.6 查询用户详情**  
 
 - 请求方式：`GET /user/info/{id}`
 - 路径参数：
@@ -120,117 +183,94 @@ public class LoginFormDTO {
   id: long  // 用户ID
   ```
 
+- 请求头：
+
+  ```
+  Authorization: token值
+  ```
+
 - 返回示例：
 
   ```json
   {
     "success": true,
     "data": {
-      "id": 1,
-      "introduction": "个人介绍",
+      "userId": 1,
+      "city": "杭州",
+      "introduce": "个人介绍",
       "fans": 10,
       "followee": 20,
-      "gender": 1,
-      "birthday": "2000-01-01"
+      "gender": true,  // true-女，false-男
+      "birthday": "2000-01-01",
+      "credits": 100,
+      "level": false   // false-未开通会员，true-已开通
     }
   }
   ```
 
-**1.5 更新用户信息**
+**1.7 更新用户详细信息**
 
 - 请求方式：`PUT /user/info`
-          `PUT /user/update`
+- 请求头：
 
-``` java
-    @PutMapping("/info")
-    public Result update(@RequestBody UserInfo userInfo) {
-        // 更新用户信息
-        return userService.update(userInfo);
-    }
+  ```
+  Authorization: token值
+  Content-Type: application/json
+  ```
 
-    // 头像和昵称在user表里，修改头像和昵称
-    @PutMapping("/update")
-    public Result update(@RequestBody User user) {
-        // 更新用户信息
-        return userService.updateUser(user);
-    }
+- 请求参数：
 
-    public class UserInfo implements Serializable {
+  ```json
+  {
+    "userId": 1,
+    "city": "杭州",
+    "introduce": "这是我的新介绍",
+    "gender": true,
+    "birthday": "2000-01-01"
+  }
+  ```
 
-        private static final long serialVersionUID = 1L;
+- 返回示例：
 
-        /**
-         * 主键，用户id
-         */
-        @TableId(value = "user_id", type = IdType.AUTO)
-        private Long userId;
+  ```json
+  {
+    "success": true,
+    "data": "更新成功"
+  }
+  ```
 
-        /**
-         * 城市名称
-         */
-        private String city;
+**1.8 更新用户基本信息**
 
-        /**
-         * 个人介绍，不要超过128个字符
-         */
-        private String introduce;
+- 请求方式：`PUT /user/update`
+- 请求头：
 
-        /**
-         * 粉丝数量
-         */
-        private Integer fans;
-
-        /**
-         * 关注的人的数量
-         */
-        private Integer followee;
-
-        /**
-         * 性别，0：男，1：女
-         */
-        private Boolean gender;
-
-        /**
-         * 生日
-         */
-        private LocalDate birthday;
-
-        /**
-         * 积分
-         */
-        private Integer credits;
-
-        /**
-         * 会员级别，0~9级,0代表未开通会员
-         */
-        private Boolean level;
-
-        /**
-         * 创建时间
-         */
-        private LocalDateTime createTime;
-
-        /**
-         * 更新时间
-         */
-        private LocalDateTime updateTime;
-    }
-```
+  ```
+  Authorization: token值
+  Content-Type: application/json
+  ```
 
 - 请求参数：
 
   ```json
   {
     "id": 1,
-    "nickName": "用户昵称",
-    "icon": "头像地址",
-    "gender": 1,
-    "birthday": "2000-01-01"
+    "nickName": "新昵称",
+    "icon": "新头像地址"
   }
+  ```
+
+- 返回示例：
+
+  ```json
+  {
+    "success": true,
+    "data": "更新成功"
+  }
+  ```
 
 ### 2. 商铺模块
 
-商铺信息管理、商铺类型管理、商铺缓存策略。
+商铺信息管理、商铺类型管理、商铺搜索、地理位置排序等功能。
 
 #### 接口详情
 
@@ -310,6 +350,13 @@ public class LoginFormDTO {
 **2.3 新增商铺**  
 
 - 请求方式：`POST /shop`
+- 请求头：
+
+  ```
+  Authorization: token值
+  Content-Type: application/json
+  ```
+
 - 请求参数：
 
   ```json
@@ -338,6 +385,13 @@ public class LoginFormDTO {
 **2.4 更新商铺**  
 
 - 请求方式：`PUT /shop`
+- 请求头：
+
+  ```
+  Authorization: token值
+  Content-Type: application/json
+  ```
+
 - 请求参数：
 
   ```json
@@ -386,6 +440,80 @@ public class LoginFormDTO {
         "sort": 2
       }
     ]
+  }
+  ```
+
+**2.6 根据关键词搜索商铺**  
+
+- 请求方式：`GET /shop/search`
+- 请求参数：
+
+  ```
+  keyword: string  // 搜索关键词
+  current: int     // 当前页码，默认1
+  x: double        // 经度，可选
+  y: double        // 纬度，可选
+  ```
+
+- 返回示例：
+
+  ```json
+  {
+    "success": true,
+    "data": [
+      {
+        "id": 1,
+        "name": "商铺名称",
+        "typeId": 1,
+        "typeName": "美食",
+        "images": "图片地址",
+        "area": "地区",
+        "address": "详细地址",
+        "x": 120.123456,
+        "y": 30.123456,
+        "avgPrice": 100,
+        "sold": 200,
+        "comments": 300,
+        "score": 4.5,
+        "openHours": "10:00-22:00",
+        "distance": 1500  // 距离，单位米
+      }
+    ],
+    "total": 5
+  }
+  ```
+
+**2.7 根据商铺名称关键词查询商铺**
+
+- 请求方式：`GET /shop/name`
+- 请求参数：
+
+  ```
+  name: string     // 商铺名称关键词
+  current: int     // 当前页码，默认1
+  ```
+
+- 返回示例：
+
+  ```json
+  {
+    "success": true,
+    "data": [
+      {
+        "id": 1,
+        "name": "商铺名称",
+        "typeId": 1,
+        "typeName": "美食",
+        "images": "图片地址",
+        "area": "地区",
+        "address": "详细地址",
+        "avgPrice": 100,
+        "sold": 200,
+        "comments": 300,
+        "score": 4.5
+      }
+    ],
+    "total": 5
   }
   ```
 
@@ -582,19 +710,26 @@ public class LoginFormDTO {
 
 ### 5. 订单模块
 
-订单创建与管理。
+订单创建、支付、查询和管理功能。
 
 #### 接口详情
 
 **5.1 创建订单**  
 
 - 请求方式：`POST /order/create`
+- 请求头：
+
+  ```
+  Authorization: token值
+  Content-Type: application/json
+  ```
+
 - 请求参数：
 
   ```json
   {
-    "goodsId": 1,
-    "count": 2
+    "goodsId": 1,    // 商品ID
+    "count": 2       // 商品数量
   }
   ```
 
@@ -604,6 +739,15 @@ public class LoginFormDTO {
   {
     "success": true,
     "data": 123456789  // 订单ID
+  }
+  ```
+
+- 错误示例：
+
+  ```json
+  {
+    "success": false,
+    "errorMsg": "库存不足"
   }
   ```
 
@@ -622,6 +766,12 @@ public class LoginFormDTO {
   payType: int  // 支付方式，1-微信支付，2-支付宝
   ```
 
+- 请求头：
+
+  ```
+  Authorization: token值
+  ```
+
 - 返回示例：
 
   ```json
@@ -631,9 +781,31 @@ public class LoginFormDTO {
   }
   ```
 
+- 错误示例：
+
+  ```json
+  {
+    "success": false,
+    "errorMsg": "支付失败"
+  }
+  ```
+
 **5.3 查询订单列表**  
 
 - 请求方式：`GET /order/list`
+- 请求头：
+
+  ```
+  Authorization: token值
+  ```
+
+- 请求参数：
+
+  ```
+  status: int   // 订单状态，可选：0-全部，1-未支付，2-已支付，3-已取消
+  current: int  // 当前页码，默认1
+  ```
+
 - 返回示例：
 
   ```json
@@ -647,21 +819,29 @@ public class LoginFormDTO {
         "goodsName": "商品名称",
         "count": 2,
         "amount": 19800,
-        "status": 1,
+        "status": 1,       // 订单状态：1-未支付，2-已支付，3-已取消，4-已完成
         "createTime": "2022-01-01 12:00:00",
-        "payTime": "2022-01-01 12:05:00"
+        "payTime": "2022-01-01 12:05:00",
+        "payType": 1       // 支付方式：1-微信支付，2-支付宝
       }
-    ]
+    ],
+    "total": 10
   }
   ```
 
-**5.4 查询订单状态**  
+**5.4 查询订单详情**  
 
 - 请求方式：`GET /order/status/{orderId}`
 - 路径参数：
 
   ```
   orderId: long  // 订单ID
+  ```
+
+- 请求头：
+
+  ```
+  Authorization: token值
   ```
 
 - 返回示例：
@@ -672,72 +852,58 @@ public class LoginFormDTO {
     "data": {
       "id": 123456789,
       "userId": 1,
+      "shopId": 10,        // 商铺ID
       "goodsId": 1,
       "goodsName": "商品名称",
       "count": 2,
-      "amount": 19800,
-      "status": 1,  // 0-未支付，1-已支付，2-已取消
+      "goodsPrice": 9900,  // 商品单价，单位分
+      "amount": 19800,     // 总金额，单位分
+      "status": 2,         // 订单状态：1-未支付，2-已支付，3-已取消，4-已完成
       "createTime": "2022-01-01 12:00:00",
-      "payTime": "2022-01-01 12:05:00"
+      "payTime": "2022-01-01 12:05:00",
+      "payType": 1         // 支付方式：1-微信支付，2-支付宝
     }
   }
   ```
 
-## 特色功能
+- 错误示例：
 
-### 1. 分布式锁
+  ```json
+  {
+    "success": false,
+    "errorMsg": "订单不存在"
+  }
+  ```
 
-项目使用Redis实现分布式锁，解决高并发场景下的数据一致性问题，如秒杀活动中的库存超卖。
+**5.5 取消订单**
 
-### 2. 缓存策略
+- 请求方式：`POST /order/cancel/{orderId}`
+- 路径参数：
 
-- 采用多级缓存策略提升查询性能
-- 实现缓存更新和淘汰机制，保证数据一致性
-- 解决缓存穿透、缓存击穿、缓存雪崩问题
+  ```
+  orderId: long  // 订单ID
+  ```
 
-### 3. 异步消息队列
+- 请求头：
 
-使用RabbitMQ实现异步消息处理，提高系统吞吐量，解耦业务逻辑。
+  ```
+  Authorization: token值
+  ```
 
-### 4. 定时任务
+- 返回示例：
 
-实现定时任务处理，如优惠券过期处理、订单超时处理等。
+  ```json
+  {
+    "success": true,
+    "data": null
+  }
+  ```
 
-## 环境配置
+- 错误示例：
 
-### 数据库配置
-
-```yaml
-spring:
-  datasource:
-    driver-class-name: com.mysql.cj.jdbc.Driver
-    url: jdbc:mysql://localhost:3306/dp?useSSL=false&serverTimezone=UTC
-    username: root
-    password: ******
-```
-
-### Redis配置
-
-```yaml
-spring:
-  redis:
-    host: 192.168.11.20
-    port: 6379
-    password: ******
-    lettuce:
-      pool:
-        max-active: 10
-        max-idle: 10
-        min-idle: 1
-```
-
-### RabbitMQ配置
-
-```yaml
-spring:
-  rabbitmq:
-    host: 192.168.11.20
-    port: 5672
-    username: ******
-    password: ******
-    virtual-host: /
+  ```json
+  {
+    "success": false,
+    "errorMsg": "订单已支付，无法取消"
+  }
+  ```
