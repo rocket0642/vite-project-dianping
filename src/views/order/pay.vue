@@ -296,7 +296,12 @@ const openAddressDialog = () => {
  * 选择地址
  */
 const selectAddress = (address) => {
-  selectedAddress.value = address
+  selectedAddress.value = address;
+  // 如果地址变更，同时更新表单数据
+  order.value.addressId = address.id;
+  order.value.addressName = address.name;
+  order.value.addressPhone = address.phone;
+  order.value.addressDetail = address.address;
 }
 
 /**

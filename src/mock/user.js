@@ -23,7 +23,7 @@ const users = [
     phone: '18338319215',
     password: '123456',
     nickName: '测试用户2',
-    icon: 'URL_ADDRESS.elemecdn.com/0/88/03b0d39583f48206768a7534e55bcpng.png',
+    icon: 'https://cube.elemecdn.com/0/88/03b0d39583f48206768a7534e55bcpng.png',
     city: '杭州',
     introduce: '这是一个测试账号',
     fans: 10,

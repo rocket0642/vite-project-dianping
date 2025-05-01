@@ -22,7 +22,7 @@ const orderStatsLoading = ref(true)
 
 // 用户信息
 const userInfo = computed(() => userStore.userInfo)
-const userPhone = computed(() => useUserStore.userPhone)
+const userPhone = computed(() => userStore.userPhone)
 
 // 编辑对话框可见性
 const editDialogVisible = ref(false)

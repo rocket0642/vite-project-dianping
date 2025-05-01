@@ -45,13 +45,20 @@ const activeStep = computed(() => {
   }
 })
 
-/**
- * 格式化价格
- * @param {number} price - 价格（单位：分）
- * @returns {string} - 格式化后的价格
- */
-const formatPrice = (price) => {
-  return (price / 100).toFixed(2)
+// 通用的价格格式化方法
+const formatPrice = (price) => (price / 100).toFixed(2);
+
+// 通用的日期格式化方法
+const formatDate = (dateString) => {
+  if (!dateString) return '';
+  const date = new Date(dateString.replace(/-/g, '/'));
+  return date.toLocaleString('zh-CN', {
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+    hour: '2-digit',
+    minute: '2-digit'
+  });
 }
 
 /**

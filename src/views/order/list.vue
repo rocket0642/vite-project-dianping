@@ -368,7 +368,7 @@ const updateOrderAddress = async () => {
   }
 }
 
-// 状态与标签页的映射
+// 合并tabToStatusMap定义，避免重复定义
 const tabToStatusMap = {
   'all': undefined,
   'paid': [2, 4, 5],
@@ -723,32 +723,14 @@ onBeforeUnmount(() => {
   padding: 3px 8px;
   border-radius: 4px;
   font-size: 13px;
-}
-
-.status-1 {
-  background-color: #e6a23c;
   color: white;
 }
 
-.status-2 {
-  background-color: #409eff;
-  color: white;
-}
-
-.status-3 {
-  background-color: #909399;
-  color: white;
-}
-
-.status-4 {
-  background-color: #67c23a;
-  color: white;
-}
-
-.status-5 {
-  background-color: #e6a23c;
-  color: white;
-}
+.status-1 { background-color: #e6a23c; }
+.status-2 { background-color: #409eff; }
+.status-3 { background-color: #909399; }
+.status-4 { background-color: #67c23a; }
+.status-5 { background-color: #e6a23c; }
 
 .countdown-tag {
   color: #f56c6c;
@@ -853,43 +835,17 @@ onBeforeUnmount(() => {
   cursor: pointer;
   font-size: 14px;
   transition: all 0.3s;
-}
-
-.action-btn.primary {
-  background-color: #409eff;
   color: white;
 }
 
-.action-btn.primary:hover {
-  background-color: #66b1ff;
-}
-
-.action-btn.secondary {
-  background-color: #67c23a;
-  color: white;
-}
-
-.action-btn.secondary:hover {
-  background-color: #85ce61;
-}
-
-.action-btn.default {
-  background-color: #f56c6c;
-  color: white;
-}
-
-.action-btn.default:hover {
-  background-color: #f78989;
-}
-
-.action-btn.info {
-  background-color: #909399;
-  color: white;
-}
-
-.action-btn.info:hover {
-  background-color: #a6a9ad;
-}
+.action-btn.primary { background-color: #409eff; }
+.action-btn.primary:hover { background-color: #66b1ff; }
+.action-btn.secondary { background-color: #67c23a; }
+.action-btn.secondary:hover { background-color: #85ce61; }
+.action-btn.default { background-color: #f56c6c; }
+.action-btn.default:hover { background-color: #f78989; }
+.action-btn.info { background-color: #909399; }
+.action-btn.info:hover { background-color: #a6a9ad; }
 
 .pagination-container {
   display: flex;

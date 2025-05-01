@@ -69,35 +69,29 @@ onMounted(async () => {
 
 .type-container {
   display: flex;
-  overflow-x: auto;
-  scrollbar-width: none; /* Firefox */
-  -ms-overflow-style: none; /* IE and Edge */
-  padding-bottom: 5px;
-}
-
-.type-container::-webkit-scrollbar {
-  display: none; /* Chrome, Safari, Opera */
+  justify-content: space-evenly; /* 均匀分布各项目 */
+  width: 100%;
+  padding: 15px 0;
 }
 
 .type-item {
   display: flex;
   flex-direction: column;
   align-items: center;
-  min-width: 80px;
-  margin: 0 10px;
+  text-align: center;
   cursor: pointer;
-  transition: transform var(--transition-duration);
-  flex-shrink: 0;
-}
-
-.type-item:hover {
-  transform: translateY(-3px);
+  flex: 1; /* 每个项目占据相同宽度 */
+  max-width: 100px; /* 可选：限制最大宽度 */
 }
 
 .type-item .el-icon {
   font-size: 24px;
-  color: var(--primary-color);
+  color: #409EFF;
   margin-bottom: 8px;
+}
+
+.type-item span {
+  font-size: 14px;
 }
 
 /* 响应式设计 */
@@ -106,5 +100,26 @@ onMounted(async () => {
     min-width: 70px;
     margin: 0 5px;
   }
+}
+
+/* 修改后的样式 */
+.category-nav {
+  display: flex;
+  justify-content: space-evenly; /* 均匀分布所有元素 */
+  align-items: center;
+  width: 100%;
+  padding: 15px 0;
+}
+
+.category-item {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  flex: 1;  /* 每个项目占据相等的空间 */
+}
+
+.category-icon {
+  margin-bottom: 8px;
 }
 </style>
