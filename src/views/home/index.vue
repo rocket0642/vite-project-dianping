@@ -24,10 +24,16 @@ const recommendShops = ref([])
 
 /**
  * 加载推荐商铺数据
+ * 按评分排序，最多展示4个
  */
 const loadRecommendShops = async () => {
   try {
-    const res = await getShopList()
+    // 按评分排序并限制返回4个商铺
+    const res = await getShopList({
+      sortBy: 'score',
+      limit: 4
+    })
+    
     if (res && res.success) {
       recommendShops.value = res.data
       console.log('推荐商铺数据:', recommendShops.value)

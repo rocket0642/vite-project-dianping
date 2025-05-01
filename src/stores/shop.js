@@ -91,7 +91,12 @@ export const useShopStore = defineStore('shop', () => {
   async function fetchShopsByType(typeId, params = {}) {
     try {
       loading.value = true
-      const res = await getShopsByType(typeId, params)
+      // 确保typeId和排序参数都能正确传递
+      const queryParams = { 
+        typeId, 
+        ...params 
+      }
+      const res = await getShopsByType(typeId, queryParams)
       if (res.success) {
         typeShops.value = res.data
         total.value = res.total || 0

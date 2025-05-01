@@ -1,7 +1,8 @@
 <script setup>
 import { ref, onMounted, watch } from 'vue'
 import { useRoute } from 'vue-router'
-import { ElPagination, ElEmpty, ElSkeleton, ElCard } from 'element-plus'
+import { ElPagination, ElEmpty, ElSkeleton, ElCard, ElSelect, ElOption, ElButton } from 'element-plus'
+import { ArrowUp, ArrowDown } from '@element-plus/icons-vue'
 import AppLayout from '../../components/AppLayout.vue'
 import ShopCard from '../../components/ShopCard.vue'
 import ShopTypeNav from '../../components/ShopTypeNav.vue'
@@ -21,6 +22,15 @@ const loading = ref(true)
 const total = ref(0)
 const currentPage = ref(1)
 const pageSize = ref(8)
+const sortBy = ref('') // 排序字段
+const sortOrder = ref('desc') // 排序方向
+
+// 排序选项
+const sortOptions = [
+  { value: 'score', label: '按评分排序' },
+  { value: 'sold', label: '按销量排序' },
+  { value: 'avgPrice', label: '按均价排序' }
+]
 
 /**
  * 加载分类商铺数据
@@ -31,6 +41,12 @@ const loadTypeShops = async () => {
     const params = {
       current: currentPage.value,
       pageSize: pageSize.value
+    }
+    
+    // 添加排序参数
+    if (sortBy.value) {
+      params.sortBy = sortBy.value
+      params.sortOrder = sortOrder.value
     }
     
     const result = await shopStore.fetchShopsByType(typeId.value, params)
@@ -60,6 +76,27 @@ const handleCurrentChange = (current) => {
   loadTypeShops()
 }
 
+/**
+ * 排序变化处理
+ */
+const handleSortChange = (value) => {
+  // 如果切换了排序字段，重置为默认降序
+  if (sortBy.value !== value) {
+    sortBy.value = value
+    sortOrder.value = 'desc'
+  }
+  currentPage.value = 1 // 切换排序时重置页码
+  loadTypeShops()
+}
+
+/**
+ * 切换排序方向
+ */
+const toggleSortOrder = () => {
+  sortOrder.value = sortOrder.value === 'desc' ? 'asc' : 'desc'
+  loadTypeShops()
+}
+
 // 监听路由参数变化
 watch(() => route.params.typeId, (newTypeId) => {
   typeId.value = parseInt(newTypeId)
@@ -80,7 +117,37 @@ onMounted(() => {
       <ShopTypeNav />
       
       <div class="type-header">
-        <h1 class="type-title">{{ typeName }}</h1>
+        <div class="header-row">
+          <h1 class="type-title">{{ typeName }}</h1>
+          
+          <!-- 排序选项 -->
+          <div class="sort-options">
+            <el-select
+              v-model="sortBy"
+              placeholder="排序方式"
+              style="width: 140px"
+              @change="handleSortChange"
+            >
+              <el-option
+                v-for="item in sortOptions"
+                :key="item.value"
+                :label="item.label"
+                :value="item.value"
+              />
+            </el-select>
+            
+            <!-- 升序/降序切换按钮 -->
+            <el-button 
+              v-if="sortBy" 
+              type="primary" 
+              size="small"
+              :icon="sortOrder === 'desc' ? ArrowDown : ArrowUp"
+              @click="toggleSortOrder"
+            >
+              {{ sortOrder === 'desc' ? '从高到低' : '从低到高' }}
+            </el-button>
+          </div>
+        </div>
       </div>
       
       <!-- 分类商铺列表 -->
@@ -134,11 +201,23 @@ onMounted(() => {
   margin-bottom: 20px;
 }
 
+.header-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.sort-options {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
 .type-title {
   font-size: 24px;
   position: relative;
   padding-left: 12px;
-  margin-bottom: 20px;
+  margin-bottom: 0; /* 修改margin以适应flex布局 */
 }
 
 .type-title::before {

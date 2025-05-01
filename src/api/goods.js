@@ -55,12 +55,13 @@ export function updateGoods(data) {
  * 搜索商品
  * @param {string} keyword - 搜索关键词
  * @param {Object} params - 其他查询参数
- * @returns {Promise} - 商品搜索结果
+ * @returns {Promise<Object>} - 搜索结果
  */
 export function searchGoods(keyword, params = {}) {
-  return request({
-    url: '/goods/search',
-    method: 'get',
-    params: { keyword, ...params }
-  })
+  const queryString = new URLSearchParams({
+    keyword,
+    ...params
+  }).toString()
+  
+  return request.get(`/api/goods/search?${queryString}`)
 }

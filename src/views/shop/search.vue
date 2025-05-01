@@ -1,7 +1,8 @@
 <script setup>
 import { ref, reactive, watch, onMounted } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
-import { ElPagination, ElEmpty, ElSkeleton, ElCard, ElTabs, ElTabPane } from 'element-plus'
+import { ElPagination, ElEmpty, ElSkeleton, ElCard, ElTabs, ElTabPane, ElSelect, ElOption, ElButton } from 'element-plus'
+import { ArrowUp, ArrowDown } from '@element-plus/icons-vue'
 import AppLayout from '../../components/AppLayout.vue'
 import ShopCard from '../../components/ShopCard.vue'
 import { useShopStore } from '../../stores/shop'
@@ -21,12 +22,31 @@ const goods = ref([])
 const total = ref(0)
 const activeTab = ref('shop')
 
+// 排序相关
+const sortBy = ref('')
+const sortOrder = ref('desc')
+
+// 商铺排序选项
+const shopSortOptions = [
+  { value: 'score', label: '按评分排序' },
+  { value: 'sold', label: '按销量排序' },
+  { value: 'avgPrice', label: '按均价排序' }
+]
+
+// 商品排序选项
+const goodsSortOptions = [
+  { value: 'price', label: '按价格排序' },
+  { value: 'sold', label: '按销量排序' }
+]
+
 // 搜索条件
 const searchForm = reactive({
   keyword: '',
   type: 'shop',
   current: 1,
-  pageSize: 8
+  pageSize: 8,
+  sortBy: '',
+  sortOrder: 'desc'
 })
 
 /**
@@ -89,6 +109,12 @@ const handleCurrentChange = (current) => {
 const handleTabChange = (tab) => {
   activeTab.value = tab
   
+  // 切换标签页时重置排序
+  sortBy.value = ''
+  sortOrder.value = 'desc'
+  searchForm.sortBy = ''
+  searchForm.sortOrder = 'desc'
+  
   if (tab === 'shop') {
     searchShops()
   } else {
@@ -98,6 +124,58 @@ const handleTabChange = (tab) => {
   // 更新URL
   router.push({
     query: { ...route.query, type: tab }
+  })
+}
+
+/**
+ * 排序变化处理
+ */
+const handleSortChange = (value) => {
+  if (sortBy.value !== value) {
+    sortBy.value = value
+    sortOrder.value = 'desc'
+  }
+  
+  searchForm.sortBy = value
+  searchForm.sortOrder = sortOrder.value
+  searchForm.current = 1 // 切换排序时重置页码
+  
+  if (activeTab.value === 'shop') {
+    searchShops()
+  } else {
+    searchGoodsItems()
+  }
+  
+  // 更新URL
+  router.push({
+    query: { 
+      ...route.query, 
+      sortBy: value,
+      sortOrder: sortOrder.value,
+      page: 1
+    }
+  })
+}
+
+/**
+ * 切换排序方向
+ */
+const toggleSortOrder = () => {
+  sortOrder.value = sortOrder.value === 'desc' ? 'asc' : 'desc'
+  searchForm.sortOrder = sortOrder.value
+  
+  if (activeTab.value === 'shop') {
+    searchShops()
+  } else {
+    searchGoodsItems()
+  }
+  
+  // 更新URL
+  router.push({
+    query: { 
+      ...route.query, 
+      sortOrder: sortOrder.value 
+    }
   })
 }
 
@@ -119,11 +197,16 @@ const goToShopDetail = (shopId) => {
  * 从URL参数更新搜索条件
  */
 const updateSearchFromQuery = () => {
-  const { keyword, type, page } = route.query
+  const { keyword, type, page, sortBy: querySortBy, sortOrder: querySortOrder } = route.query
   searchForm.keyword = keyword || ''
   searchForm.type = type || 'shop'
   searchForm.current = parseInt(page) || 1
+  searchForm.sortBy = querySortBy || ''
+  searchForm.sortOrder = querySortOrder || 'desc'
+  
   activeTab.value = type || 'shop'
+  sortBy.value = querySortBy || ''
+  sortOrder.value = querySortOrder || 'desc'
   
   // 执行搜索
   if (activeTab.value === 'shop') {
@@ -148,10 +231,40 @@ onMounted(() => {
       <div class="search-header">
         <h1 class="search-title">搜索结果: {{ searchForm.keyword }}</h1>
         <div class="search-filter">
-          <el-tabs v-model="activeTab" @tab-change="handleTabChange">
-            <el-tab-pane label="商铺" name="shop"></el-tab-pane>
-            <el-tab-pane label="商品" name="goods"></el-tab-pane>
-          </el-tabs>
+          <div class="filter-container">
+            <el-tabs v-model="activeTab" @tab-change="handleTabChange">
+              <el-tab-pane label="商铺" name="shop"></el-tab-pane>
+              <el-tab-pane label="商品" name="goods"></el-tab-pane>
+            </el-tabs>
+            
+            <!-- 排序选项 -->
+            <div class="sort-options">
+              <el-select
+                v-model="sortBy"
+                placeholder="排序方式"
+                style="width: 140px"
+                @change="handleSortChange"
+              >
+                <el-option
+                  v-for="item in activeTab === 'shop' ? shopSortOptions : goodsSortOptions"
+                  :key="item.value"
+                  :label="item.label"
+                  :value="item.value"
+                />
+              </el-select>
+              
+              <!-- 升序/降序切换按钮 -->
+              <el-button 
+                v-if="sortBy" 
+                type="primary" 
+                size="small"
+                :icon="sortOrder === 'desc' ? ArrowDown : ArrowUp"
+                @click="toggleSortOrder"
+              >
+                {{ sortOrder === 'desc' ? '从高到低' : '从低到高' }}
+              </el-button>
+            </div>
+          </div>
         </div>
       </div>
       
@@ -250,6 +363,18 @@ onMounted(() => {
   box-shadow: 0 2px 12px rgba(0, 0, 0, 0.1);
   padding: 15px;
   margin-bottom: 20px;
+}
+
+.filter-container {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.sort-options {
+  display: flex;
+  align-items: center;
+  gap: 10px;
 }
 
 .shop-grid {
@@ -375,6 +500,15 @@ onMounted(() => {
 
 /* 响应式设计 */
 @media (max-width: 768px) {
+  .filter-container {
+    flex-direction: column;
+    align-items: stretch;
+  }
+  
+  .sort-options {
+    margin-top: 15px;
+  }
+  
   .goods-card-content {
     flex-direction: column;
   }
