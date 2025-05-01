@@ -131,9 +131,15 @@ Mock.mock(/\/api\/order\/detail\/\d+/, 'get', (options) => {
         errorMsg: '无权访问此订单'
       };
     }
+    // 查询订单是否已评价
+    const commented = comments.some(c => c.orderId === order.id);
+    
     return {
       success: true,
-      data: order
+      data: {
+        ...order,
+        commented
+      }
     };
   }
   
@@ -175,6 +181,9 @@ Mock.mock(/\/api\/order\/list(\?.*)?$/, 'get', (options) => {
   // 获取查询参数
   const url = new URL(`http://localhost${options.url}`);
   const status = url.searchParams.get('status');
+  const statuses = url.searchParams.get('statuses'); // 多状态参数
+  const currentPage = parseInt(url.searchParams.get('current')) || 1;
+  const pageSize = parseInt(url.searchParams.get('pageSize')) || 10;
   
   // 从token获取当前登录用户ID
   const userPhone = getUserPhoneFromToken();
@@ -182,15 +191,35 @@ Mock.mock(/\/api\/order\/list(\?.*)?$/, 'get', (options) => {
   // 根据用户ID筛选订单
   let filteredOrders = [...orders].filter(o => o.userPhone === userPhone);
   
-  // 根据状态筛选
-  if (status) {
+  // 多状态筛选
+  if (statuses) {
+    const statusArray = statuses.split(',').map(s => parseInt(s));
+    filteredOrders = filteredOrders.filter(o => statusArray.includes(o.status));
+  }
+  // 单状态筛选
+  else if (status) {
     filteredOrders = filteredOrders.filter(o => o.status === parseInt(status));
   }
   
+  // 按创建时间倒序排序 (最新订单在前)
+  filteredOrders.sort((a, b) => {
+    const timeA = new Date(a.createTime.replace(/-/g, '/')).getTime();
+    const timeB = new Date(b.createTime.replace(/-/g, '/')).getTime();
+    return timeB - timeA; // 倒序排列
+  });
+  
+  // 总数量
+  const total = filteredOrders.length;
+  
+  // 分页处理
+  const startIndex = (currentPage - 1) * pageSize;
+  const endIndex = startIndex + pageSize;
+  const pagedOrders = filteredOrders.slice(startIndex, endIndex);
+  
   return {
     success: true,
-    data: filteredOrders,
-    total: filteredOrders.length
+    data: pagedOrders,
+    total: total
   };
 });
 
@@ -245,6 +274,28 @@ Mock.mock('/api/order/pay', 'post', (options) => {
     
     // 保存到localStorage
     localStorage.setItem('mock_orders', JSON.stringify(orders));
+    
+    // 5秒后自动将订单状态更新为待收货状态
+    setTimeout(() => {
+      // 再次检查订单是否存在且状态是已支付
+      const currentIndex = orders.findIndex(o => o.id === orderId);
+      if (currentIndex !== -1 && orders[currentIndex].status === 2) {
+        // 更新为待收货状态
+        orders[currentIndex].status = 4;
+        orders[currentIndex].deliveryTime = new Date().toLocaleString('zh-CN', {
+          year: 'numeric',
+          month: '2-digit',
+          day: '2-digit',
+          hour: '2-digit',
+          minute: '2-digit',
+          second: '2-digit',
+          hour12: false
+        }).replace(/\//g, '-');
+        
+        // 保存到localStorage
+        localStorage.setItem('mock_orders', JSON.stringify(orders));
+      }
+    }, 5000);
     
     return {
       success: true,
@@ -339,7 +390,7 @@ Mock.mock('/api/order/confirm', 'post', (options) => {
   }
   
   // 更新订单状态
-  orders[orderIndex].status = 4; // 已完成
+  orders[orderIndex].status = 5; // 已完成
   
   // 保存数据
   saveOrders();
@@ -375,7 +426,7 @@ Mock.mock(/\/api\/order\/confirm\/\d+/, 'post', (options) => {
   }
   
   // 更新订单状态
-  orders[orderIndex].status = 4; // 已完成
+  orders[orderIndex].status = 5; // 已完成
   
   // 保存数据
   saveOrders();

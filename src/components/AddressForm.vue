@@ -1,54 +1,56 @@
 <template>
   <el-dialog
     :title="isEdit ? '编辑地址' : '添加地址'"
-    v-model="dialogVisible"
+    :model-value="modelValue"
+    @update:modelValue="$emit('update:modelValue', $event)"
     width="500px"
+    @close="handleClose"
   >
     <el-form
       ref="formRef"
-      :model="form"
-      :rules="rules"
+      :model="formData"
+      :rules="formRules"
       label-width="80px"
-      class="address-form"
     >
       <el-form-item label="收货人" prop="name">
-        <el-input v-model="form.name" placeholder="请输入收货人姓名" />
+        <el-input v-model="formData.name" placeholder="请输入收货人姓名"></el-input>
       </el-form-item>
       
       <el-form-item label="手机号码" prop="phone">
-        <el-input v-model="form.phone" placeholder="请输入手机号码" />
+        <el-input v-model="formData.phone" placeholder="请输入手机号码"></el-input>
       </el-form-item>
       
       <el-form-item label="详细地址" prop="address">
-        <el-input 
-          v-model="form.address" 
-          type="textarea" 
-          :rows="3"
-          placeholder="请输入详细地址信息" 
-        />
+        <el-input
+          v-model="formData.address"
+          type="textarea"
+          rows="3"
+          placeholder="请输入详细地址"
+        ></el-input>
       </el-form-item>
       
-      <el-form-item>
-        <el-checkbox v-model="form.isDefault">设为默认地址</el-checkbox>
+      <el-form-item label="设为默认">
+        <el-switch v-model="formData.isDefault"></el-switch>
       </el-form-item>
     </el-form>
     
     <template #footer>
-      <div class="dialog-footer">
-        <el-button @click="handleCancel">取消</el-button>
+      <span class="dialog-footer">
+        <el-button @click="handleClose">取消</el-button>
         <el-button type="primary" @click="submitForm">保存</el-button>
-      </div>
+      </span>
     </template>
   </el-dialog>
 </template>
 
 <script setup>
-import { ref, reactive, watch } from 'vue'
+import { ref, watch } from 'vue'
+import { ElForm, ElFormItem, ElInput, ElSwitch, ElButton } from 'element-plus'
 
 const props = defineProps({
   address: {
     type: Object,
-    default: () => ({})
+    required: true
   },
   isEdit: {
     type: Boolean,
@@ -62,44 +64,15 @@ const props = defineProps({
 
 const emit = defineEmits(['update:modelValue', 'submit'])
 
-// 对话框可见性
-const dialogVisible = ref(props.modelValue)
-
-// 监听modelValue变化
-watch(() => props.modelValue, (val) => {
-  dialogVisible.value = val
+const formData = ref({
+  id: 0,
+  name: '',
+  phone: '',
+  address: '',
+  isDefault: false
 })
 
-// 监听dialogVisible变化
-watch(dialogVisible, (val) => {
-  emit('update:modelValue', val)
-})
-
-// 表单引用
-const formRef = ref(null)
-
-// 表单数据
-const form = reactive({
-  id: props.address.id || 0,
-  name: props.address.name || '',
-  phone: props.address.phone || '',
-  address: props.address.address || '',
-  isDefault: props.address.isDefault || false
-})
-
-// 监听address变化，更新表单数据
-watch(() => props.address, (val) => {
-  Object.assign(form, {
-    id: val.id || 0,
-    name: val.name || '',
-    phone: val.phone || '',
-    address: val.address || '',
-    isDefault: val.isDefault || false
-  })
-}, { deep: true })
-
-// 表单验证规则
-const rules = {
+const formRules = {
   name: [
     { required: true, message: '请输入收货人姓名', trigger: 'blur' },
     { min: 2, max: 20, message: '长度在 2 到 20 个字符', trigger: 'blur' }
@@ -114,33 +87,27 @@ const rules = {
   ]
 }
 
-/**
- * 提交表单
- */
+const formRef = ref(null)
+
+// 当props.address变化时更新表单数据
+watch(() => props.address, (newVal) => {
+  formData.value = { ...newVal }
+}, { immediate: true, deep: true })
+
+// 关闭对话框
+const handleClose = () => {
+  emit('update:modelValue', false)
+}
+
+// 提交表单
 const submitForm = async () => {
   if (!formRef.value) return
   
-  await formRef.value.validate(async (valid, fields) => {
+  await formRef.value.validate((valid) => {
     if (valid) {
-      // 提交表单数据到父组件
-      emit('submit', {
-        id: form.id,
-        name: form.name,
-        phone: form.phone,
-        address: form.address,
-        isDefault: form.isDefault
-      })
-    } else {
-      console.log('表单验证失败:', fields)
+      emit('submit', formData.value)
     }
   })
-}
-
-/**
- * 取消操作
- */
-const handleCancel = () => {
-  dialogVisible.value = false
 }
 </script>
 

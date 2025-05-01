@@ -6,6 +6,7 @@ import { submitComment, checkOrderComment } from '../../api/comment'
 import { getOrderDetail } from '../../api/order'
 import AppLayout from '../../components/AppLayout.vue'
 import { Plus } from '@element-plus/icons-vue'
+import { useUserStore } from '../../stores/user'
 
 // 获取路由参数
 const route = useRoute()
@@ -33,6 +34,9 @@ const commentForm = ref({
 // 上传图片相关
 const imageList = ref([])
 const uploadUrl = 'https://mock-api.com/upload' // 模拟上传地址
+
+// 用户商店
+const userStore = useUserStore()
 
 /**
  * 上传图片成功回调
@@ -107,17 +111,32 @@ const submitOrderComment = async () => {
   
   submitting.value = true
   try {
-    const res = await submitComment(commentForm.value)
-    if (res) {
+    // 提交前构建评价数据
+    const commentData = {
+      orderId: orderId,
+      shopId: order.value.shopId,
+      goodsId: order.value.goodsId,
+      goodsName: order.value.goodsName,
+      content: commentForm.value.content,
+      score: commentForm.value.score,
+      images: commentForm.value.images,
+      userPhone: userStore.userInfo.phone // 关联用户电话
+    }
+    
+    const res = await submitComment(commentData)
+    if (res.success) {
       ElNotification({
         title: '评价成功',
         message: '感谢您的评价！',
         type: 'success'
       })
       
-      // 跳转回订单详情页
+      // 标记订单已评价
+      order.value.commented = true
+      
+      // 跳转回订单列表页
       setTimeout(() => {
-        router.push(`/order/${orderId}`)
+        router.push('/order/list')
       }, 1500)
     }
   } catch (error) {

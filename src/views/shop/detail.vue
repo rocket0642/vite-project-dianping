@@ -147,6 +147,12 @@ onMounted(() => {
   loadShopDetail()
   loadShopGoods()
 })
+
+// 添加手机号码隐藏方法
+const hidePhone = (phone) => {
+  if (!phone) return '';
+  return phone.replace(/(\d{3})\d{4}(\d{4})/, '$1****$2');
+};
 </script>
 
 <template>
@@ -285,6 +291,7 @@ onMounted(() => {
                             </div>
                             <div class="user-info">
                               <div class="user-name">{{ comment.userNickName }}</div>
+                              <div class="comment-phone">{{ hidePhone(comment.userPhone) }}</div>
                               <div class="comment-date">{{ formatDate(comment.createTime) }}</div>
                             </div>
                             <div class="comment-score">
@@ -541,6 +548,11 @@ onMounted(() => {
   font-weight: bold;
   font-size: 14px;
   margin-bottom: 3px;
+}
+
+.comment-phone {
+  font-size: 12px;
+  color: #999;
 }
 
 .comment-date {

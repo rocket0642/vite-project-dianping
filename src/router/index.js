@@ -27,8 +27,12 @@ const routes = [
   },
   {
     path: '/user/address',
+    name: 'UserAddress',
     component: () => import('../views/user/address.vue'),
-    meta: { title: '地址管理', requiresAuth: true }
+    meta: {
+      requiresAuth: true,
+      title: '收货地址管理'
+    }
   },
   {
     path: '/shop/:id',

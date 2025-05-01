@@ -22,7 +22,7 @@ const orderStatsLoading = ref(true)
 
 // 用户信息
 const userInfo = computed(() => userStore.userInfo)
-const userId = computed(() => userStore.userId)
+const userPhone = computed(() => useUserStore.userPhone)
 
 // 编辑对话框可见性
 const editDialogVisible = ref(false)
@@ -33,8 +33,6 @@ const editForm = ref({
   id: '',
   nickName: '',
   icon: '',
-  // 详细信息
-  userId: '',
   city: '',
   introduce: '',
   gender: true,
@@ -47,8 +45,9 @@ const uploadUrl = ref('/api/upload')
 
 // 订单数据
 const orderStats = ref({
+  paid: 0,
   unpaid: 0,
-  undelivered: 0,
+  canceled: 0,
   unreceived: 0,
   uncommented: 0
 })
@@ -86,8 +85,6 @@ const openEditDialog = () => {
     id: userInfo.value.id,
     nickName: userInfo.value.nickName || '',
     icon: userInfo.value.icon || '',
-    // 详细信息
-    userId: userInfo.value.id,
     city: userInfo.value.city || '',
     introduce: userInfo.value.introduce || '',
     gender: userInfo.value.gender !== undefined ? userInfo.value.gender : false,
@@ -130,7 +127,6 @@ const submitEditForm = async () => {
     
     // 更新详细信息
     await updateUserDetail({
-      userId: editForm.value.userId,
       city: editForm.value.city,
       introduce: editForm.value.introduce,
       gender: editForm.value.gender,
@@ -203,32 +199,36 @@ const logout = () => {
  */
 const loadOrderStats = async () => {
   try {
-    orderStatsLoading.value = true
+    orderStatsLoading.value = true;
     // 获取当前用户的订单数据
-    const orders = await getUserOrders({ status: 0 })
+    const res = await getUserOrders({ status: 0 });
     
+    if (res.success && res.data) {
     // 计算各个状态的订单数量
     const stats = {
-      unpaid: 0,
-      undelivered: 0,
-      unreceived: 0,
-      uncommented: 0
+        paid: 0,      // 已支付
+        unpaid: 0,     // 待付款
+        canceled: 0,   // 已取消
+        unreceived: 0, // 待收货
+        uncommented: 0 // 待评价
+      };
+      
+      res.data.forEach(order => {
+        if (order.status === 2) stats.paid++;
+        else if (order.status === 1) stats.unpaid++;
+        else if (order.status === 3) stats.canceled++;
+        else if (order.status === 4) stats.unreceived++;
+        else if (order.status === 5 && !order.commented) stats.uncommented++;
+      });
+    
+      orderStats.value = stats;
     }
-    
-    orders.forEach(order => {
-      if (order.status === 1) stats.unpaid++
-      else if (order.status === 2) stats.undelivered++
-      else if (order.status === 3) stats.unreceived++
-      else if (order.status === 4) stats.uncommented++
-    })
-    
-    orderStats.value = stats
-    orderStatsLoading.value = false
+    orderStatsLoading.value = false;
   } catch (error) {
-    console.error('获取订单统计失败:', error)
-    orderStatsLoading.value = false
+    console.error('获取订单统计失败:', error);
+    orderStatsLoading.value = false;
   }
-}
+};
 
 /**
  * 加载最近浏览数据
@@ -236,8 +236,8 @@ const loadOrderStats = async () => {
 const loadRecentViews = async () => {
   // 从本地存储获取浏览记录数据
   try {
-    const userId = userStore.userId
-    const viewsData = localStorage.getItem(`recent_views_${userId}`)
+    const userPhone = useUserStore.userPhone
+    const viewsData = localStorage.getItem(`recent_views_${userPhone}`)
     if (viewsData) {
       recentViews.value = JSON.parse(viewsData).slice(0, 4) // 只显示最近4条
     }
@@ -278,8 +278,8 @@ onMounted(async () => {
 })
 
 // 监听用户ID变化，重新加载数据
-watch(() => userStore.userId, (newId, oldId) => {
-  if (newId && newId !== oldId) {
+watch(() => userStore.userPhone, (newUserPhone, oldUserPhone) => {
+  if (newUserPhone && newUserPhone !== oldUserPhone) {
     loadUserAddresses()
     loadOrderStats()
     loadRecentViews()
@@ -294,7 +294,6 @@ watch(() => editDialogVisible.value, (newVal) => {
       id: userInfo.value.id,
       nickName: userInfo.value.nickName || '',
       icon: userInfo.value.icon || '',
-      userId: userInfo.value.id,
       city: userInfo.value.city || '',
       introduce: userInfo.value.introduce || '', 
       gender: userInfo.value.gender !== undefined ? userInfo.value.gender : false,
@@ -374,29 +373,34 @@ watch(() => editDialogVisible.value, (newVal) => {
     <div class="section-card">
       <h3 class="section-title">我的订单</h3>
       <div class="order-shortcuts" v-loading="orderStatsLoading">
+        <div class="shortcut-item" @click="goToOrderList(0)">
+          <el-icon><Document /></el-icon>
+          <span class="shortcut-label">全部订单</span>
+        </div>
+        <div class="shortcut-item" @click="goToOrderList(2)">
+          <el-icon><Box /></el-icon>
+          <span class="shortcut-label">已支付</span>
+          <span v-if="orderStats.paid > 0" class="badge">{{ orderStats.paid }}</span>
+        </div>
         <div class="shortcut-item" @click="goToOrderList(1)">
           <el-icon><Money /></el-icon>
           <span class="shortcut-label">待付款</span>
           <span v-if="orderStats.unpaid > 0" class="badge">{{ orderStats.unpaid }}</span>
         </div>
-        <div class="shortcut-item" @click="goToOrderList(2)">
-          <el-icon><Box /></el-icon>
-          <span class="shortcut-label">待发货</span>
-          <span v-if="orderStats.undelivered > 0" class="badge">{{ orderStats.undelivered }}</span>
-        </div>
         <div class="shortcut-item" @click="goToOrderList(3)">
+          <el-icon><Document /></el-icon>
+          <span class="shortcut-label">已取消</span>
+          <span v-if="orderStats.canceled > 0" class="badge">{{ orderStats.canceled }}</span>
+        </div>
+        <div class="shortcut-item" @click="goToOrderList(4)">
           <el-icon><Van /></el-icon>
           <span class="shortcut-label">待收货</span>
           <span v-if="orderStats.unreceived > 0" class="badge">{{ orderStats.unreceived }}</span>
         </div>
-        <div class="shortcut-item" @click="goToOrderList(4)">
+        <div class="shortcut-item" @click="goToOrderList(5)">
           <el-icon><ChatDotRound /></el-icon>
           <span class="shortcut-label">待评价</span>
           <span v-if="orderStats.uncommented > 0" class="badge">{{ orderStats.uncommented }}</span>
-        </div>
-        <div class="shortcut-item" @click="goToOrderList(0)">
-          <el-icon><Document /></el-icon>
-          <span class="shortcut-label">全部订单</span>
         </div>
       </div>
     </div>

@@ -26,8 +26,8 @@ const orderSteps = computed(() => {
   const steps = [
     { title: '提交订单', description: order.value.createTime || '' },
     { title: '支付', description: order.value.payTime || '待支付' },
-    { title: '商家发货', description: '等待商家发货' },
-    { title: '确认收货', description: '订单完成' }
+    { title: '商家发货', description: order.value.deliveryTime || '等待商家发货' },
+    { title: '确认收货', description: order.value.status === 5 ? '已完成' : '订单完成' }
   ]
   
   return steps
@@ -39,7 +39,8 @@ const activeStep = computed(() => {
     case 1: return 0 // 待付款
     case 2: return 1 // 已支付
     case 3: return -1 // 已取消
-    case 4: return 3 // 已完成
+    case 4: return 2 // 待收货
+    case 5: return 3 // 已完成
     default: return 0
   }
 })
@@ -63,7 +64,8 @@ const getStatusText = (status) => {
     case 1: return '待付款'
     case 2: return '已支付'
     case 3: return '已取消'
-    case 4: return '已完成'
+    case 4: return '待收货'
+    case 5: return '已完成'
     default: return '未知状态'
   }
 }
@@ -79,6 +81,7 @@ const getStatusType = (status) => {
     case 2: return 'success'
     case 3: return 'info'
     case 4: return 'primary'
+    case 5: return 'success'
     default: return 'info'
   }
 }
@@ -117,7 +120,7 @@ const loadOrderDetail = async () => {
     await orderStore.fetchOrderDetail(orderId)
     order.value = orderStore.currentOrder
     // 如果订单已完成，检查是否已评价
-    if (order.value.status === 4) {
+    if (order.value.status === 5) {
       await checkOrderIsCommented()
     }
   } catch (error) {
@@ -282,7 +285,7 @@ onMounted(() => {
                 取消订单
               </el-button>
               <el-button 
-                v-if="order.status === 2" 
+                v-if="order.status === 4" 
                 type="primary" 
                 size="small" 
                 @click="confirmReceipt"
@@ -290,7 +293,7 @@ onMounted(() => {
                 确认收货
               </el-button>
               <el-button 
-                v-if="order.status === 2" 
+                v-if="order.status === 4" 
                 type="default" 
                 size="small" 
                 @click="viewLogistics"
@@ -298,7 +301,7 @@ onMounted(() => {
                 查看物流
               </el-button>
               <el-button 
-                v-if="order.status === 4 && !isCommented" 
+                v-if="order.status === 5 && !isCommented" 
                 type="warning" 
                 size="small" 
                 @click="goToComment"
@@ -306,7 +309,7 @@ onMounted(() => {
                 评价订单
               </el-button>
               <el-button 
-                v-if="order.status === 2 || order.status === 4" 
+                v-if="order.status === 4 || order.status === 5" 
                 type="default" 
                 size="small" 
                 @click="applyRefund"

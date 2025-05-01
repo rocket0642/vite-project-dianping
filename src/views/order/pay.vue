@@ -3,7 +3,6 @@ import { ref, computed, onMounted, onBeforeUnmount } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { ElMessage, ElMessageBox, ElDialog, ElButton, ElRadio, ElEmpty } from 'element-plus'
 import AppLayout from '../../components/AppLayout.vue'
-import AddressForm from '../../components/AddressForm.vue'
 import { useOrderStore } from '../../stores/order'
 import { useUserStore } from '../../stores/user'
 import { getUserAddresses } from '../../api/address'
@@ -27,7 +26,6 @@ const timer = ref(null)
 
 // 地址相关
 const addressDialogVisible = ref(false)
-const addressFormVisible = ref(false)
 const addresses = ref([])
 const addressesLoading = ref(false)
 const selectedAddress = ref(null)
@@ -170,8 +168,14 @@ const payOrder = async () => {
       ElMessage.success('支付成功')
       // 清除倒计时
       clearInterval(timer.value)
-      // 跳转到订单详情页
-      router.push(`/order/detail/${orderId}`)
+      
+      // 添加通知 - 5秒后系统将自动发货
+      ElMessage.info('系统将在5秒后自动发货')
+      
+      // 延时5秒后跳转到订单详情页
+      setTimeout(() => {
+        router.push(`/order/detail/${orderId}`)
+      }, 5000)
     } else {
       ElMessage.error(res?.errorMsg || '支付失败，请稍后重试')
     }
@@ -266,14 +270,12 @@ const loadUserAddresses = async () => {
   addressesLoading.value = true
   try {
     const res = await getUserAddresses()
-    if (res.success) {
-      addresses.value = res.data
-      
-      // 如果没有选中地址，且有默认地址，则使用默认地址
-      if (!selectedAddress.value && addresses.value.length > 0) {
-        const defaultAddress = addresses.value.find(addr => addr.isDefault)
-        selectedAddress.value = defaultAddress || addresses.value[0]
-      }
+    addresses.value = res
+    
+    // 如果没有选中地址，且有默认地址，则使用默认地址
+    if (!selectedAddress.value && addresses.value.length > 0) {
+      const defaultAddress = addresses.value.find(addr => addr.isDefault)
+      selectedAddress.value = defaultAddress || addresses.value[0]
     }
   } catch (error) {
     console.error('加载地址列表失败:', error)
@@ -288,14 +290,6 @@ const loadUserAddresses = async () => {
  */
 const openAddressDialog = () => {
   addressDialogVisible.value = true
-}
-
-/**
- * 打开添加地址表单
- */
-const openAddressForm = () => {
-  addressFormVisible.value = true
-  addressDialogVisible.value = false
 }
 
 /**
@@ -396,12 +390,18 @@ onBeforeUnmount(() => {
             <el-button type="primary" size="small" @click="openAddressDialog">修改地址</el-button>
           </div>
           <div class="address-content" v-if="selectedAddress">
-            <p>{{ selectedAddress.name }} {{ selectedAddress.phone }}</p>
-            <p>{{ selectedAddress.address }}</p>
+            <div class="address-info">
+              <div class="contact">
+                <span class="name">{{ selectedAddress.name }}</span>
+                <span class="phone">{{ selectedAddress.phone }}</span>
+                <el-tag v-if="selectedAddress.isDefault" size="small" type="success">默认</el-tag>
+              </div>
+              <div class="detail">{{ selectedAddress.address }}</div>
+            </div>
           </div>
-          <div class="address-content" v-else>
-            <p>{{ order.addressName }} {{ order.addressPhone }}</p>
-            <p>{{ order.addressDetail }}</p>
+          <div class="address-empty" v-else>
+            <p>暂无收货地址</p>
+            <el-button type="primary" size="small" @click="openAddressDialog">添加地址</el-button>
           </div>
         </div>
       </div>
@@ -448,9 +448,6 @@ onBeforeUnmount(() => {
         title="选择收货地址"
         width="600px"
       >
-        <div class="address-dialog-header">
-          <el-button type="primary" @click="openAddressForm">添加新地址</el-button>
-        </div>
         <div class="address-dialog-content" v-loading="addressesLoading">
           <el-empty v-if="addresses.length === 0" description="暂无收货地址" />
           <div 
@@ -483,15 +480,6 @@ onBeforeUnmount(() => {
             <el-button type="primary" @click="updateOrderAddress">确认</el-button>
           </span>
         </template>
-      </el-dialog>
-      
-      <!-- 添加地址对话框 -->
-      <el-dialog
-        v-model="addressFormVisible"
-        title="添加收货地址"
-        width="600px"
-      >
-        <address-form @success="handleAddressSuccess" @cancel="addressFormVisible = false" />
       </el-dialog>
     </div>
   </AppLayout>
@@ -594,12 +582,6 @@ onBeforeUnmount(() => {
 }
 
 /* 地址选择对话框样式 */
-.address-dialog-header {
-  margin-bottom: 15px;
-  display: flex;
-  justify-content: flex-end;
-}
-
 .address-dialog-content {
   max-height: 400px;
   overflow-y: auto;

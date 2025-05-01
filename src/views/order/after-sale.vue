@@ -123,12 +123,29 @@ const submitRefund = async () => {
 
   submitting.value = true
   try {
-    // 这里应该调用退款API，目前为模拟操作
-    await new Promise(resolve => setTimeout(resolve, 1000))
-    ElMessage.success('退款申请已提交，请等待商家处理')
-    router.push(`/order/${orderId}`)
+    // 构建售后申请数据
+    const refundData = {
+      orderId: orderId,
+      reason: refundForm.value.reason,
+      amount: refundForm.value.amount * 100, // 转换为分
+      description: refundForm.value.description,
+      images: refundForm.value.images
+    }
+    
+    // 提交售后申请并取消订单
+    const res = await orderStore.cancelUserOrder(orderId, {
+      reason: `售后申请：${refundForm.value.reason}`,
+      refundData: refundData
+    })
+    
+    if (res.success) {
+      ElMessage.success('售后申请已提交，订单已取消')
+      router.push(`/order/detail/${orderId}`)
+    } else {
+      ElMessage.error(res.errorMsg || '售后申请提交失败')
+    }
   } catch (error) {
-    console.error('提交退款申请失败:', error)
+    console.error('提交售后申请失败:', error)
     ElMessage.error('提交失败，请稍后重试')
   } finally {
     submitting.value = false
@@ -139,7 +156,7 @@ const submitRefund = async () => {
  * 返回订单详情
  */
 const goBack = () => {
-  router.push(`/order/${orderId}`)
+  router.push(`/order/detail/${orderId}`)
 }
 
 // 初始化

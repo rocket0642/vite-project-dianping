@@ -6,6 +6,8 @@ import AppLayout from '../../components/AppLayout.vue'
 import { useCartStore } from '../../stores/cart'
 import { useOrderStore } from '../../stores/order'
 import { useUserStore } from '../../stores/user'
+import { getUserAddresses } from '../../api/address'
+import { Check, Plus } from '@element-plus/icons-vue'
 
 // 路由实例
 const router = useRouter()
@@ -17,6 +19,7 @@ const userStore = useUserStore()
 
 // 状态
 const loading = ref(false)
+const addressesLoading = ref(false)
 const orderForm = ref({
   address: '',
   payType: 1,
@@ -24,14 +27,11 @@ const orderForm = ref({
   items: []
 })
 
-// 地址列表（模拟数据）
-const addresses = ref([
-  { id: 1, name: '张三', phone: '13800138000', address: '浙江省杭州市西湖区文三路 100 号' },
-  { id: 2, name: '李四', phone: '13800138001', address: '浙江省杭州市滨江区江南大道 200 号' }
-])
+// 地址列表
+const addresses = ref([])
 
 // 选中的地址
-const selectedAddress = ref(addresses.value[0])
+const selectedAddress = ref(null)
 
 // 按店铺分组的购物车选中商品
 const groupedCheckedItems = computed(() => {
@@ -151,6 +151,42 @@ const goBack = () => {
   router.push('/cart')
 }
 
+/**
+ * 加载用户地址列表
+ */
+const loadAddresses = async () => {
+  addressesLoading.value = true
+  try {
+    const res = await getUserAddresses()
+    addresses.value = res
+    
+    // 如果有默认地址，选择默认地址
+    if (addresses.value.length > 0) {
+      const defaultAddress = addresses.value.find(addr => addr.isDefault)
+      selectedAddress.value = defaultAddress || addresses.value[0]
+    }
+  } catch (error) {
+    console.error('获取地址列表失败:', error)
+    ElMessage.error('获取地址列表失败')
+  } finally {
+    addressesLoading.value = false
+  }
+}
+
+/**
+ * 选择地址
+ */
+const selectAddress = (address) => {
+  selectedAddress.value = address
+}
+
+/**
+ * 跳转到地址管理页面
+ */
+const goToAddressManage = () => {
+  router.push('/user/address')
+}
+
 // 初始化
 onMounted(() => {
   if (!userStore.isLogin) {
@@ -162,7 +198,11 @@ onMounted(() => {
   if (cartStore.checkedCount === 0) {
     ElMessage.warning('请先选择要购买的商品')
     router.push('/cart')
+    return
   }
+  
+  // 加载地址列表
+  loadAddresses()
 })
 </script>
 
@@ -175,23 +215,39 @@ onMounted(() => {
       
       <!-- 收货地址 -->
       <div class="section address-section">
-        <h2 class="section-title">收货地址</h2>
-        <div class="address-list">
-          <div 
-            v-for="address in addresses" 
-            :key="address.id" 
-            :class="['address-item', { active: selectedAddress.id === address.id }]"
-            @click="selectedAddress = address"
-          >
-            <div class="address-info">
-              <div class="contact">
-                <span class="name">{{ address.name }}</span>
-                <span class="phone">{{ address.phone }}</span>
+        <div class="section-header">
+          <h2 class="section-title">收货地址</h2>
+          <el-button type="primary" size="small" @click="goToAddressManage">
+            <el-icon><Plus /></el-icon>
+            管理地址
+          </el-button>
+        </div>
+        
+        <div v-loading="addressesLoading" class="address-content">
+          <div v-if="addresses.length === 0 && !addressesLoading" class="empty-address">
+            <p>您还没有添加收货地址</p>
+            <el-button type="primary" size="small" @click="goToAddressManage">添加地址</el-button>
+          </div>
+          
+          <div v-else class="address-list">
+            <div
+              v-for="address in addresses"
+              :key="address.id"
+              class="address-item"
+              :class="{ 'active': selectedAddress && selectedAddress.id === address.id }"
+              @click="selectAddress(address)"
+            >
+              <div class="address-info">
+                <div class="address-header">
+                  <span class="address-name">{{ address.name }}</span>
+                  <span class="address-phone">{{ address.phone }}</span>
+                  <el-tag v-if="address.isDefault" size="small" type="success">默认</el-tag>
+                </div>
+                <div class="address-detail">{{ address.address }}</div>
               </div>
-              <div class="detail">{{ address.address }}</div>
-            </div>
-            <div class="address-actions">
-              <el-radio v-model="selectedAddress.id" :label="address.id">选择</el-radio>
+              <div class="address-check" v-if="selectedAddress && selectedAddress.id === address.id">
+                <el-icon color="#409EFF"><Check /></el-icon>
+              </div>
             </div>
           </div>
         </div>
@@ -312,10 +368,21 @@ onMounted(() => {
   margin-bottom: 30px;
 }
 
+.section-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 15px;
+}
+
 .section-title {
   font-size: 18px;
-  margin-bottom: 15px;
+  margin-bottom: 0;
   color: #333;
+}
+
+.address-content {
+  min-height: 100px;
 }
 
 .address-list {
@@ -341,6 +408,30 @@ onMounted(() => {
 .address-item.active {
   border-color: #409EFF;
   background-color: #f0f9ff;
+}
+
+.address-header {
+  margin-bottom: 8px;
+}
+
+.address-name {
+  font-weight: bold;
+  margin-right: 10px;
+}
+
+.address-phone {
+  color: #606266;
+}
+
+.address-detail {
+  color: #606266;
+  font-size: 14px;
+}
+
+.empty-address {
+  text-align: center;
+  padding: 20px;
+  color: #909399;
 }
 
 .contact {

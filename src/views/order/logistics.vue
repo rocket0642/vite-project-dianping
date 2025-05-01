@@ -1,10 +1,9 @@
 <script setup>
-import { ref, onMounted } from 'vue'
+import { ref, onMounted, onBeforeUnmount } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { ElMessage } from 'element-plus'
 import AppLayout from '../../components/AppLayout.vue'
 import { useOrderStore } from '../../stores/order'
-import AMapLoader from '@amap/amap-jsapi-loader'
 
 // 路由实例
 const route = useRoute()
@@ -15,9 +14,12 @@ const orderStore = useOrderStore()
 
 // 状态
 const loading = ref(true)
+const mapLoading = ref(true)
 const order = ref({})
 const orderId = parseInt(route.params.id)
 const mapContainer = ref(null)
+const AMap = ref(null)
+const mapInstance = ref(null)
 const logisticsInfo = ref({
   status: '运输中',
   number: 'SF1234567890',
@@ -48,48 +50,112 @@ const loadOrderDetail = async () => {
 }
 
 /**
- * 初始化高德地图
+ * 加载高德地图脚本
+ */
+const loadMapScript = () => {
+  return new Promise((resolve, reject) => {
+    // 先清除可能存在的脚本，避免多个key冲突
+    const existingScript = document.getElementById('amap-script')
+    if (existingScript) {
+      document.head.removeChild(existingScript)
+    }
+    
+    // 设置安全密钥配置，必须在脚本加载前设置
+    window._AMapSecurityConfig = {
+      securityJsCode: 'your_security_js_code' // 可选安全密钥
+    }
+    
+    // 创建新的脚本元素
+    const script = document.createElement('script')
+    script.id = 'amap-script'
+    script.src = `https://webapi.amap.com/maps?v=2.0&key=9e0fe96fdb8d2d03a0ac62e97bcf30cb&callback=initAMap`
+    script.async = true
+    
+    // 定义回调函数
+    window.initAMap = () => {
+      AMap.value = window.AMap
+      resolve(window.AMap)
+    }
+    
+    script.onerror = reject
+    document.head.appendChild(script)
+  })
+}
+
+/**
+ * 初始化地图
  */
 const initMap = async () => {
+  if (!mapContainer.value) return
+  
   try {
-    const AMap = await AMapLoader.load({
-      key: 'your_amap_key', // 需要替换为您的高德地图API密钥
-      version: '2.0',
-      plugins: ['AMap.Driving', 'AMap.ToolBar', 'AMap.Scale']
-    })
+    mapLoading.value = true
+    
+    // 加载高德地图脚本
+    await loadMapScript()
     
     // 创建地图实例
-    const map = new AMap.Map(mapContainer.value, {
-      viewMode: '3D',
-      zoom: 12,
-      center: [120.142423, 30.262454] // 杭州市中心坐标
+    mapInstance.value = new AMap.value.Map(mapContainer.value, {
+      zoom: 8,
+      center: [120.142423, 30.262454] // 杭州坐标
     })
     
-    // 添加工具条和比例尺
-    map.addControl(new AMap.ToolBar())
-    map.addControl(new AMap.Scale())
-    
-    // 构造路线导航实例
-    const driving = new AMap.Driving({
-      policy: AMap.DrivingPolicy.LEAST_TIME,
-      map: map
+    // 创建起点标记
+    const startMarker = new AMap.value.Marker({
+      position: [116.397428, 39.90923], // 北京坐标
+      map: mapInstance.value,
+      icon: 'https://webapi.amap.com/theme/v1.3/markers/n/start.png',
+      title: '发货地-上海'
     })
     
-    // 模拟配送路线
+    // 创建终点标记
+    const endMarker = new AMap.value.Marker({
+      position: [120.142423, 30.262454], // 杭州坐标
+      map: mapInstance.value,
+      icon: 'https://webapi.amap.com/theme/v1.3/markers/n/end.png',
+      title: '收货地-杭州'
+    })
+    
+    // 使用AMap.DrivingRoute绘制路线
+    const driving = new AMap.value.Driving({
+      map: mapInstance.value,
+      panel: false
+    })
+    
+    // 设置路线
     driving.search(
-      [116.396749, 39.908685], // 起点（模拟商家地址）
-      [120.142423, 30.262454], // 终点（模拟收货地址）
+      [116.397428, 39.90923], // 起点
+      [120.142423, 30.262454], // 终点
+      {
+        waypoints: [
+          [118.778074, 32.057236] // 南京中转站
+        ]
+      },
       (status, result) => {
+        mapLoading.value = false
         if (status === 'complete') {
-          // 绘制路线完成
-          console.log('绘制配送路线成功')
+          console.log('路线规划成功')
+          
+          // 缩放地图以适应路线
+          mapInstance.value.setFitView()
+          
+          // 添加南京中转点标记
+          new AMap.value.Marker({
+            position: [118.778074, 32.057236],
+            map: mapInstance.value,
+            icon: 'https://webapi.amap.com/theme/v1.3/markers/n/mid.png',
+            title: '南京中转站'
+          })
         } else {
-          console.error('配送路线绘制失败', result)
+          console.error('路线规划失败:', result)
+          ElMessage.warning('物流路线规划失败，显示基本地图')
         }
       }
     )
   } catch (error) {
     console.error('地图加载失败:', error)
+    mapLoading.value = false
+    ElMessage.error(`地图初始化失败: ${error.message}`)
   }
 }
 
@@ -97,13 +163,36 @@ const initMap = async () => {
  * 返回订单详情
  */
 const goToOrderDetail = () => {
-  router.push(`/order/${orderId}`)
+  router.push(`/order/detail/${orderId}`)
 }
 
 // 初始化
 onMounted(() => {
   loadOrderDetail()
-  initMap()
+  
+  // 让DOM完全渲染后再初始化地图
+  setTimeout(() => {
+    initMap()
+  }, 500)
+})
+
+// 组件销毁时清理地图资源
+onBeforeUnmount(() => {
+  if (mapInstance.value) {
+    mapInstance.value.destroy()
+    mapInstance.value = null
+  }
+  
+  // 清除全局回调和配置
+  if (window.initAMap) {
+    window.initAMap = null
+  }
+  
+  // 删除地图脚本
+  const script = document.getElementById('amap-script')
+  if (script) {
+    document.head.removeChild(script)
+  }
 })
 </script>
 
@@ -134,7 +223,13 @@ onMounted(() => {
           </div>
           
           <!-- 物流轨迹地图 -->
-          <div class="map-container" ref="mapContainer"></div>
+          <div class="map-container">
+            <div v-if="mapLoading" class="map-loading">
+              <div class="loading-spinner"></div>
+              <p>地图加载中...</p>
+            </div>
+            <div ref="mapContainer" class="amap-container"></div>
+          </div>
           
           <!-- 物流记录 -->
           <div class="logistics-records">
@@ -190,7 +285,7 @@ onMounted(() => {
   margin: 0;
 }
 
-.loading-container {
+.loading-container, .map-loading {
   text-align: center;
   padding: 50px 0;
 }
@@ -239,6 +334,22 @@ onMounted(() => {
 .map-container {
   height: 300px;
   width: 100%;
+  position: relative;
+}
+
+.amap-container {
+  height: 100%;
+  width: 100%;
+}
+
+.map-loading {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(255, 255, 255, 0.7);
+  z-index: 10;
 }
 
 .logistics-records {
