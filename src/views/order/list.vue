@@ -422,6 +422,9 @@ onBeforeUnmount(() => {
 <template>
   <AppLayout>
     <div class="order-list-container" v-loading="loading">
+      <div class="list-header">
+        <el-button type="text" icon="ArrowLeft" @click="$router.go(-1)">返回</el-button>
+      </div>
       <div class="order-tabs">
         <div 
           class="tab-item" 
@@ -495,7 +498,20 @@ onBeforeUnmount(() => {
               </span>
             </div>
             
-            <div class="order-product">
+            <!-- 如果有items数组，则遍历显示所有商品 -->
+            <div v-if="order.items && order.items.length" class="order-products">
+              <div v-for="(item, index) in order.items" :key="`${order.id}-${index}`" class="order-product">
+                <div class="product-info">
+                  <div class="product-name" @click="goToGoodsDetail(item.goodsId)">
+                    {{ item.goodsName }}
+                  </div>
+                  <div class="product-quantity">x{{ item.count }}</div>
+                </div>
+                <div class="product-price">¥{{ formatPrice(item.price * item.count) }}</div>
+              </div>
+            </div>
+            <!-- 向下兼容，如果没有items数组，则显示单个商品 -->
+            <div v-else class="order-product">
               <div class="product-info">
                 <div class="product-name" @click="goToGoodsDetail(order.goodsId)">
                   {{ order.goodsName }}
@@ -505,6 +521,7 @@ onBeforeUnmount(() => {
               <div class="product-price">¥{{ formatPrice(order.amount) }}</div>
             </div>
             
+            <!-- 显示收货地址信息 -->
             <div v-if="order.status === 1" class="order-address">
               <div class="address-header">
                 <span class="address-title">收货信息：</span>
@@ -760,10 +777,22 @@ onBeforeUnmount(() => {
   text-decoration: underline;
 }
 
+.order-products {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
 .order-product {
   display: flex;
   justify-content: space-between;
   align-items: center;
+  padding: 8px 0;
+  border-bottom: 1px dashed #f0f0f0;
+}
+
+.order-product:last-child {
+  border-bottom: none;
 }
 
 .product-info {
@@ -991,4 +1020,9 @@ onBeforeUnmount(() => {
     max-width: 150px;
   }
 }
+
+.list-header {
+  margin-bottom: 15px;
+}
+
 </style>

@@ -306,6 +306,11 @@ watch(() => editDialogVisible.value, (newVal) => {
 
 <template>
   <div class="user-center-container">
+    <!-- 添加返回按钮 -->
+    <div class="back-button">
+      <el-button type="text" icon="ArrowLeft" @click="$router.go(-1)">返回</el-button>
+    </div>
+    
     <!-- 用户信息卡片 -->
     <div class="user-card">
       <el-skeleton :loading="loading" animated>
@@ -532,6 +537,11 @@ watch(() => editDialogVisible.value, (newVal) => {
 </template>
 
 <style scoped>
+/* 添加返回按钮样式 */
+.back-button {
+  margin-bottom: 15px;
+}
+
 .user-center-container {
   max-width: 800px;
   margin: 20px auto;
@@ -549,7 +559,7 @@ watch(() => editDialogVisible.value, (newVal) => {
 .user-header {
   display: flex;
   align-items: center;
-  margin-bottom: 20px;
+  margin-bottom: 15px;
 }
 
 .avatar-container {

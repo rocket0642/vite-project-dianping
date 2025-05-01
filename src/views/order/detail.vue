@@ -245,6 +245,10 @@ onMounted(() => {
 <template>
   <AppLayout>
     <div class="order-detail-container">
+      <div class="page-header">
+        <el-button type="text" icon="ArrowLeft" @click="$router.push('/order/list')">返回订单列表</el-button>
+      </div>
+      
       <div v-if="loading" class="loading-container">
         <div class="loading-spinner"></div>
         <p>正在加载订单详情...</p>
@@ -253,9 +257,6 @@ onMounted(() => {
       <template v-else>
         <div class="page-header">
           <h1>订单详情</h1>
-          <el-button type="primary" size="small" @click="goToOrderList">
-            返回订单列表
-          </el-button>
         </div>
         
         <!-- 订单状态 -->

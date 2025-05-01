@@ -157,6 +157,10 @@ const goToRegister = () => {
         <p>点评电商平台</p>
       </div>
       
+      <div class="back-button">
+        <el-button icon="ArrowLeft" type="text" @click="$router.push('/')">返回首页</el-button>
+      </div>
+      
       <div class="login-tabs">
         <div 
           :class="['tab-item', { active: loginType === 'code' }]"
@@ -338,5 +342,12 @@ const goToRegister = () => {
   color: #409eff;
   cursor: pointer;
   margin-left: 5px;
+}
+
+.back-button {
+  position: absolute;
+  top: 16px;
+  left: 16px;
+  z-index: 10;
 }
 </style>

@@ -23,8 +23,8 @@ const goodsStore = useGoodsStore()
 // 状态
 const loading = ref(true)
 const shop = ref({})
-const activeTab = ref('info')
-const isCollected = ref(false) // 假设初始未收藏
+const activeTab = ref('goods')
+const isCollected = ref(false)
 const shopGoods = ref([])
 const commentsLoading = ref(false)
 const comments = ref([])
@@ -183,71 +183,81 @@ const hidePhone = (phone) => {
         <!-- 实际内容 -->
         <template #default>
           <div v-if="shop.id" class="shop-detail">
-            <!-- 商铺基本信息 -->
-            <div class="shop-header">
-              <div class="shop-image">
-                <el-image :src="shop.images" fit="cover" />
-              </div>
-              <div class="shop-info">
-                <h1 class="shop-name">{{ shop.name }}</h1>
-                <div class="shop-meta">
-                  <div class="shop-score">
-                    <el-rate 
-                      v-model="shop.score" 
-                      disabled 
-                      show-score 
-                      text-color="#ff9900"
-                      score-template="{value}"
-                    />
-                    <span>{{ shop.comments }} 条评价</span>
-                  </div>
-                  <div class="shop-price">
-                    <span class="label">人均:</span>
-                    <span class="price">¥{{ shop.avgPrice }}</span>
-                  </div>
-                  <div class="shop-type">
-                    <span class="label">分类:</span>
-                    <span>{{ shop.typeName }}</span>
-                  </div>
+            <!-- 商铺基本信息卡片 -->
+            <div class="page-header">
+              <el-button type="text" icon="ArrowLeft" @click="$router.go(-1)">返回</el-button>
+            </div>
+            <div class="shop-header-card">
+              <div class="shop-header">
+                <div class="shop-image">
+                  <el-image :src="shop.images" fit="cover" />
                 </div>
-                <div class="shop-actions">
-                  <el-button 
-                    :type="isCollected ? 'danger' : 'primary'" 
-                    :icon="Collection"
-                    @click="toggleCollection"
-                  >
-                    {{ isCollected ? '已收藏' : '收藏' }}
-                  </el-button>
+                <div class="shop-info">
+                  <h1 class="shop-name">{{ shop.name }}</h1>
+                  
+                  <div class="shop-meta">
+                    <div class="shop-score">
+                      <el-rate 
+                        v-model="shop.score" 
+                        disabled 
+                        show-score 
+                        text-color="#ff9900"
+                        score-template="{value}"
+                      />
+                      <div>{{ shop.comments }} 条评价</div>
+                    </div>
+                    
+                    <div class="shop-price-type">
+                      <div class="shop-price">
+                        <span class="label">人均:</span>
+                        <span class="price">¥{{ shop.avgPrice }}</span>
+                      </div>
+                      <div class="shop-type">
+                        <span class="label">分类:</span>
+                        <span>{{ shop.typeName }}</span>
+                      </div>
+                    </div>
+                    
+                    <!-- 店铺信息 -->
+                    <div class="shop-detail-info">
+                      <div class="info-item">
+                        <el-icon><Location /></el-icon>
+                        <span class="label">地址:</span>
+                        <span>{{ shop.area }} {{ shop.address }}</span>
+                      </div>
+                      <div class="info-item">
+                        <el-icon><Clock /></el-icon>
+                        <span class="label">营业时间:</span>
+                        <span>{{ shop.openHours }}</span>
+                      </div>
+                      <div class="info-item">
+                        <el-icon><Phone /></el-icon>
+                        <span class="label">电话:</span>
+                        <span>{{ shop.phone || '暂无' }}</span>
+                      </div>
+                      <div class="info-item">
+                        <el-icon><Star /></el-icon>
+                        <span class="label">销量:</span>
+                        <span>{{ shop.sold }}</span>
+                      </div>
+                    </div>
+                  </div>
+                  
+                  <div class="shop-actions">
+                    <el-button 
+                      :type="isCollected ? 'danger' : 'primary'" 
+                      :icon="Collection"
+                      @click="toggleCollection"
+                    >
+                      {{ isCollected ? '已收藏' : '收藏' }}
+                    </el-button>
+                  </div>
                 </div>
               </div>
             </div>
             
-            <!-- 商铺详情选项卡 -->
+            <!-- 商品列表和评价选项卡 -->
             <el-tabs v-model="activeTab" class="shop-tabs">
-              <el-tab-pane label="商铺信息" name="info">
-                <div class="shop-detail-info">
-                  <div class="info-item">
-                    <el-icon><Location /></el-icon>
-                    <span class="label">地址:</span>
-                    <span>{{ shop.area }} {{ shop.address }}</span>
-                  </div>
-                  <div class="info-item">
-                    <el-icon><Clock /></el-icon>
-                    <span class="label">营业时间:</span>
-                    <span>{{ shop.openHours }}</span>
-                  </div>
-                  <div class="info-item">
-                    <el-icon><Phone /></el-icon>
-                    <span class="label">电话:</span>
-                    <span>{{ shop.phone || '暂无' }}</span>
-                  </div>
-                  <div class="info-item">
-                    <el-icon><Star /></el-icon>
-                    <span class="label">销量:</span>
-                    <span>{{ shop.sold }}</span>
-                  </div>
-                </div>
-              </el-tab-pane>
               <el-tab-pane label="商品列表" name="goods">
                 <div class="shop-goods">
                   <div v-if="shopGoods.length > 0" class="goods-grid">
@@ -353,12 +363,17 @@ const hidePhone = (phone) => {
   padding: 20px;
 }
 
-.shop-header {
-  display: flex;
-  margin-bottom: 30px;
+.shop-header-card {
   background-color: var(--bg-primary);
   border-radius: var(--border-radius);
   box-shadow: var(--box-shadow);
+  overflow: hidden;
+  margin-bottom: 20px;
+}
+
+.shop-header {
+  display: flex;
+  background-color: var(--bg-primary);
   overflow: hidden;
 }
 
@@ -383,14 +398,24 @@ const hidePhone = (phone) => {
 .shop-name {
   font-size: 24px;
   margin-bottom: 15px;
+  color: #333;
 }
 
 .shop-meta {
   margin-bottom: 20px;
 }
 
-.shop-score, .shop-price, .shop-type {
-  margin-bottom: 10px;
+.shop-score {
+  margin-bottom: 15px;
+}
+
+.shop-price-type {
+  display: flex;
+  margin-bottom: 15px;
+}
+
+.shop-price, .shop-type {
+  margin-right: 20px;
 }
 
 .label {
@@ -403,6 +428,23 @@ const hidePhone = (phone) => {
   font-weight: bold;
 }
 
+.shop-detail-info {
+  border-top: 1px dashed #eee;
+  padding-top: 15px;
+}
+
+.info-item {
+  display: flex;
+  align-items: center;
+  margin-bottom: 12px;
+}
+
+.info-item .el-icon {
+  font-size: 18px;
+  color: var(--primary-color);
+  margin-right: 8px;
+}
+
 .shop-actions {
   margin-top: auto;
 }
@@ -412,22 +454,6 @@ const hidePhone = (phone) => {
   border-radius: var(--border-radius);
   box-shadow: var(--box-shadow);
   padding: 20px;
-}
-
-.shop-detail-info {
-  padding: 10px 0;
-}
-
-.info-item {
-  display: flex;
-  align-items: center;
-  margin-bottom: 15px;
-}
-
-.info-item .el-icon {
-  font-size: 18px;
-  color: var(--primary-color);
-  margin-right: 8px;
 }
 
 .shop-not-found {
@@ -448,6 +474,14 @@ const hidePhone = (phone) => {
   
   .shop-info {
     padding: 15px;
+  }
+  
+  .shop-price-type {
+    flex-direction: column;
+  }
+  
+  .shop-price, .shop-type {
+    margin-bottom: 8px;
   }
 }
 
@@ -601,5 +635,9 @@ const hidePhone = (phone) => {
 .comment-skeleton {
   padding: 15px 0;
   border-bottom: 1px solid #f0f0f0;
+}
+
+.page-header {
+  margin-bottom: 15px;
 }
 </style>

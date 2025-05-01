@@ -339,6 +339,17 @@ const handleAddressSuccess = (address) => {
 }
 
 /**
+ * 返回订单详情或列表
+ */
+const goBack = () => {
+  if (orderId) {
+    router.push(`/order/detail/${orderId}`)
+  } else {
+    router.push('/order/list')
+  }
+}
+
+/**
  * 页面挂载时加载数据
  */
 onMounted(() => {
@@ -356,6 +367,13 @@ onBeforeUnmount(() => {
 <template>
   <AppLayout>
     <div class="order-pay-container" v-loading="loading">
+      <div class="page-header">
+        <el-button type="text" icon="ArrowLeft" @click="$router.push('/order/list')">返回订单列表</el-button>
+      </div>
+      <div class="back-button">
+        <el-button icon="ArrowLeft" @click="goBack" text>返回订单</el-button>
+      </div>
+      
       <div class="pay-header">
         <h2>订单支付</h2>
         
@@ -378,9 +396,9 @@ onBeforeUnmount(() => {
         
         <div class="order-goods">
           <div class="goods-shop">{{ order.shopName }}</div>
-          <div class="goods-item">
-            <span class="goods-name">{{ order.goodsName }}</span>
-            <span class="goods-count">x{{ order.count }}</span>
+          <div v-for="(item, index) in order.items" :key="index" class="goods-item">
+            <span class="goods-name">{{ item.goodsName }}</span>
+            <span class="goods-count">x{{ item.count }}</span>
           </div>
         </div>
         
@@ -494,6 +512,10 @@ onBeforeUnmount(() => {
   background-color: #fff;
   border-radius: 8px;
   box-shadow: 0 2px 12px rgba(0, 0, 0, 0.1);
+}
+
+.back-button {
+  margin-bottom: 15px;
 }
 
 .pay-header {
@@ -731,4 +753,9 @@ onBeforeUnmount(() => {
 .skip-btn:hover {
   background-color: #a6a9ad;
 }
+
+.page-header {
+  margin-bottom: 15px;
+}
+
 </style>

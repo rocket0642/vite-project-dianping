@@ -66,15 +66,16 @@ const goToCart = () => {
           </el-button>
         </el-badge>
         
-        <template v-if="userStore.isLogin">
-          <div class="user-info" @click="goToUserCenter">
-            <img :src="userStore.userInfo.icon || 'https://cube.elemecdn.com/3/7c/3ea6beec64369c2642b92c6726f1epng.png'" alt="用户头像" class="avatar">
-            <span>{{ userStore.userInfo.nickName || '用户' }}</span>
+        <div class="user-avatar-container">
+          <div v-if="userStore.isLogin" class="avatar-wrapper" @click="goToUserCenter">
+            <el-avatar :size="32" :src="userStore.userInfo.icon || defaultAvatar"></el-avatar>
+            <span class="username">{{ userStore.userInfo.nickName || userStore.userInfo.phone }}</span>
           </div>
-        </template>
-        <template v-else>
-          <el-button type="primary" @click="goToLogin">登录/注册</el-button>
-        </template>
+          <div v-else class="login-btns">
+            <el-button size="small" @click="goToLogin">登录</el-button>
+            <el-button size="small" type="primary" @click="$router.push('/register')">注册</el-button>
+          </div>
+        </div>
       </div>
     </div>
   </header>
@@ -120,17 +121,32 @@ const goToCart = () => {
   align-items: center;
 }
 
-.user-info {
+.user-avatar-container {
+  display: flex;
+  align-items: center;
+}
+
+.avatar-wrapper {
   display: flex;
   align-items: center;
   cursor: pointer;
 }
 
-.avatar {
-  width: 32px;
-  height: 32px;
-  border-radius: 50%;
+.el-avatar {
   margin-right: 8px;
+}
+
+.username {
+  max-width: 80px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 14px;
+}
+
+.login-btns {
+  display: flex;
+  gap: 8px;
 }
 
 .cart-badge {
@@ -159,3 +175,7 @@ const goToCart = () => {
   }
 }
 </style>
+
+<script>
+const defaultAvatar = '/path/to/default-avatar.png'; // 设置默认头像路径
+</script>

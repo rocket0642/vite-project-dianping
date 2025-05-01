@@ -42,27 +42,11 @@ const switchSearchType = (type) => {
 
 <template>
   <div class="search-bar">
-    <div class="search-type-switch">
-      <span 
-        :class="['type-option', { active: searchType === 'shop' }]" 
-        @click="switchSearchType('shop')"
-      >
-        <el-icon><Shop /></el-icon>
-        <span>商铺</span>
-      </span>
-      <span 
-        :class="['type-option', { active: searchType === 'goods' }]" 
-        @click="switchSearchType('goods')"
-      >
-        <el-icon><Goods /></el-icon>
-        <span>商品</span>
-      </span>
-    </div>
     
     <div class="search-input-container">
       <el-input
         v-model="keyword"
-        :placeholder="searchType === 'shop' ? '搜索商铺' : '搜索商品'"
+        placeholder="搜索商品/商铺"
         @keyup.enter="handleSearch"
       >
         <template #suffix>

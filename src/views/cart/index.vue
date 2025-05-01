@@ -230,7 +230,8 @@ const continueShopping = () => {
   <AppLayout>
     <div class="cart-container">
       <div class="cart-header">
-        <h1>我的购物车</h1>
+        <el-button type="text" icon="ArrowLeft" @click="$router.go(-1)">返回</el-button>
+        <h2 class="cart-title">我的购物车</h2>
         <div class="cart-actions">
           <el-button 
             type="danger" 
@@ -386,16 +387,14 @@ const continueShopping = () => {
 
 .cart-header {
   display: flex;
-  justify-content: space-between;
   align-items: center;
   margin-bottom: 20px;
-  border-bottom: 1px solid #f0f0f0;
-  padding-bottom: 15px;
 }
 
-.cart-header h1 {
-  font-size: 22px;
-  color: #333;
+.cart-header h2 {
+  margin: 0;
+  flex: 1;
+  text-align: center;
 }
 
 .cart-actions {
@@ -580,5 +579,11 @@ const continueShopping = () => {
   .checkout-btn .el-button {
     width: 100%;
   }
+}
+
+.cart-title {
+  flex: 1;
+  text-align: center;
+  margin: 0;
 }
 </style>

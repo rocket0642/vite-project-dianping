@@ -152,6 +152,10 @@ const goToLogin = () => {
         <h2>用户注册</h2>
         <p>点评电商平台</p>
       </div>
+
+      <div class="back-button">
+        <el-button icon="ArrowLeft" type="text" @click="$router.push('/')">返回首页</el-button>
+      </div>
       
       <el-form 
         ref="formRef"
@@ -309,4 +313,12 @@ const goToLogin = () => {
   cursor: pointer;
   margin-left: 5px;
 }
+
+.back-button {
+  position: absolute;
+  top: 16px;
+  left: 16px;
+  z-index: 10;
+}
+
 </style>

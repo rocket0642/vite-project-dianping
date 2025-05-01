@@ -164,6 +164,11 @@ onMounted(async () => {
 <template>
   <AppLayout>
     <div class="goods-detail-container">
+      <!-- 在商品详情顶部添加 -->
+      <div class="page-header">
+        <el-button type="text" icon="ArrowLeft" @click="$router.go(-1)">返回</el-button>
+      </div>
+
       <!-- 加载骨架屏 -->
       <el-skeleton :loading="loading" animated>
         <template #template>
@@ -393,5 +398,10 @@ onMounted(async () => {
   .goods-info {
     padding: 15px;
   }
+}
+
+/* 添加样式 */
+.page-header {
+  margin-bottom: 15px;
 }
 </style>
