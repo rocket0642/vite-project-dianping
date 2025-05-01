@@ -90,7 +90,7 @@ Mock.mock('/api/user/address/add', 'post', (options) => {
     })
   }
   
-  // 创建新地址
+  // 创建新地址，确保包含userId
   const newAddress = {
     id: addresses.length + 1,
     userId,

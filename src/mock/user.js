@@ -16,6 +16,21 @@ const users = [
     birthday: '2000-01-01',
     credits: 100,
     level: false
+  },
+  {
+    id: 2,
+    phone: '18338319215',
+    password: '123456',
+    nickName: '测试用户2',
+    icon: 'URL_ADDRESS.elemecdn.com/0/88/03b0d39583f48206768a7534e55bcpng.png',
+    city: '杭州',
+    introduce: '这是一个测试账号',
+    fans: 10,
+    followee: 20,
+    gender: true,
+    birthday: '2000-01-01',
+    credits: 100,
+    level: false
   }
 ]
 
@@ -95,6 +110,7 @@ Mock.mock('/api/user/login', 'post', (options) => {
   return {
     success: true,
     data: {
+      id: user.id,
       token,
       userId: user.id
     }
@@ -140,6 +156,7 @@ Mock.mock('/api/user/login/password', 'post', (options) => {
   return {
     success: true,
     data: {
+      id: user.id,
       token,
       userId: user.id
     }
@@ -259,10 +276,14 @@ Mock.mock('/api/user/update', 'put', (options) => {
     }
   }
   
-  const { id, nickName, icon } = JSON.parse(options.body)
+  // 从token中提取用户ID
+  const userId = parseInt(token.split('_')[2])
+  
+  // 获取更新数据
+  const { nickName, icon } = JSON.parse(options.body)
   
   // 查找用户
-  const userIndex = users.findIndex(u => u.id === id)
+  const userIndex = users.findIndex(u => u.id === userId)
   
   if (userIndex === -1) {
     return {
@@ -295,7 +316,11 @@ Mock.mock('/api/user/info', 'put', (options) => {
     }
   }
   
-  const { userId, city, introduce, gender, birthday } = JSON.parse(options.body)
+  // 从token中提取用户ID
+  const userId = parseInt(token.split('_')[2])
+  
+  // 获取更新数据
+  const { city, introduce, gender, birthday, email } = JSON.parse(options.body)
   
   // 查找用户
   const userIndex = users.findIndex(u => u.id === userId)
@@ -307,11 +332,12 @@ Mock.mock('/api/user/info', 'put', (options) => {
     }
   }
   
-  // 更新用户信息
+  // 更新用户详细信息
   if (city !== undefined) users[userIndex].city = city
   if (introduce !== undefined) users[userIndex].introduce = introduce
   if (gender !== undefined) users[userIndex].gender = gender
   if (birthday !== undefined) users[userIndex].birthday = birthday
+  if (email !== undefined) users[userIndex].email = email
   
   return {
     success: true,

@@ -1,64 +1,102 @@
 <template>
-  <el-form
-    ref="formRef"
-    :model="form"
-    :rules="rules"
-    label-width="80px"
-    class="address-form"
+  <el-dialog
+    :title="isEdit ? '编辑地址' : '添加地址'"
+    v-model="dialogVisible"
+    width="500px"
   >
-    <el-form-item label="收货人" prop="name">
-      <el-input v-model="form.name" placeholder="请输入收货人姓名" />
-    </el-form-item>
+    <el-form
+      ref="formRef"
+      :model="form"
+      :rules="rules"
+      label-width="80px"
+      class="address-form"
+    >
+      <el-form-item label="收货人" prop="name">
+        <el-input v-model="form.name" placeholder="请输入收货人姓名" />
+      </el-form-item>
+      
+      <el-form-item label="手机号码" prop="phone">
+        <el-input v-model="form.phone" placeholder="请输入手机号码" />
+      </el-form-item>
+      
+      <el-form-item label="详细地址" prop="address">
+        <el-input 
+          v-model="form.address" 
+          type="textarea" 
+          :rows="3"
+          placeholder="请输入详细地址信息" 
+        />
+      </el-form-item>
+      
+      <el-form-item>
+        <el-checkbox v-model="form.isDefault">设为默认地址</el-checkbox>
+      </el-form-item>
+    </el-form>
     
-    <el-form-item label="手机号码" prop="phone">
-      <el-input v-model="form.phone" placeholder="请输入手机号码" />
-    </el-form-item>
-    
-    <el-form-item label="详细地址" prop="address">
-      <el-input 
-        v-model="form.address" 
-        type="textarea" 
-        :rows="3"
-        placeholder="请输入详细地址信息" 
-      />
-    </el-form-item>
-    
-    <el-form-item>
-      <el-checkbox v-model="form.isDefault">设为默认地址</el-checkbox>
-    </el-form-item>
-    
-    <el-form-item>
-      <el-button type="primary" @click="submitForm">保存</el-button>
-      <el-button @click="resetForm">重置</el-button>
-    </el-form-item>
-  </el-form>
+    <template #footer>
+      <div class="dialog-footer">
+        <el-button @click="handleCancel">取消</el-button>
+        <el-button type="primary" @click="submitForm">保存</el-button>
+      </div>
+    </template>
+  </el-dialog>
 </template>
 
 <script setup>
-import { ref, reactive, defineEmits, defineProps } from 'vue'
-import { ElMessage } from 'element-plus'
-import { addUserAddress, updateUserAddress } from '../api/address'
+import { ref, reactive, watch } from 'vue'
 
 const props = defineProps({
-  // 如果传入地址对象，则为编辑模式
   address: {
     type: Object,
-    default: () => null
+    default: () => ({})
+  },
+  isEdit: {
+    type: Boolean,
+    default: false
+  },
+  modelValue: {
+    type: Boolean,
+    default: false
   }
 })
 
-const emit = defineEmits(['success', 'cancel'])
+const emit = defineEmits(['update:modelValue', 'submit'])
 
+// 对话框可见性
+const dialogVisible = ref(props.modelValue)
+
+// 监听modelValue变化
+watch(() => props.modelValue, (val) => {
+  dialogVisible.value = val
+})
+
+// 监听dialogVisible变化
+watch(dialogVisible, (val) => {
+  emit('update:modelValue', val)
+})
+
+// 表单引用
 const formRef = ref(null)
 
 // 表单数据
 const form = reactive({
-  id: props.address?.id || 0,
-  name: props.address?.name || '',
-  phone: props.address?.phone || '',
-  address: props.address?.address || '',
-  isDefault: props.address?.isDefault || false
+  id: props.address.id || 0,
+  name: props.address.name || '',
+  phone: props.address.phone || '',
+  address: props.address.address || '',
+  isDefault: props.address.isDefault || false
 })
+
+// 监听address变化，更新表单数据
+watch(() => props.address, (val) => {
+  Object.assign(form, {
+    id: val.id || 0,
+    name: val.name || '',
+    phone: val.phone || '',
+    address: val.address || '',
+    isDefault: val.isDefault || false
+  })
+}, { deep: true })
 
 // 表单验证规则
 const rules = {
@@ -84,37 +122,14 @@ const submitForm = async () => {
   
   await formRef.value.validate(async (valid, fields) => {
     if (valid) {
-      try {
-        let res
-        if (form.id) {
-          // 更新地址
-          res = await updateUserAddress({
-            id: form.id,
-            name: form.name,
-            phone: form.phone,
-            address: form.address,
-            isDefault: form.isDefault
-          })
-        } else {
-          // 添加地址
-          res = await addUserAddress({
-            name: form.name,
-            phone: form.phone,
-            address: form.address,
-            isDefault: form.isDefault
-          })
-        }
-        
-        if (res.success) {
-          ElMessage.success(form.id ? '地址更新成功' : '地址添加成功')
-          emit('success', res.data)
-        } else {
-          ElMessage.error(res.errorMsg || '操作失败')
-        }
-      } catch (error) {
-        console.error('保存地址失败:', error)
-        ElMessage.error('保存失败，请稍后重试')
-      }
+      // 提交表单数据到父组件
+      emit('submit', {
+        id: form.id,
+        name: form.name,
+        phone: form.phone,
+        address: form.address,
+        isDefault: form.isDefault
+      })
     } else {
       console.log('表单验证失败:', fields)
     }
@@ -122,18 +137,20 @@ const submitForm = async () => {
 }
 
 /**
- * 重置表单
+ * 取消操作
  */
-const resetForm = () => {
-  if (formRef.value) {
-    formRef.value.resetFields()
-  }
+const handleCancel = () => {
+  dialogVisible.value = false
 }
 </script>
 
 <style scoped>
 .address-form {
-  max-width: 500px;
   margin: 0 auto;
+}
+
+.dialog-footer {
+  display: flex;
+  justify-content: flex-end;
 }
 </style>

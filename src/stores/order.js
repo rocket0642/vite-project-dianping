@@ -195,6 +195,29 @@ export const useOrderStore = defineStore('order', () => {
   const isLoading = computed(() => loading.value)
   const orderTotal = computed(() => total.value)
   
+  // 获取订单统计
+  const getOrderStats = computed(() => {
+    const stats = {
+      unpaid: 0,
+      undelivered: 0,
+      unreceived: 0,
+      uncommented: 0
+    }
+    
+    // 只计算当前用户的订单
+    const userId = parseInt(localStorage.getItem('userId') || '0')
+    const userOrders = orderList.value.filter(order => order.userId === userId)
+    
+    userOrders.forEach(order => {
+      if (order.status === 1) stats.unpaid++
+      else if (order.status === 2) stats.undelivered++
+      else if (order.status === 3) stats.unreceived++
+      else if (order.status === 4) stats.uncommented++
+    })
+    
+    return stats
+  })
+  
   return {
     // 状态
     currentOrder,
@@ -206,6 +229,7 @@ export const useOrderStore = defineStore('order', () => {
     // 计算属性
     isLoading,
     orderTotal,
+    orderStats: getOrderStats,
     
     // 方法
     createNewOrder,

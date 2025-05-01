@@ -215,17 +215,48 @@ export const useCartStore = defineStore('cart', () => {
   }
   
   /**
-   * 持久化保存到localStorage
+   * 持久化保存到localStorage，与用户ID关联
    */
   function saveToLocal() {
-    localStorage.setItem('cart-items', JSON.stringify(cartItems.value))
+    // 获取当前用户ID
+    const userId = localStorage.getItem('userId')
+    // 如果用户已登录，将购物车与用户ID关联
+    if (userId) {
+      localStorage.setItem(`cart-items-${userId}`, JSON.stringify(cartItems.value))
+    } else {
+      // 未登录用户使用默认购物车
+      localStorage.setItem('cart-items-guest', JSON.stringify(cartItems.value))
+    }
   }
   
   /**
-   * 从localStorage加载
+   * 从localStorage加载，根据用户ID加载对应购物车
    */
   function loadFromLocal() {
-    const saved = localStorage.getItem('cart-items')
+    // 获取当前用户ID
+    const userId = localStorage.getItem('userId')
+    // 根据用户ID获取对应购物车
+    const saved = userId 
+      ? localStorage.getItem(`cart-items-${userId}`) 
+      : localStorage.getItem('cart-items-guest')
+    
+    // 兼容旧版本，如果没有找到用户关联的购物车，尝试加载旧版本的购物车数据
+    if (!saved && !userId) {
+      const oldCart = localStorage.getItem('cart-items')
+      if (oldCart) {
+        try {
+          cartItems.value = JSON.parse(oldCart)
+          // 迁移旧数据到新格式
+          saveToLocal()
+          // 删除旧数据
+          localStorage.removeItem('cart-items')
+          return
+        } catch (error) {
+          console.error('旧购物车数据解析失败', error)
+        }
+      }
+    }
+    
     if (saved) {
       try {
         cartItems.value = JSON.parse(saved)
@@ -233,6 +264,8 @@ export const useCartStore = defineStore('cart', () => {
         console.error('购物车数据解析失败', error)
         cartItems.value = []
       }
+    } else {
+      cartItems.value = []
     }
   }
   
@@ -261,7 +294,9 @@ export const useCartStore = defineStore('cart', () => {
     toggleShopItems,
     toggleAllCheck,
     clearCart,
-    removeCheckedItems
+    removeCheckedItems,
+    loadFromLocal,
+    saveToLocal
   }
 }, {
   persist: {

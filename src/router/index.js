@@ -26,6 +26,11 @@ const routes = [
     meta: { title: '个人中心', requiresAuth: true }
   },
   {
+    path: '/user/address',
+    component: () => import('../views/user/address.vue'),
+    meta: { title: '地址管理', requiresAuth: true }
+  },
+  {
     path: '/shop/:id',
     component: () => import('../views/shop/detail.vue'),
     meta: { title: '商铺详情' }
