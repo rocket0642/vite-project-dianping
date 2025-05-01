@@ -6,21 +6,44 @@ import AppLayout from '../../components/AppLayout.vue'
 import ShopCard from '../../components/ShopCard.vue'
 import ShopTypeNav from '../../components/ShopTypeNav.vue'
 import { getShopList } from '../../api/shop'
+import { useGoodsStore } from '../../stores/goods'
 
 // 路由实例
 const router = useRouter()
 
+// 商品状态管理
+const goodsStore = useGoodsStore()
+
 // 轮播图数据
-const banners = ref([
-  { id: 1, imgUrl: 'https://img.meituan.net/msmerchant/87fc2032b8430a0ea6bf375c74c372e0183624.jpg', link: '/shop/type/1' },
-  { id: 2, imgUrl: 'https://p0.meituan.net/wedding/d9dc9123ecf39c99a5ee4df9ea37fc23333192.jpg', link: '/shop/type/2' },
-  { id: 3, imgUrl: 'https://p1.meituan.net/scarlett/e8efc66f0186abf3415ec815ded58aa9377348.jpg', link: '/shop/type/3' },
-  { id: 4, imgUrl: 'https://p0.meituan.net/hotel/25ab95e6a80cdf0a5012ae9c9670ff6e1446003.jpg', link: '/shop/type/4' },
-  { id: 5, imgUrl: 'https://p1.meituan.net/merchantpic/a0d6251daa4b29424e7195d34c3363d9143272.jpg', link: '/shop/type/5' }
-])
+const banners = ref([])
 
 // 推荐商铺列表
 const recommendShops = ref([])
+
+/**
+ * 加载轮播图数据
+ * 从商品列表中随机获取5个商品作为轮播图
+ */
+const loadBanners = async () => {
+  try {
+    // 获取随机商品作为轮播图
+    const randomGoods = await goodsStore.fetchRandomGoods(5)
+    
+    if (randomGoods && randomGoods.length > 0) {
+      // 将商品数据转换为轮播图格式
+      banners.value = randomGoods.map((item, index) => ({
+        id: item.id,
+        imgUrl: item.imageUrl,
+        link: `/product/${item.id}`,
+        name: item.name
+      }))
+      
+      console.log('轮播图数据:', banners.value)
+    }
+  } catch (error) {
+    console.error('加载轮播图数据失败:', error)
+  }
+}
 
 /**
  * 加载推荐商铺数据
@@ -48,6 +71,7 @@ const loadRecommendShops = async () => {
  */
 onMounted(() => {
   // 加载数据
+  loadBanners()
   loadRecommendShops()
   console.log('首页加载完成')
 })
@@ -70,6 +94,7 @@ onMounted(() => {
               class="banner-image"
               @click="router.push(item.link)"
             />
+            <div class="banner-title">{{ item.name }}</div>
           </el-carousel-item>
         </el-carousel>
       </div>
@@ -104,12 +129,25 @@ onMounted(() => {
   border-radius: var(--border-radius);
   overflow: hidden;
   box-shadow: var(--box-shadow);
+  position: relative;
 }
 
 .banner-image {
   width: 100%;
   height: 100%;
   cursor: pointer;
+}
+
+.banner-title {
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  background-color: rgba(0, 0, 0, 0.5);
+  color: #fff;
+  padding: 10px;
+  text-align: center;
+  font-size: 18px;
 }
 
 /* 推荐商铺样式 */

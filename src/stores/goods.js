@@ -1,6 +1,6 @@
 import { defineStore } from 'pinia'
 import { ref, computed } from 'vue'
-import { getGoodsDetail, getShopGoods } from '../api/goods'
+import { getGoodsDetail, getShopGoods, getRandomGoods } from '../api/goods'
 
 /**
  * 商品状态管理
@@ -51,6 +51,29 @@ export const useGoodsStore = defineStore('goods', () => {
     }
   }
   
+  /**
+   * 获取随机商品列表
+   * @param {number} count - 需要获取的商品数量
+   * @returns {Array} - 随机商品列表
+   */
+  async function fetchRandomGoods(count = 5) {
+    try {
+      loading.value = true
+      // 从API获取随机商品
+      const res = await getRandomGoods(count)
+      
+      if (res.success) {
+        return res.data
+      }
+      return []
+    } catch (error) {
+      console.error('获取随机商品失败:', error)
+      return []
+    } finally {
+      loading.value = false
+    }
+  }
+  
   // 计算属性
   const isLoading = computed(() => loading.value)
   const currentGoods = computed(() => goodsDetail.value)
@@ -69,7 +92,8 @@ export const useGoodsStore = defineStore('goods', () => {
     
     // 方法
     fetchGoodsDetail,
-    fetchShopGoods
+    fetchShopGoods,
+    fetchRandomGoods
   }
 }, {
   persist: false // 商品数据不需要持久化

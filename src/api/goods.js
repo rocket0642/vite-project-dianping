@@ -65,3 +65,16 @@ export function searchGoods(keyword, params = {}) {
   
   return request.get(`/api/goods/search?${queryString}`)
 }
+
+/**
+ * 获取随机商品列表
+ * @param {number} count - 需要获取的商品数量
+ * @returns {Promise<Object>} - 随机商品列表
+ */
+export function getRandomGoods(count = 5) {
+  return request({
+    url: '/api/goods/random',
+    method: 'get',
+    params: { count }
+  })
+}

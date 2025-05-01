@@ -2387,5 +2387,23 @@ Mock.mock(new RegExp('/api/goods/search.*'), 'get', (options) => {
   }
 })
 
+// 随机获取商品接口
+Mock.mock(/\/api\/goods\/random(\?.+)?$/, 'get', (options) => {
+  // 解析请求参数
+  const url = options.url
+  const params = new URLSearchParams(url.split('?')[1])
+  const count = parseInt(params.get('count')) || 5
+  
+  // 随机打乱商品数组并取前count个
+  const shuffled = [...goods].sort(() => 0.5 - Math.random())
+  const randomGoods = shuffled.slice(0, count)
+  
+  return {
+    success: true,
+    message: '获取随机商品成功',
+    data: randomGoods
+  }
+})
+
 // 将模块导出以便在index.js中引入
 export default {}
