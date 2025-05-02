@@ -2,11 +2,13 @@
 import { ref, onMounted } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { ElMessage, ElNotification } from 'element-plus'
-import { submitComment, checkOrderComment } from '../../api/comment'
+import { checkOrderComment } from '../../api/comment'
 import { getOrderDetail } from '../../api/order'
 import AppLayout from '../../components/AppLayout.vue'
 import { Plus } from '@element-plus/icons-vue'
 import { useUserStore } from '../../stores/user'
+import { useCommentStore } from '../../stores/comment'
+import { useOrderStore } from '../../stores/order'
 
 // 获取路由参数
 const route = useRoute()
@@ -35,8 +37,10 @@ const commentForm = ref({
 const imageList = ref([])
 const uploadUrl = 'https://mock-api.com/upload' // 模拟上传地址
 
-// 用户商店
+// Store
 const userStore = useUserStore()
+const commentStore = useCommentStore()
+const orderStore = useOrderStore()
 
 /**
  * 上传图片成功回调
@@ -58,22 +62,22 @@ const handleRemoveImage = (file) => {
 }
 
 /**
- * 检查订单是否已评价
+ * 检查订单是否已评价 - 简化版
  */
 const checkHasComment = async () => {
   try {
-    const res = await checkOrderComment(orderId)
-    if (res) {
-      alreadyCommented.value = res
+    // 直接从服务器获取评价状态
+    const res = await checkOrderComment(orderId);
+    alreadyCommented.value = res.data;
+    
       if (alreadyCommented.value) {
-        ElMessage.warning('该订单已评价')
+      ElMessage.warning('该订单已评价');
         setTimeout(() => {
-          router.push(`/order/${orderId}`)
-        }, 1500)
-      }
+        router.push('/order/list');
+      }, 1500);
     }
   } catch (error) {
-    console.error('检查订单评价状态失败:', error)
+    console.error('检查订单评价状态失败:', error);
   }
 }
 
@@ -83,11 +87,11 @@ const checkHasComment = async () => {
 const loadOrderDetail = async () => {
   loading.value = true
   try {
-    const res = await getOrderDetail(orderId)
+    const res = await orderStore.fetchOrderDetail(orderId)
     order.value = res
     
     // 填充评价表单
-    commentForm.value.userId = order.value.userId
+    commentForm.value.userId = order.value.userId || userStore.userInfo.id
     commentForm.value.shopId = order.value.shopId
     commentForm.value.goodsId = order.value.goodsId
     commentForm.value.goodsName = order.value.goodsName
@@ -123,16 +127,16 @@ const submitOrderComment = async () => {
       userPhone: userStore.userInfo.phone // 关联用户电话
     }
     
-    const res = await submitComment(commentData)
+    const res = await commentStore.submitUserComment(commentData)
     if (res.success) {
+      // 立即刷新订单列表数据
+      await orderStore.fetchOrderList()
+      
       ElNotification({
         title: '评价成功',
         message: '感谢您的评价！',
         type: 'success'
       })
-      
-      // 标记订单已评价
-      order.value.commented = true
       
       // 跳转回订单列表页
       setTimeout(() => {
@@ -151,7 +155,7 @@ const submitOrderComment = async () => {
  * 返回订单详情页
  */
 const goBack = () => {
-  router.push(`/order/${orderId}`)
+  router.push('/order/list')
 }
 
 // 页面初始化

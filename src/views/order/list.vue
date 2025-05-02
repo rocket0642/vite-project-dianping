@@ -46,7 +46,7 @@ const currentPage = computed({
 const total = computed(() => paginationState.value[activeTab.value].total)
 
 /**
- * 加载订单列表
+ * 修复版loadOrders - 完全解决缓存不一致问题
  */
 const loadOrders = async () => {
   if (!userStore.isLogin) {
@@ -82,9 +82,13 @@ const loadOrders = async () => {
       params.status = statusValue;
     }
     
+    // 对于待评价标签，额外添加未评价条件
+    if (activeTab.value === 'uncommented') {
+      params.uncommented = true;
+    }
+    
     const result = await orderStore.fetchOrderList(params);
     
-    // 更新当前标签的总数
     paginationState.value[activeTab.value].total = result.total || 0;
     
     // 为未支付订单启动倒计时
@@ -292,7 +296,21 @@ const getStatusText = (status) => {
 }
 
 /**
- * 评价订单
+ * 修复版的评价检查函数 - 只依赖服务器数据
+ */
+// const checkOrderCommented = async (orderId) => {
+//   try {
+//     // 直接向服务器查询最新状态
+//     const res = await checkOrderComment(orderId);
+//     return res.data;
+//   } catch (error) {
+//     console.error('检查订单评价状态失败:', error);
+//     return false;
+//   }
+// }
+
+/**
+ * 修复版的去评价函数
  */
 const goToComment = (orderId) => {
   router.push(`/order/comment/${orderId}`)
@@ -417,6 +435,18 @@ watch(
 onBeforeUnmount(() => {
   clearAllTimers()
 })
+
+/**
+ * 获取默认图片
+ */
+function getDefaultImage(type) {
+  if (type === 'shop') {
+    return 'https://cube.elemecdn.com/0/88/03b0d39583f48206768a7534e55bcpng.png'
+  } else if (type === 'goods') {
+    return 'https://cube.elemecdn.com/e/fd/0fc7d20532fdaf769a25683617711png.png'
+  }
+  return 'https://cube.elemecdn.com/3/7c/3ea6beec64369c2642b92c6726f1epng.png'
+}
 </script>
 
 <template>
@@ -474,12 +504,20 @@ onBeforeUnmount(() => {
         暂无订单
       </div>
       
-      <div v-else>
+      <div v-else class="orders-scroll-container">
         <div v-for="order in orders" :key="order.id" class="order-item">
           <div class="order-header">
-            <div class="order-basic-info">
-              <span class="order-id">订单号: {{ order.id }}</span>
-              <span class="order-time">下单时间: {{ order.createTime }}</span>
+            <div class="shop-info-header" @click="goToShopDetail(order.shopId)">
+              <div class="shop-avatar">
+                <img :src="order.shopImage || getDefaultImage('shop')" alt="店铺图片" />
+              </div>
+              <div class="order-basic-info">
+                <span class="shop-name">{{ order.shopName }}</span>
+                <div class="order-meta">
+                  <span class="order-id">订单号: {{ order.id }}</span>
+                  <span class="order-time">下单时间: {{ order.createTime }}</span>
+                </div>
+              </div>
             </div>
             <div class="order-status">
               <span :class="['status-tag', `status-${order.status}`]">
@@ -492,15 +530,12 @@ onBeforeUnmount(() => {
           </div>
           
           <div class="order-content">
-            <div class="order-shop-info">
-              <span class="shop-name" @click="goToShopDetail(order.shopId)">
-                {{ order.shopName }}
-              </span>
-            </div>
-            
             <!-- 如果有items数组，则遍历显示所有商品 -->
             <div v-if="order.items && order.items.length" class="order-products">
               <div v-for="(item, index) in order.items" :key="`${order.id}-${index}`" class="order-product">
+                <div class="product-image" @click="goToGoodsDetail(item.goodsId)">
+                  <img :src="item.goodsImage || getDefaultImage('goods')" alt="商品图片" />
+                </div>
                 <div class="product-info">
                   <div class="product-name" @click="goToGoodsDetail(item.goodsId)">
                     {{ item.goodsName }}
@@ -512,6 +547,9 @@ onBeforeUnmount(() => {
             </div>
             <!-- 向下兼容，如果没有items数组，则显示单个商品 -->
             <div v-else class="order-product">
+              <div class="product-image" @click="goToGoodsDetail(order.goodsId)">
+                <img :src="order.goodsImage || getDefaultImage('goods')" alt="商品图片" />
+              </div>
               <div class="product-info">
                 <div class="product-name" @click="goToGoodsDetail(order.goodsId)">
                   {{ order.goodsName }}
@@ -535,7 +573,7 @@ onBeforeUnmount(() => {
           
           <div class="order-footer">
             <div class="order-total">
-              共{{ order.count }}件商品，总计：¥{{ formatPrice(order.amount) }}
+              共{{ order.count }}件商品，总计：<span class="price">¥{{ formatPrice(order.amount) }}</span>
             </div>
             
             <div class="order-actions">
@@ -567,7 +605,14 @@ onBeforeUnmount(() => {
               
               <!-- 已完成订单 -->
               <template v-else-if="order.status === 5">
-                <button v-if="!order.commented" class="action-btn primary" @click="goToComment(order.id)">去评价</button>
+                <button 
+                  v-if="!order.commented" 
+                  class="action-btn primary" 
+                  @click="goToComment(order.id)"
+                >
+                  去评价
+                </button>
+                <button v-else class="action-btn disabled" disabled>已评价</button>
                 <button class="action-btn default" @click="applyRefund(order.id)">申请售后</button>
                 <button class="action-btn primary" @click="buyAgain(order)">再次购买</button>
                 <button class="action-btn info" @click="viewOrderDetail(order.id)">查看详情</button>
@@ -641,6 +686,28 @@ onBeforeUnmount(() => {
   background-color: #fff;
   border-radius: 8px;
   box-shadow: 0 2px 12px rgba(0, 0, 0, 0.1);
+  height: calc(100vh - 140px);
+  display: flex;
+  flex-direction: column;
+}
+
+.orders-scroll-container {
+  flex: 1;
+  overflow-y: auto;
+  padding-right: 5px;
+}
+
+.orders-scroll-container::-webkit-scrollbar {
+  width: 6px;
+}
+
+.orders-scroll-container::-webkit-scrollbar-thumb {
+  background-color: #ccc;
+  border-radius: 3px;
+}
+
+.orders-scroll-container::-webkit-scrollbar-track {
+  background-color: #f5f5f5;
 }
 
 .page-header {
@@ -658,6 +725,7 @@ onBeforeUnmount(() => {
   display: flex;
   border-bottom: 1px solid #ebeef5;
   margin-bottom: 20px;
+  flex-shrink: 0;
 }
 
 .tab-item {
@@ -692,6 +760,13 @@ onBeforeUnmount(() => {
   border: 1px solid #ebeef5;
   border-radius: 4px;
   margin-bottom: 20px;
+  background-color: #fff;
+  transition: transform 0.2s, box-shadow 0.2s;
+}
+
+.order-item:hover {
+  transform: translateY(-3px);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
 }
 
 .order-header {
@@ -702,14 +777,46 @@ onBeforeUnmount(() => {
   border-bottom: 1px solid #ebeef5;
 }
 
-.order-basic-info {
+.shop-info-header {
+  display: flex;
+  align-items: center;
+  cursor: pointer;
+}
+
+.shop-avatar {
+  width: 60px;
+  height: 60px;
+  border-radius: 50%;
+  overflow: hidden;
+  margin-right: 15px;
+  border: 1px solid #ebeef5;
+}
+
+.shop-avatar img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.shop-name {
+  font-weight: bold;
+  color: #333;
+  font-size: 16px;
+  margin-bottom: 5px;
+  display: block;
+}
+
+.shop-name:hover {
+  color: #409eff;
+}
+
+.order-meta {
   display: flex;
   gap: 15px;
 }
 
 .order-id, .order-time {
   color: #606266;
-  margin-right: 20px;
   font-size: 14px;
 }
 
@@ -744,21 +851,6 @@ onBeforeUnmount(() => {
   border-bottom: 1px solid #ebeef5;
 }
 
-.order-shop-info {
-  margin-bottom: 10px;
-}
-
-.shop-name {
-  font-weight: bold;
-  cursor: pointer;
-  color: #303133;
-}
-
-.shop-name:hover {
-  color: #409eff;
-  text-decoration: underline;
-}
-
 .order-products {
   display: flex;
   flex-direction: column;
@@ -767,7 +859,6 @@ onBeforeUnmount(() => {
 
 .order-product {
   display: flex;
-  justify-content: space-between;
   align-items: center;
   padding: 8px 0;
   border-bottom: 1px dashed #f0f0f0;
@@ -777,13 +868,30 @@ onBeforeUnmount(() => {
   border-bottom: none;
 }
 
+.product-image {
+  width: 70px;
+  height: 70px;
+  margin-right: 15px;
+  border-radius: 5px;
+  overflow: hidden;
+  border: 1px solid #eee;
+  cursor: pointer;
+}
+
+.product-image img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
 .product-info {
+  flex: 1;
   display: flex;
-  align-items: center;
+  flex-direction: column;
 }
 
 .product-name {
-  margin-right: 15px;
+  margin-bottom: 8px;
   cursor: pointer;
   color: #303133;
   max-width: 300px;
@@ -804,6 +912,8 @@ onBeforeUnmount(() => {
 .product-price {
   color: #f56c6c;
   font-weight: bold;
+  width: 120px;
+  text-align: right;
 }
 
 .order-footer {
@@ -880,70 +990,18 @@ onBeforeUnmount(() => {
   font-style: italic;
 }
 
-/* 地址选择对话框样式 */
-.address-dialog-content {
-  max-height: 400px;
-  overflow-y: auto;
+.list-header {
+  margin-bottom: 15px;
 }
 
-.address-dialog-item {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  padding: 15px;
-  border: 1px solid #ebeef5;
-  border-radius: 4px;
-  margin-bottom: 10px;
-  cursor: pointer;
-  transition: all 0.3s;
+/* 添加禁用按钮样式 */
+.action-btn.disabled {
+  background-color: #c0c4cc;
+  cursor: not-allowed;
+  opacity: 0.7;
 }
-
-.address-dialog-item:hover {
-  border-color: #409eff;
-  background-color: #f0f9ff;
-}
-
-.address-dialog-item.active {
-  border-color: #409eff;
-  background-color: #f0f9ff;
-}
-
-.address-info {
-  flex: 1;
-}
-
-.contact {
-  margin-bottom: 5px;
-}
-
-.name {
-  font-weight: bold;
-  margin-right: 10px;
-}
-
-.phone {
-  color: #606266;
-}
-
-.default-tag {
-  display: inline-block;
-  font-size: 12px;
-  padding: 2px 5px;
-  background-color: #f56c6c;
-  color: #fff;
-  border-radius: 2px;
-  margin-left: 5px;
-}
-
-.detail {
-  color: #606266;
-  line-height: 1.5;
-}
-
-.dialog-footer {
-  display: flex;
-  justify-content: flex-end;
-  margin-top: 20px;
+.action-btn.disabled:hover {
+  background-color: #c0c4cc;
 }
 
 @media (max-width: 768px) {
@@ -952,23 +1010,19 @@ onBeforeUnmount(() => {
     padding: 10px;
   }
   
-  .order-header, .order-footer {
+  .order-header {
     flex-direction: column;
-    align-items: flex-start;
   }
   
-  .order-basic-info {
+  .shop-info-header {
     margin-bottom: 10px;
   }
   
   .order-status {
-    width: 100%;
-    justify-content: space-between;
+    align-self: flex-end;
   }
   
   .order-actions {
-    width: 100%;
-    margin-top: 10px;
     flex-wrap: wrap;
   }
   
@@ -976,9 +1030,4 @@ onBeforeUnmount(() => {
     max-width: 150px;
   }
 }
-
-.list-header {
-  margin-bottom: 15px;
-}
-
 </style>

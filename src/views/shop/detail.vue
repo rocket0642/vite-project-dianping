@@ -8,6 +8,7 @@ import { useShopStore } from '../../stores/shop'
 import { useGoodsStore } from '../../stores/goods'
 import { getShopGoods } from '../../api/goods'
 import { getShopComments } from '../../api/comment'
+import { useCommentStore } from '../../stores/comment'
 
 // 获取路由参数
 const route = useRoute()
@@ -19,6 +20,9 @@ const shopStore = useShopStore()
 
 // 商品状态管理
 const goodsStore = useGoodsStore()
+
+// 商店相关stores
+const commentStore = useCommentStore()
 
 // 状态
 const loading = ref(true)
@@ -82,15 +86,10 @@ const loadShopComments = async () => {
       current: commentsPagination.value.current,
       pageSize: commentsPagination.value.pageSize
     }
-    const res = await getShopComments(shopId, params)
     
-    if (res && res.success) {
-      comments.value = res.data || []
-      commentsTotal.value = res.total || 0
-    } else {
-      comments.value = []
-      commentsTotal.value = 0
-    }
+    const result = await commentStore.fetchShopComments(shopId, params)
+    comments.value = result.data || []
+    commentsTotal.value = result.total || 0
   } catch (error) {
     console.error('加载商铺评价失败:', error)
     comments.value = []
@@ -297,20 +296,26 @@ const hidePhone = (phone) => {
                         <div v-for="comment in comments" :key="comment.id" class="comment-item">
                           <div class="comment-header">
                             <div class="user-avatar">
-                              <el-image :src="comment.userIcon" fit="cover" />
+                              <el-image 
+                                :src="comment.userIcon || 'https://cube.elemecdn.com/3/7c/3ea6beec64369c2642b92c6726f1epng.png'" 
+                                fit="cover" 
+                              />
                             </div>
                             <div class="user-info">
-                              <div class="user-name">{{ comment.userNickName }}</div>
-                              <div class="comment-phone">{{ hidePhone(comment.userPhone) }}</div>
+                              <div class="user-name">
+                                {{ comment.userNickName || hidePhone(comment.userPhone) || '匿名用户' }}
+                              </div>
                               <div class="comment-date">{{ formatDate(comment.createTime) }}</div>
                             </div>
                             <div class="comment-score">
                               <el-rate v-model="comment.score" disabled />
                             </div>
                           </div>
+                          
                           <div class="comment-content">
                             {{ comment.content }}
                           </div>
+                          
                           <div v-if="comment.images && comment.images.length > 0" class="comment-images">
                             <el-image 
                               v-for="(image, index) in comment.images" 
@@ -321,6 +326,7 @@ const hidePhone = (phone) => {
                               :preview-src-list="comment.images"
                             />
                           </div>
+                          
                           <div class="comment-good-info">
                             <span class="goods-name">{{ comment.goodsName }}</span>
                           </div>
@@ -546,27 +552,36 @@ const hidePhone = (phone) => {
 
 /* 评价样式 */
 .comments-list {
-  padding: 10px 0;
+  padding: 15px 0;
 }
 
 .comment-item {
   margin-bottom: 25px;
-  padding-bottom: 20px;
-  border-bottom: 1px solid #f0f0f0;
+  padding: 20px;
+  border-radius: 10px;
+  background-color: #fff;
+  box-shadow: 0 3px 12px rgba(0, 0, 0, 0.08);
+  transition: all 0.3s ease;
+}
+
+.comment-item:hover {
+  box-shadow: 0 5px 15px rgba(64, 158, 255, 0.15);
+  transform: translateY(-3px);
 }
 
 .comment-header {
   display: flex;
   align-items: center;
-  margin-bottom: 10px;
+  margin-bottom: 15px;
 }
 
 .user-avatar {
-  width: 40px;
-  height: 40px;
+  width: 50px;
+  height: 50px;
   border-radius: 50%;
   overflow: hidden;
-  margin-right: 10px;
+  margin-right: 15px;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.1);
 }
 
 .user-avatar .el-image {
@@ -580,13 +595,9 @@ const hidePhone = (phone) => {
 
 .user-name {
   font-weight: bold;
-  font-size: 14px;
-  margin-bottom: 3px;
-}
-
-.comment-phone {
-  font-size: 12px;
-  color: #999;
+  font-size: 16px;
+  color: #333;
+  margin-bottom: 5px;
 }
 
 .comment-date {
@@ -599,35 +610,57 @@ const hidePhone = (phone) => {
 }
 
 .comment-content {
-  margin-bottom: 10px;
-  line-height: 1.6;
+  font-size: 15px;
+  line-height: 1.8;
+  color: #333;
+  margin: 15px 0;
+  padding: 0 5px;
+  letter-spacing: 0.5px;
 }
 
 .comment-images {
   display: flex;
   flex-wrap: wrap;
-  gap: 8px;
-  margin-bottom: 10px;
+  gap: 12px;
+  margin-bottom: 15px;
 }
 
 .comment-image {
-  width: 80px;
-  height: 80px;
-  border-radius: 4px;
+  width: 100px;
+  height: 100px;
+  border-radius: 8px;
   cursor: pointer;
+  transition: transform 0.2s, box-shadow 0.2s;
+  box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
+}
+
+.comment-image:hover {
+  transform: scale(1.05);
+  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.15);
 }
 
 .comment-good-info {
-  background-color: #f8f8f8;
-  padding: 5px 10px;
-  border-radius: 4px;
-  font-size: 12px;
-  color: #666;
   display: inline-block;
+  background-color: #f5f7fa;
+  padding: 6px 14px;
+  border-radius: 16px;
+  font-size: 13px;
+  color: #666;
+  border: 1px solid #ebeef5;
+  transition: background-color 0.2s;
+}
+
+.comment-good-info:hover {
+  background-color: #ecf5ff;
+}
+
+.goods-name {
+  color: #409EFF;
+  font-weight: 600;
 }
 
 .comments-pagination {
-  margin-top: 20px;
+  margin-top: 30px;
   display: flex;
   justify-content: center;
 }

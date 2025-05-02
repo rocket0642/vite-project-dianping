@@ -1,35 +1,41 @@
 import Mock from 'mockjs'
 
-// 模拟评价数据
-const comments = [
-  {
-    id: 1,
-    userPhone: '13800138000',
-    shopId: 1,
-    orderId: 10001,
-    goodsId: 1,
-    goodsName: "经典牛肉汉堡",
-    content: "味道很好，服务也很周到，下次还会再来！",
-    score: 5,
-    images: ["https://img.meituan.net/msmerchant/87fc2032b8430a0ea6bf375c74c372e0183624.jpg"],
-    createTime: "2023-06-16 10:30:00",
-    userNickName: "用户12345",
-    userIcon: "https://cube.elemecdn.com/0/88/03b0d39583f48206768a7534e55bcpng.png"
-  },
-  {
-    id: 2,
-    userPhone: '13800138001',
-    shopId: 1,
-    orderId: 10005,
-    goodsId: 2,
-    goodsName: "香辣鸡腿堡",
-    content: "口味一般，但是服务态度很好",
-    score: 4,
-    images: [],
-    createTime: "2023-06-15 16:45:00",
-    userNickName: "美食家",
-    userIcon: "https://cube.elemecdn.com/0/88/03b0d39583f48206768a7534e55bcpng.png"
+// 从localStorage中获取评论数据
+function getStoredComments() {
+  try {
+    const commentStore = JSON.parse(localStorage.getItem('comment-store') || '{}');
+    return commentStore.comments || [];
+  } catch (e) {
+    console.error('获取存储的评论失败:', e);
+    return [];
   }
+}
+
+// 保存评论数据到localStorage
+function saveComments(comments) {
+  try {
+    const commentStore = JSON.parse(localStorage.getItem('comment-store') || '{}');
+    commentStore.comments = comments;
+    localStorage.setItem('comment-store', JSON.stringify(commentStore));
+  } catch (e) {
+    console.error('保存评论失败:', e);
+  }
+}
+
+// 在comment.js中添加获取用户信息的函数
+function getUserInfo() {
+  try {
+    const userStoreData = JSON.parse(localStorage.getItem('user-store') || '{}');
+    return userStoreData.userInfo || {};
+  } catch (e) {
+    console.error('获取用户信息失败:', e);
+    return {};
+  }
+}
+
+// 模拟评价数据 - 导出以便其他模块使用
+export const comments = [
+  
 ]
 
 // 提交评价
@@ -37,20 +43,29 @@ Mock.mock('/api/comment/submit', 'post', (options) => {
   const { body } = options
   const commentData = JSON.parse(body)
   
+  // 获取当前评论列表
+  const comments = getStoredComments()
+  
+  // 获取用户信息
+  const userInfo = getUserInfo()
+  
   // 生成新评价ID
   const newCommentId = comments.length > 0 ? Math.max(...comments.map(c => c.id)) + 1 : 1
   
-  // 创建新评价
+  // 创建新评价，确保安全获取用户昵称
   const newComment = {
     id: newCommentId,
     ...commentData,
     createTime: new Date().toISOString().replace('T', ' ').substring(0, 19),
-    userNickName: "当前用户",
-    userIcon: "https://cube.elemecdn.com/0/88/03b0d39583f48206768a7534e55bcpng.png"
+    userNickName: userInfo.nickName || "匿名用户",
+    userIcon: userInfo.icon || "https://cube.elemecdn.com/0/88/03b0d39583f48206768a7534e55bcpng.png"
   }
   
-  // 添加到评价列表
+  // 添加到评论列表
   comments.push(newComment)
+  
+  // 保存到localStorage
+  saveComments(comments)
   
   return {
     success: true,
@@ -63,6 +78,9 @@ Mock.mock(/\/api\/comment\/shop(\?.+)?$/, 'get', (options) => {
   const url = new URL(`http://localhost${options.url}`)
   const params = Object.fromEntries(url.searchParams)
   const shopId = parseInt(params.shopId)
+  
+  // 获取当前评论列表
+  const comments = getStoredComments()
   
   let filteredComments = comments.filter(c => c.shopId === shopId)
   
@@ -82,13 +100,20 @@ Mock.mock(/\/api\/comment\/shop(\?.+)?$/, 'get', (options) => {
 
 // 检查订单是否已评价
 Mock.mock(new RegExp('/api/comment/check/\\d+'), 'get', (options) => {
-  const orderId = parseInt(options.url.match(/\/api\/comment\/check\/(\d+)/)[1])
-  const hasComment = comments.some(c => c.orderId === orderId)
+  const orderId = parseInt(options.url.match(/\/api\/comment\/check\/(\d+)/)[1]);
+  
+  // 获取当前评论列表
+  const comments = getStoredComments()
+  
+  // 检查是否有该订单的评论
+  const hasComment = comments.some(c => c.orderId === orderId);
   
   return {
     success: true,
     data: hasComment
-  }
+  };
 })
 
-export default {}
+export default {
+  comments
+}

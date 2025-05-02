@@ -122,12 +122,6 @@ const handleDelete = (id) => {
   })
 }
 
-/**
- * 返回用户中心
- */
-const goBack = () => {
-  router.push('/user')
-}
 
 /**
  * 组件挂载时获取地址列表
@@ -142,7 +136,7 @@ onMounted(() => {
     <div class="address-manage-container">
       <div class="page-header">
         <h2 class="page-title">收货地址管理</h2>
-        <el-button @click="goBack">返回</el-button>
+        <el-button @click="router.back()">返回</el-button>
       </div>
       
       <div class="address-list-container">

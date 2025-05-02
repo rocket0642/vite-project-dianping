@@ -1,46 +1,5 @@
 import Mock from 'mockjs'
-
-// 初始订单数据
-const defaultOrders = [
-  {
-    id: 10001,
-    userPhone: '13800138000',
-    shopId: 1,
-    shopName: '店铺1',
-    goodsId: 1,
-    goodsName: '经典牛肉汉堡',
-    count: 2,
-    goodsPrice: 2800,
-    amount: 5600,
-    addressId: 1,
-    addressName: '张三',
-    addressPhone: '13800138000',
-    addressDetail: '北京市海淀区中关村大街1号',
-    status: 2, // 已支付
-    createTime: '2023-06-15 12:00:00',
-    payTime: '2023-06-15 12:05:00',
-    payType: 1
-  },
-  {
-    id: 10002,
-    userPhone: '13800138001',
-    shopId: 2,
-    shopName: '舒适酒店',
-    goodsId: 5,
-    goodsName: '舒适大床房',
-    count: 1,
-    goodsPrice: 29900,
-    amount: 29900,
-    addressId: 1,
-    addressName: '张三',
-    addressPhone: '13800138000',
-    addressDetail: '北京市海淀区中关村大街1号',
-    status: 3, // 已取消
-    createTime: '2023-06-16 14:30:00',
-    payTime: null,
-    payType: null
-  }
-];
+import { comments } from './comment'
 
 // 从localStorage获取订单数据
 let orders = JSON.parse(localStorage.getItem('mock_orders') || '[]');
@@ -87,11 +46,16 @@ Mock.mock('/api/order/create', 'post', (options) => {
     userPhone: userPhone,
     shopId: orderData.shopId,
     shopName: orderData.shopName || `店铺${orderData.shopId}`,
+    shopImage: orderData.shopImage || null, // 保存店铺图片
     goodsId: orderData.items ? orderData.items[0].goodsId : orderData.goodsId,
     goodsName: orderData.items ? orderData.items[0].goodsName : orderData.goodsName,
+    goodsImage: orderData.items ? orderData.items[0].imageUrl : orderData.imageUrl, // 保存商品图片
     count: orderData.items ? orderData.items.reduce((sum, item) => sum + item.count, 0) : orderData.count,
     goodsPrice: orderData.items ? orderData.items[0].price : orderData.price,
-    items: orderData.items || [],
+    items: orderData.items ? orderData.items.map(item => ({
+      ...item,
+      goodsImage: item.imageUrl // 确保items中每个商品都有图片
+    })) : [],
     amount: orderData.amount,
     addressId: orderData.addressId,
     addressName: orderData.addressName,
@@ -101,7 +65,8 @@ Mock.mock('/api/order/create', 'post', (options) => {
     status: 1, // 未支付
     createTime: formattedTime,
     payTime: null,
-    payType: null
+    payType: null,
+    commented: false
   };
   
   // 添加到订单列表
@@ -164,9 +129,16 @@ Mock.mock(/\/api\/order\/status\/\d+/, 'get', (options) => {
         errorMsg: '无权访问此订单'
       };
     }
+    
+    // 检查订单是否已评价
+    const commented = comments.some(c => c.orderId === id);
+    
     return {
       success: true,
-      data: order
+      data: {
+        ...order,
+        commented: order.commented || commented
+      }
     };
   }
   
@@ -177,13 +149,14 @@ Mock.mock(/\/api\/order\/status\/\d+/, 'get', (options) => {
 });
 
 // 获取用户订单列表
-Mock.mock(/\/api\/order\/list(\?.*)?$/, 'get', (options) => {
+Mock.mock(/\/api\/order\/list(\?.+)?$/, 'get', (options) => {
   // 获取查询参数
   const url = new URL(`http://localhost${options.url}`);
   const status = url.searchParams.get('status');
   const statuses = url.searchParams.get('statuses'); // 多状态参数
   const currentPage = parseInt(url.searchParams.get('current')) || 1;
   const pageSize = parseInt(url.searchParams.get('pageSize')) || 10;
+  const uncommented = url.searchParams.get('uncommented') === 'true'; // 获取未评价参数
   
   // 从token获取当前登录用户ID
   const userPhone = getUserPhoneFromToken();
@@ -199,6 +172,35 @@ Mock.mock(/\/api\/order\/list(\?.*)?$/, 'get', (options) => {
   // 单状态筛选
   else if (status) {
     filteredOrders = filteredOrders.filter(o => o.status === parseInt(status));
+  }
+  
+  // 获取所有评论
+  const allComments = []
+  try {
+    const commentStore = JSON.parse(localStorage.getItem('comment-store') || '{}');
+    if (commentStore.comments) {
+      allComments.push(...commentStore.comments);
+    }
+  } catch (e) {
+    console.error('获取评论数据失败:', e);
+  }
+  
+  // 检查每个订单的评价状态
+  filteredOrders = filteredOrders.map(order => {
+    // 检查是否有评论
+    const isCommented = allComments.some(comment => comment.orderId === order.id);
+    return {
+      ...order,
+      commented: isCommented
+    };
+  });
+  
+  // 未评价筛选
+  if (uncommented) {
+    // 过滤出未评价的已完成订单
+    filteredOrders = filteredOrders.filter(order => {
+      return order.status === 5 && !order.commented;
+    });
   }
   
   // 按创建时间倒序排序 (最新订单在前)

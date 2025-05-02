@@ -77,6 +77,7 @@ export const useCartStore = defineStore('cart', () => {
         groups[item.shopId] = {
           shopId: item.shopId,
           shopName: item.shopName,
+          shopImage: item.shopImage,
           items: []
         }
       }

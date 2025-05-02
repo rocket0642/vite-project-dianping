@@ -43,6 +43,7 @@ const groupedCheckedItems = computed(() => {
       groups[item.shopId] = {
         shopId: item.shopId,
         shopName: item.shopName || `店铺${item.shopId}`,
+        shopImage: item.shopImage,
         items: [],
         totalAmount: 0
       }
@@ -92,12 +93,14 @@ const createOrder = async () => {
         // 店铺信息
         shopId: group.shopId,
         shopName: group.shopName,
+        shopImage: group.shopImage,
         // 商品信息列表
         items: group.items.map(item => ({
           goodsId: item.id,
           goodsName: item.name,
           count: item.count,
           price: item.price,
+          imageUrl: item.imageUrl,
           skuId: item.skuId || null,
           skuName: item.skuName || null,
         })),

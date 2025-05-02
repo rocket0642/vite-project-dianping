@@ -78,13 +78,15 @@ const addToCart = () => {
     return
   }
   
-  // 确保有shopName
+  // 确保有shopName和shopImage
   const shopName = shopInfo.value?.name || `店铺${goods.value.shopId}`
+  const shopImage = shopInfo.value?.images || null
   
   const cartItem = {
     id: goods.value.id,
     shopId: goods.value.shopId,
     shopName: shopName,
+    shopImage: shopImage, // 添加店铺图片
     name: goods.value.name,
     price: currentSku.value.price,
     skuId: currentSku.value.id,
@@ -114,9 +116,14 @@ const buyNow = () => {
     return
   }
   
+  const shopName = shopInfo.value?.name || `店铺${goods.value.shopId}`
+  const shopImage = shopInfo.value?.images || null
+  
   const cartItem = {
     id: goods.value.id,
     shopId: goods.value.shopId,
+    shopName: shopName,
+    shopImage: shopImage, // 添加店铺图片
     name: goods.value.name,
     price: currentSku.value.price,
     skuId: currentSku.value.id,
