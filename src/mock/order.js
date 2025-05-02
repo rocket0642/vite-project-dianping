@@ -313,30 +313,30 @@ Mock.mock('/api/order/pay', 'post', (options) => {
 });
 
 // 取消订单
-Mock.mock('/api/order/cancel', 'post', (options) => {
-  const { body } = options;
-  const { orderId, reason = '用户取消' } = JSON.parse(body);
-  const orderIndex = orders.findIndex(o => o.id === parseInt(orderId));
+// Mock.mock('/api/order/cancel', 'post', (options) => {
+//   const { body } = options;
+//   const { orderId, reason = '用户取消' } = JSON.parse(body);
+//   const orderIndex = orders.findIndex(o => o.id === parseInt(orderId));
   
-  if (orderIndex === -1) {
-    return {
-      success: false,
-      errorMsg: '订单不存在'
-    };
-  }
+//   if (orderIndex === -1) {
+//     return {
+//       success: false,
+//       errorMsg: '订单不存在'
+//     };
+//   }
   
-  // 更新订单状态
-  orders[orderIndex].status = 3; // 已取消
-  orders[orderIndex].cancelReason = reason;
+//   // 更新订单状态
+//   orders[orderIndex].status = 3; // 已取消
+//   orders[orderIndex].cancelReason = reason;
   
-  // 保存数据
-  saveOrders();
+//   // 保存数据
+//   saveOrders();
   
-  return {
-    success: true,
-    data: true
-  };
-});
+//   return {
+//     success: true,
+//     data: true
+//   };
+// });
 
 // 取消订单（新增接口，与API接口路径匹配）
 Mock.mock(/\/api\/order\/cancel\/\d+/, 'post', (options) => {
@@ -379,29 +379,29 @@ Mock.mock(/\/api\/order\/cancel\/\d+/, 'post', (options) => {
 });
 
 // 确认收货
-Mock.mock('/api/order/confirm', 'post', (options) => {
-  const { body } = options;
-  const { orderId } = JSON.parse(body);
-  const orderIndex = orders.findIndex(o => o.id === parseInt(orderId));
+// Mock.mock('/api/order/confirm', 'post', (options) => {
+//   const { body } = options;
+//   const { orderId } = JSON.parse(body);
+//   const orderIndex = orders.findIndex(o => o.id === parseInt(orderId));
   
-  if (orderIndex === -1) {
-    return {
-      success: false,
-      errorMsg: '订单不存在'
-    };
-  }
+//   if (orderIndex === -1) {
+//     return {
+//       success: false,
+//       errorMsg: '订单不存在'
+//     };
+//   }
   
-  // 更新订单状态
-  orders[orderIndex].status = 5; // 已完成
+//   // 更新订单状态
+//   orders[orderIndex].status = 5; // 已完成
   
-  // 保存数据
-  saveOrders();
+//   // 保存数据
+//   saveOrders();
   
-  return {
-    success: true,
-    data: true
-  };
-});
+//   return {
+//     success: true,
+//     data: true
+//   };
+// });
 
 // 确认收货（新增接口，与API接口路径匹配）
 Mock.mock(/\/api\/order\/confirm\/\d+/, 'post', (options) => {

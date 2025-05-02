@@ -553,6 +553,28 @@ const hidePhone = (phone) => {
 /* 评价样式 */
 .comments-list {
   padding: 15px 0;
+  max-height: 600px;
+  overflow-y: auto;
+  scrollbar-width: thin;
+  -ms-overflow-style: none;
+}
+
+.comments-list::-webkit-scrollbar {
+  width: 6px;
+}
+
+.comments-list::-webkit-scrollbar-track {
+  background-color: #f5f5f5;
+  border-radius: 10px;
+}
+
+.comments-list::-webkit-scrollbar-thumb {
+  background-color: #c0c4cc;
+  border-radius: 10px;
+}
+
+.comments-list::-webkit-scrollbar-thumb:hover {
+  background-color: #909399;
 }
 
 .comment-item {
@@ -562,11 +584,18 @@ const hidePhone = (phone) => {
   background-color: #fff;
   box-shadow: 0 3px 12px rgba(0, 0, 0, 0.08);
   transition: all 0.3s ease;
+  animation: fadeIn 0.5s ease-in-out;
 }
 
-.comment-item:hover {
-  box-shadow: 0 5px 15px rgba(64, 158, 255, 0.15);
-  transform: translateY(-3px);
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
 }
 
 .comment-header {
