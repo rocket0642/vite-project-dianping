@@ -295,25 +295,19 @@ const getStatusText = (status) => {
   }
 }
 
-/**
- * 修复版的评价检查函数 - 只依赖服务器数据
- */
-// const checkOrderCommented = async (orderId) => {
-//   try {
-//     // 直接向服务器查询最新状态
-//     const res = await checkOrderComment(orderId);
-//     return res.data;
-//   } catch (error) {
-//     console.error('检查订单评价状态失败:', error);
-//     return false;
-//   }
-// }
 
 /**
  * 修复版的去评价函数
  */
 const goToComment = (orderId) => {
   router.push(`/order/comment/${orderId}`)
+}
+
+/**
+ * 申请售后/退款
+ */
+ const applyRefund = (orderId) => {
+  router.push(`/order/after-sale/${orderId}`)
 }
 
 /**

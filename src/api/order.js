@@ -41,6 +41,17 @@ export function getUserOrders(params) {
 }
 
 /**
+ * 获取用户订单统计数据
+ * @returns {Promise} - 订单统计数据
+ */
+export function getUserOrderStatistics() {
+  return request({
+    url: '/order/statistics',
+    method: 'get'
+  })
+}
+
+/**
  * 支付订单
  * @param {number} orderId - 订单ID
  * @param {number} payType - 支付方式: 1-微信支付，2-支付宝

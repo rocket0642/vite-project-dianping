@@ -152,13 +152,6 @@ const submitRefund = async () => {
   }
 }
 
-/**
- * 返回订单详情
- */
-const goBack = () => {
-  router.push(`/order/detail/${orderId}`)
-}
-
 // 初始化
 onMounted(() => {
   if (!userStore.isLogin) {
@@ -182,7 +175,7 @@ onMounted(() => {
       <template v-else>
         <div class="page-header">
           <h1>申请售后</h1>
-          <el-button @click="goBack">返回订单详情</el-button>
+          <el-button @click="router.back()">返回</el-button>
         </div>
         
         <!-- 订单信息 -->

@@ -1,13 +1,31 @@
 <script setup>
-import { ref, onMounted, computed, watch } from 'vue'
+import { ref, onMounted, computed, watch, onUnmounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { useUserStore } from '../../stores/user'
 import { getUserAddresses } from '../../api/address'
 import { updateUserInfo, updateUserDetail, getUserInfo } from '../../api/user'
-import { getUserOrders } from '../../api/order'
-import { ElMessage, ElMessageBox, ElAvatar, ElButton, ElDialog, ElForm, ElFormItem, ElInput, 
-  ElUpload, ElIcon, ElTag, ElSkeleton, ElSkeletonItem, ElSelect, ElOption, ElDatePicker, ElRadio, ElRadioGroup } from 'element-plus'
+import { getUserOrderStatistics } from '../../api/order'
+import {
+  ElMessage, ElMessageBox, ElAvatar, ElButton, ElDialog, ElForm, ElFormItem, ElInput,
+  ElUpload, ElIcon, ElTag, ElSkeleton, ElSkeletonItem, ElSelect, ElOption, ElDatePicker, ElRadio, ElRadioGroup
+} from 'element-plus'
 import { Plus, Edit, Delete, Location, Money, Box, Van, ChatDotRound, Document } from '@element-plus/icons-vue'
+import * as echarts from 'echarts/core'
+import { BarChart, PieChart, LineChart } from 'echarts/charts'
+import { GridComponent, TooltipComponent, TitleComponent, LegendComponent } from 'echarts/components'
+import { CanvasRenderer } from 'echarts/renderers'
+
+// 注册 ECharts 需要的组件
+echarts.use([
+  BarChart,
+  PieChart,
+  LineChart,
+  GridComponent,
+  TooltipComponent,
+  TitleComponent,
+  LegendComponent,
+  CanvasRenderer
+])
 
 // 路由实例
 const router = useRouter()
@@ -18,7 +36,7 @@ const userStore = useUserStore()
 // 组件状态
 const loading = ref(true)
 const addressLoading = ref(true)
-const orderStatsLoading = ref(true)
+const statisticsLoading = ref(true)
 
 // 用户信息
 const userInfo = computed(() => userStore.userInfo)
@@ -43,20 +61,22 @@ const editForm = ref({
 // 图片上传URL
 const uploadUrl = ref('/api/upload')
 
-// 订单数据
-const orderStats = ref({
-  paid: 0,
-  unpaid: 0,
-  canceled: 0,
-  unreceived: 0,
-  uncommented: 0
-})
-
 // 地址数据
 const addresses = ref([])
 
-// 最近浏览数据
-const recentViews = ref([])
+// 订单统计数据
+const orderStatistics = ref({
+  orderStatus: [],
+  monthlySpending: [],
+  totalOrders: 0,
+  totalAmount: 0
+})
+
+// 图表实例引用
+const orderStatusChartRef = ref(null)
+const monthlySpendingChartRef = ref(null)
+let orderStatusChart = null
+let monthlySpendingChart = null
 
 /**
  * 加载用户地址
@@ -74,11 +94,182 @@ const loadUserAddresses = async () => {
 }
 
 /**
+ * 加载订单统计数据
+ */
+const loadOrderStatistics = async () => {
+  try {
+    statisticsLoading.value = true
+    const res = await getUserOrderStatistics()
+    if (res.success) {
+      orderStatistics.value = res.data
+      // 在数据加载完成后初始化图表
+      setTimeout(() => {
+        initOrderStatusChart()
+        initMonthlySpendingChart()
+      }, 100)
+    }
+  } catch (error) {
+    console.error('获取订单统计数据失败:', error)
+  } finally {
+    statisticsLoading.value = false
+  }
+}
+
+/**
+ * 初始化订单状态饼图
+ */
+const initOrderStatusChart = () => {
+  // 确保DOM元素已经渲染
+  if (!orderStatusChartRef.value) return
+
+  // 如果图表已经存在，则销毁重建
+  if (orderStatusChart) {
+    orderStatusChart.dispose()
+  }
+
+  // 创建图表实例
+  orderStatusChart = echarts.init(orderStatusChartRef.value)
+
+  // 准备数据
+  const statusData = orderStatistics.value.orderStatus.filter(item => item.value > 0)
+
+  // 设置图表配置
+  const option = {
+    title: {
+      text: '订单状态分布',
+      left: 'center'
+    },
+    tooltip: {
+      trigger: 'item',
+      formatter: '{a} <br/>{b}: {c} ({d}%)'
+    },
+    legend: {
+      orient: 'horizontal',
+      bottom: 10,
+      data: statusData.map(item => item.name)
+    },
+    series: [
+      {
+        name: '订单状态',
+        type: 'pie',
+        radius: ['40%', '70%'],
+        avoidLabelOverlap: false,
+        itemStyle: {
+          borderRadius: 10,
+          borderColor: '#fff',
+          borderWidth: 2
+        },
+        label: {
+          show: false,
+          position: 'center'
+        },
+        emphasis: {
+          label: {
+            show: true,
+            fontSize: '14',
+            fontWeight: 'bold'
+          }
+        },
+        labelLine: {
+          show: false
+        },
+        data: statusData.map(item => ({
+          value: item.value,
+          name: item.name
+        }))
+      }
+    ]
+  }
+
+  // 应用配置
+  orderStatusChart.setOption(option)
+
+  // 响应窗口大小变化
+  window.addEventListener('resize', () => {
+    orderStatusChart && orderStatusChart.resize()
+  })
+}
+
+/**
+ * 初始化月度消费趋势折线图
+ */
+const initMonthlySpendingChart = () => {
+  // 确保DOM元素已经渲染
+  if (!monthlySpendingChartRef.value) return
+
+  // 如果图表已经存在，则销毁重建
+  if (monthlySpendingChart) {
+    monthlySpendingChart.dispose()
+  }
+
+  // 创建图表实例
+  monthlySpendingChart = echarts.init(monthlySpendingChartRef.value)
+
+  // 准备数据
+  const days = orderStatistics.value.monthlySpending.map(item => item.day)
+  const amounts = orderStatistics.value.monthlySpending.map(item => item.amount)
+
+  // 设置图表配置
+  const option = {
+    title: {
+      text: '近7天消费趋势',
+      left: 'center'
+    },
+    tooltip: {
+      trigger: 'axis',
+      formatter: '{b}: {c} 元'
+    },
+    xAxis: {
+      type: 'category',
+      data: days,
+      axisLabel: {
+        formatter: value => value.split('-')[2] + '日'
+      }
+    },
+    yAxis: {
+      type: 'value',
+      name: '消费金额(元)'
+    },
+    series: [
+      {
+        data: amounts,
+        type: 'line',
+        smooth: true,
+        name: '消费金额',
+        areaStyle: {
+          opacity: 0.3
+        },
+        itemStyle: {
+          color: '#409EFF'
+        },
+        lineStyle: {
+          width: 3
+        }
+      }
+    ],
+    grid: {
+      left: '3%',
+      right: '4%',
+      bottom: '3%',
+      containLabel: true
+    }
+  }
+
+  // 应用配置
+  monthlySpendingChart.setOption(option)
+
+  // 响应窗口大小变化
+  window.addEventListener('resize', () => {
+    monthlySpendingChart && monthlySpendingChart.resize()
+  })
+}
+
+/**
  * 打开编辑对话框
  */
 const openEditDialog = () => {
   console.log('当前用户信息:', userInfo.value) // 添加日志
-  
+
   // 统一设置所有用户信息
   editForm.value = {
     // 基本信息
@@ -91,7 +282,7 @@ const openEditDialog = () => {
     birthday: userInfo.value.birthday || '',
     email: userInfo.value.email || ''
   }
-  
+
   console.log('填充到表单的信息:', editForm.value) // 添加日志
   editDialogVisible.value = true
 }
@@ -124,7 +315,7 @@ const submitEditForm = async () => {
       nickName: editForm.value.nickName,
       icon: editForm.value.icon
     })
-    
+
     // 更新详细信息
     await updateUserDetail({
       city: editForm.value.city,
@@ -133,10 +324,10 @@ const submitEditForm = async () => {
       birthday: editForm.value.birthday,
       email: editForm.value.email
     })
-    
+
     // 强制更新本地用户信息
     await userStore.fetchUserInfo()
-    
+
     // 直接更新本地计算属性，确保视图立即更新
     Object.assign(userStore.userInfo, {
       nickName: editForm.value.nickName,
@@ -147,7 +338,7 @@ const submitEditForm = async () => {
       birthday: editForm.value.birthday,
       email: editForm.value.email
     })
-    
+
     ElMessage.success('个人信息更新成功')
     editDialogVisible.value = false
   } catch (error) {
@@ -191,59 +382,7 @@ const logout = () => {
     userStore.logout()
     router.push('/login')
     ElMessage.success('退出登录成功')
-  }).catch(() => {})
-}
-
-/**
- * 加载订单统计数据
- */
-const loadOrderStats = async () => {
-  try {
-    orderStatsLoading.value = true;
-    // 获取当前用户的订单数据
-    const res = await getUserOrders({ status: 0 });
-    
-    if (res.success && res.data) {
-    // 计算各个状态的订单数量
-    const stats = {
-        paid: 0,      // 已支付
-        unpaid: 0,     // 待付款
-        canceled: 0,   // 已取消
-        unreceived: 0, // 待收货
-        uncommented: 0 // 待评价
-      };
-      
-      res.data.forEach(order => {
-        if (order.status === 2) stats.paid++;
-        else if (order.status === 1) stats.unpaid++;
-        else if (order.status === 3) stats.canceled++;
-        else if (order.status === 4) stats.unreceived++;
-        else if (order.status === 5 && !order.commented) stats.uncommented++;
-      });
-    
-      orderStats.value = stats;
-    }
-    orderStatsLoading.value = false;
-  } catch (error) {
-    console.error('获取订单统计失败:', error);
-    orderStatsLoading.value = false;
-  }
-};
-
-/**
- * 加载最近浏览数据
- */
-const loadRecentViews = async () => {
-  // 从本地存储获取浏览记录数据
-  try {
-    const userPhone = useUserStore.userPhone
-    const viewsData = localStorage.getItem(`recent_views_${userPhone}`)
-    if (viewsData) {
-      recentViews.value = JSON.parse(viewsData).slice(0, 4) // 只显示最近4条
-    }
-  } catch (e) {
-    console.error('加载浏览记录失败:', e)
-  }
+  }).catch(() => { })
 }
 
 /**
@@ -255,19 +394,18 @@ onMounted(async () => {
     router.push('/login?redirect=/user')
     return
   }
-  
+
   loading.value = true
-  
+
   try {
     // 先获取最新用户信息
     await userStore.fetchUserInfo()
     console.log('获取到的用户信息:', userStore.userInfo)
-    
+
     // 然后并行加载其他数据
     await Promise.all([
       loadUserAddresses(),
-      loadOrderStats(),
-      loadRecentViews()
+      loadOrderStatistics()
     ])
   } catch (error) {
     console.error('加载用户中心数据失败:', error)
@@ -281,8 +419,7 @@ onMounted(async () => {
 watch(() => userStore.userPhone, (newUserPhone, oldUserPhone) => {
   if (newUserPhone && newUserPhone !== oldUserPhone) {
     loadUserAddresses()
-    loadOrderStats()
-    loadRecentViews()
+    loadOrderStatistics()
   }
 }, { immediate: true })
 
@@ -295,12 +432,27 @@ watch(() => editDialogVisible.value, (newVal) => {
       nickName: userInfo.value.nickName || '',
       icon: userInfo.value.icon || '',
       city: userInfo.value.city || '',
-      introduce: userInfo.value.introduce || '', 
+      introduce: userInfo.value.introduce || '',
       gender: userInfo.value.gender !== undefined ? userInfo.value.gender : false,
       birthday: userInfo.value.birthday || '',
       email: userInfo.value.email || ''
     }
   }
+})
+
+// 组件卸载时清理图表实例
+onUnmounted(() => {
+  if (orderStatusChart) {
+    orderStatusChart.dispose()
+    orderStatusChart = null
+  }
+  if (monthlySpendingChart) {
+    monthlySpendingChart.dispose()
+    monthlySpendingChart = null
+  }
+
+  // 移除事件监听
+  window.removeEventListener('resize', () => { })
 })
 </script>
 
@@ -310,7 +462,7 @@ watch(() => editDialogVisible.value, (newVal) => {
     <div class="back-button">
       <el-button type="text" icon="ArrowLeft" @click="$router.push('/')">返回首页</el-button>
     </div>
-    
+
     <!-- 用户信息卡片 -->
     <div class="user-card">
       <el-skeleton :loading="loading" animated>
@@ -324,26 +476,26 @@ watch(() => editDialogVisible.value, (newVal) => {
             </div>
           </div>
         </template>
-        
+
         <template #default>
           <div class="user-header">
             <div class="avatar-container">
-              <el-avatar 
-                :size="100" 
-                :src="userInfo.icon || 'https://cube.elemecdn.com/3/7c/3ea6beec64369c2642b92c6726f1epng.png'" 
-              />
+              <el-avatar :size="100"
+                :src="userInfo.icon || 'https://cube.elemecdn.com/3/7c/3ea6beec64369c2642b92c6726f1epng.png'" />
             </div>
             <div class="user-basic-info">
               <h2 class="user-name">{{ userInfo.nickName || '用户' }}</h2>
               <div class="edit-btn-container">
                 <el-button type="primary" size="small" @click="openEditDialog" class="edit-btn">
-                  <el-icon><Edit /></el-icon>
+                  <el-icon>
+                    <Edit />
+                  </el-icon>
                   编辑资料
                 </el-button>
               </div>
             </div>
           </div>
-          
+
           <div class="user-info-grid">
             <div class="info-item">
               <div class="info-label">性别:</div>
@@ -377,35 +529,42 @@ watch(() => editDialogVisible.value, (newVal) => {
     <!-- 订单快捷入口 -->
     <div class="section-card">
       <h3 class="section-title">我的订单</h3>
-      <div class="order-shortcuts" v-loading="orderStatsLoading">
+      <div class="order-shortcuts">
         <div class="shortcut-item" @click="goToOrderList(0)">
-          <el-icon><Document /></el-icon>
+          <el-icon>
+            <Document />
+          </el-icon>
           <span class="shortcut-label">全部订单</span>
         </div>
         <div class="shortcut-item" @click="goToOrderList(2)">
-          <el-icon><Box /></el-icon>
+          <el-icon>
+            <Box />
+          </el-icon>
           <span class="shortcut-label">已支付</span>
-          <span v-if="orderStats.paid > 0" class="badge">{{ orderStats.paid }}</span>
         </div>
         <div class="shortcut-item" @click="goToOrderList(1)">
-          <el-icon><Money /></el-icon>
+          <el-icon>
+            <Money />
+          </el-icon>
           <span class="shortcut-label">待付款</span>
-          <span v-if="orderStats.unpaid > 0" class="badge">{{ orderStats.unpaid }}</span>
         </div>
         <div class="shortcut-item" @click="goToOrderList(3)">
-          <el-icon><Document /></el-icon>
+          <el-icon>
+            <Document />
+          </el-icon>
           <span class="shortcut-label">已取消</span>
-          <span v-if="orderStats.canceled > 0" class="badge">{{ orderStats.canceled }}</span>
         </div>
         <div class="shortcut-item" @click="goToOrderList(4)">
-          <el-icon><Van /></el-icon>
+          <el-icon>
+            <Van />
+          </el-icon>
           <span class="shortcut-label">待收货</span>
-          <span v-if="orderStats.unreceived > 0" class="badge">{{ orderStats.unreceived }}</span>
         </div>
         <div class="shortcut-item" @click="goToOrderList(5)">
-          <el-icon><ChatDotRound /></el-icon>
+          <el-icon>
+            <ChatDotRound />
+          </el-icon>
           <span class="shortcut-label">待评价</span>
-          <span v-if="orderStats.uncommented > 0" class="badge">{{ orderStats.uncommented }}</span>
         </div>
       </div>
     </div>
@@ -416,7 +575,7 @@ watch(() => editDialogVisible.value, (newVal) => {
         <h3 class="section-title">我的地址</h3>
         <el-button type="text" @click="goToAddressManage">管理</el-button>
       </div>
-      
+
       <el-skeleton :loading="addressLoading" animated :count="3">
         <template #template>
           <div class="skeleton-address">
@@ -424,7 +583,7 @@ watch(() => editDialogVisible.value, (newVal) => {
             <el-skeleton-item variant="text" style="width: 60%; height: 16px;" />
           </div>
         </template>
-        
+
         <template #default>
           <div v-if="addresses.length > 0" class="address-list">
             <div v-for="address in addresses" :key="address.id" class="address-item">
@@ -439,7 +598,9 @@ watch(() => editDialogVisible.value, (newVal) => {
             </div>
           </div>
           <div v-else class="empty-address">
-            <el-icon><Location /></el-icon>
+            <el-icon>
+              <Location />
+            </el-icon>
             <p>您还没有添加收货地址</p>
             <el-button type="primary" size="small" @click="goToAddressManage">添加地址</el-button>
           </div>
@@ -447,51 +608,67 @@ watch(() => editDialogVisible.value, (newVal) => {
       </el-skeleton>
     </div>
 
-    <!-- 最近浏览 -->
+    <!-- 订单数据统计 -->
     <div class="section-card">
-      <h3 class="section-title">最近浏览</h3>
-      <div class="recent-views">
-        <div v-for="item in recentViews" :key="item.id" class="view-item" @click="goToShopDetail(item.id)">
-          <div class="view-image">
-            <img :src="item.image" :alt="item.name">
+      <h3 class="section-title">数据统计</h3>
+      <el-skeleton :loading="statisticsLoading" animated>
+        <template #template>
+          <div class="skeleton-statistics">
+            <div class="skeleton-chart">
+              <el-skeleton-item variant="p" style="width: 100%; height: 300px;" />
+            </div>
+            <div class="skeleton-chart">
+              <el-skeleton-item variant="p" style="width: 100%; height: 300px;" />
+            </div>
           </div>
-          <div class="view-info">
-            <div class="view-name">{{ item.name }}</div>
-            <div class="view-time">{{ item.time }}</div>
+        </template>
+
+        <template #default>
+          <div v-if="orderStatistics.totalOrders === 0" class="empty-statistics">
+            <el-icon>
+              <Document />
+            </el-icon>
+            <p>暂无订单数据</p>
           </div>
-        </div>
-        <div v-if="recentViews.length === 0" class="empty-views">
-          <p>暂无浏览记录</p>
-        </div>
-      </div>
+          <div v-else class="statistics-container">
+            <div class="statistics-summary">
+              <div class="summary-item">
+                <div class="summary-value">{{ orderStatistics.totalOrders }}</div>
+                <div class="summary-label">总订单数</div>
+              </div>
+              <div class="summary-item">
+                <div class="summary-value">¥{{ (orderStatistics.totalAmount / 100).toFixed(2) }}</div>
+                <div class="summary-label">总消费金额</div>
+              </div>
+            </div>
+
+            <div class="statistics-charts">
+              <div ref="orderStatusChartRef" class="chart-container"></div>
+              <div ref="monthlySpendingChartRef" class="chart-container"></div>
+            </div>
+          </div>
+        </template>
+      </el-skeleton>
     </div>
 
     <!-- 统一的编辑信息对话框 -->
-    <el-dialog
-      v-model="editDialogVisible"
-      title="编辑个人信息"
-      width="500px"
-    >
+    <el-dialog v-model="editDialogVisible" title="编辑个人信息" width="500px">
       <el-form :model="editForm" label-width="80px">
         <!-- 基本信息 -->
         <h4 class="form-section-title">基本信息</h4>
         <el-form-item label="头像">
-          <el-upload
-            class="avatar-uploader"
-            :action="uploadUrl"
-            :show-file-list="false"
-            :on-success="handleUploadSuccess"
-            :on-error="handleUploadError"
-            accept="image/*"
-          >
+          <el-upload class="avatar-uploader" :action="uploadUrl" :show-file-list="false"
+            :on-success="handleUploadSuccess" :on-error="handleUploadError" accept="image/*">
             <img v-if="editForm.icon" :src="editForm.icon" class="avatar">
-            <el-icon v-else class="avatar-uploader-icon"><Plus /></el-icon>
+            <el-icon v-else class="avatar-uploader-icon">
+              <Plus />
+            </el-icon>
           </el-upload>
         </el-form-item>
         <el-form-item label="昵称">
           <el-input v-model="editForm.nickName" placeholder="请输入昵称"></el-input>
         </el-form-item>
-        
+
         <!-- 详细信息 -->
         <h4 class="form-section-title">详细信息</h4>
         <el-form-item label="性别">
@@ -504,26 +681,15 @@ watch(() => editDialogVisible.value, (newVal) => {
           <el-input v-model="editForm.city" placeholder="请输入所在城市"></el-input>
         </el-form-item>
         <el-form-item label="生日">
-          <el-date-picker
-            v-model="editForm.birthday"
-            type="date"
-            placeholder="选择生日"
-            format="YYYY-MM-DD"
-            value-format="YYYY-MM-DD"
-            style="width: 100%"
-          >
+          <el-date-picker v-model="editForm.birthday" type="date" placeholder="选择生日" format="YYYY-MM-DD"
+            value-format="YYYY-MM-DD" style="width: 100%">
           </el-date-picker>
         </el-form-item>
         <el-form-item label="邮箱">
           <el-input v-model="editForm.email" placeholder="请输入邮箱地址"></el-input>
         </el-form-item>
         <el-form-item label="个人介绍">
-          <el-input
-            v-model="editForm.introduce"
-            type="textarea"
-            :rows="3"
-            placeholder="请输入个人介绍"
-          ></el-input>
+          <el-input v-model="editForm.introduce" type="textarea" :rows="3" placeholder="请输入个人介绍"></el-input>
         </el-form-item>
       </el-form>
       <template #footer>
@@ -548,7 +714,8 @@ watch(() => editDialogVisible.value, (newVal) => {
   padding: 0 15px;
 }
 
-.user-card, .section-card {
+.user-card,
+.section-card {
   background-color: #fff;
   border-radius: 8px;
   box-shadow: 0 2px 12px 0 rgba(0, 0, 0, 0.05);
@@ -659,21 +826,6 @@ watch(() => editDialogVisible.value, (newVal) => {
   font-size: 14px;
 }
 
-.badge {
-  position: absolute;
-  top: 5px;
-  right: 15px;
-  background-color: #f56c6c;
-  color: #fff;
-  font-size: 12px;
-  padding: 0 6px;
-  border-radius: 10px;
-  min-width: 16px;
-  height: 16px;
-  line-height: 16px;
-  text-align: center;
-}
-
 .address-list {
   margin-top: 10px;
 }
@@ -718,7 +870,7 @@ watch(() => editDialogVisible.value, (newVal) => {
   gap: 10px;
 }
 
-.empty-address, .empty-views {
+.empty-address {
   display: flex;
   flex-direction: column;
   align-items: center;
@@ -727,62 +879,8 @@ watch(() => editDialogVisible.value, (newVal) => {
   color: #909399;
 }
 
-.empty-address p, .empty-views p {
+.empty-address p {
   margin: 10px 0;
-}
-
-.recent-views {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 15px;
-  margin-top: 10px;
-}
-
-.view-item {
-  width: calc(50% - 8px);
-  display: flex;
-  cursor: pointer;
-  border-radius: 4px;
-  overflow: hidden;
-  box-shadow: 0 2px 12px 0 rgba(0, 0, 0, 0.05);
-}
-
-.view-item:hover {
-  box-shadow: 0 2px 12px 0 rgba(0, 0, 0, 0.1);
-}
-
-.view-image {
-  width: 80px;
-  height: 80px;
-  overflow: hidden;
-}
-
-.view-image img {
-  width: 100%;
-  height: 100%;
-  object-fit: cover;
-}
-
-.view-info {
-  flex: 1;
-  padding: 10px;
-  display: flex;
-  flex-direction: column;
-  justify-content: space-between;
-}
-
-.view-name {
-  font-weight: 600;
-  font-size: 14px;
-  width: 100%;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-}
-
-.view-time {
-  color: #909399;
-  font-size: 12px;
 }
 
 .avatar-uploader {
@@ -810,30 +908,102 @@ watch(() => editDialogVisible.value, (newVal) => {
   border-color: #409eff;
 }
 
+/* 统计图表样式 */
+.statistics-container {
+  margin-top: 20px;
+}
+
+.statistics-summary {
+  display: flex;
+  justify-content: space-around;
+  margin-bottom: 20px;
+  background-color: #f5f7fa;
+  padding: 15px;
+  border-radius: 8px;
+}
+
+.summary-item {
+  text-align: center;
+}
+
+.summary-value {
+  font-size: 28px;
+  font-weight: bold;
+  color: #409eff;
+}
+
+.summary-label {
+  font-size: 14px;
+  color: #606266;
+  margin-top: 5px;
+}
+
+.statistics-charts {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 20px;
+}
+
+.chart-container {
+  width: 100%;
+  height: 300px;
+}
+
+.empty-statistics {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 50px 0;
+  color: #909399;
+}
+
+.empty-statistics .el-icon {
+  font-size: 48px;
+  margin-bottom: 15px;
+}
+
+.skeleton-statistics {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+.skeleton-chart {
+  width: 100%;
+}
+
+@media (min-width: 768px) {
+  .statistics-charts {
+    flex-wrap: nowrap;
+  }
+
+  .chart-container {
+    width: 50%;
+  }
+}
+
 @media (max-width: 768px) {
-  .view-item {
-    width: 100%;
-  }
-  
-  .order-shortcuts {
-    flex-wrap: wrap;
-  }
-  
-  .shortcut-item {
-    width: 20%;
-  }
-  
   .edit-btn-container {
     position: static;
     margin-top: 10px;
   }
-  
+
   .user-info-grid {
     grid-template-columns: 1fr;
   }
-  
+
   .full-width {
     grid-column: span 1;
+  }
+
+  .statistics-summary {
+    flex-direction: column;
+    gap: 15px;
+  }
+
+  .chart-container {
+    height: 250px;
   }
 }
 </style>

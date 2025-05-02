@@ -439,6 +439,91 @@ Mock.mock(/\/api\/order\/confirm\/\d+/, 'post', (options) => {
   };
 });
 
+// 获取订单统计数据
+Mock.mock('/api/order/statistics', 'get', () => {
+  // 获取当前登录用户
+  const userPhone = getUserPhoneFromToken();
+  
+  // 根据用户筛选订单
+  const userOrders = orders.filter(o => o.userPhone === userPhone);
+  
+  // 初始化统计数据
+  const statistics = {
+    // 订单状态统计
+    orderStatus: [
+      { name: '待付款', value: 0, status: 1 },
+      { name: '已支付', value: 0, status: 2 },
+      { name: '已取消', value: 0, status: 3 },
+      { name: '待收货', value: 0, status: 4 },
+      { name: '已完成', value: 0, status: 5 }
+    ],
+    // 最近7天消费趋势
+    monthlySpending: [],
+    // 总订单数
+    totalOrders: userOrders.length,
+    // 总消费金额(单位为分)
+    totalAmount: 0
+  };
+  
+  // 计算订单状态分布
+  userOrders.forEach(order => {
+    // 增加对应状态的订单数量
+    const statusIndex = statistics.orderStatus.findIndex(s => s.status === order.status);
+    if (statusIndex !== -1) {
+      statistics.orderStatus[statusIndex].value++;
+    }
+    
+    // 如果订单已支付，增加总消费金额
+    if (order.status >= 2 && order.status !== 3) {
+      statistics.totalAmount += order.amount;
+    }
+  });
+  
+  // 计算最近7天的消费趋势
+  const now = new Date();
+  const days = [];
+  
+  // 生成最近7天的日期列表
+  for (let i = 6; i >= 0; i--) {
+    const day = new Date(now);
+    day.setDate(now.getDate() - i);
+    const dayStr = `${day.getFullYear()}-${String(day.getMonth() + 1).padStart(2, '0')}-${String(day.getDate()).padStart(2, '0')}`;
+    days.push(dayStr);
+  }
+  
+  // 初始化每天消费数据
+  const dailyData = {};
+  days.forEach(day => {
+    dailyData[day] = 0;
+  });
+  
+  // 统计每天消费
+  userOrders.forEach(order => {
+    // 只统计已支付的订单
+    if (order.status >= 2 && order.status !== 3) {
+      // 从订单创建时间提取日期
+      const date = new Date(order.createTime.replace(/-/g, '/'));
+      const dayStr = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
+      
+      // 如果是最近7天内的订单，增加该天消费
+      if (dailyData[dayStr] !== undefined) {
+        dailyData[dayStr] += order.amount;
+      }
+    }
+  });
+  
+  // 转换为图表所需数据格式
+  statistics.monthlySpending = days.map(day => ({
+    day: day,
+    amount: dailyData[day] / 100 // 转换为元
+  }));
+  
+  return {
+    success: true,
+    data: statistics
+  };
+});
+
 export default {
   orders
 };

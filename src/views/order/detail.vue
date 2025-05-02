@@ -253,7 +253,7 @@ onMounted(() => {
   <AppLayout>
     <div class="order-detail-container">
       <div class="page-header">
-        <el-button type="text" icon="ArrowLeft" @click="$router.push('/order/list')">返回订单列表</el-button>
+        <el-button type="text" icon="ArrowLeft" @click="goToOrderList">返回订单列表</el-button>
       </div>
       
       <div v-if="loading" class="loading-container">
