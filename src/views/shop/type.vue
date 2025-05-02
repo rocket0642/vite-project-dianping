@@ -113,7 +113,7 @@ onMounted(() => {
 <template>
   <AppLayout>
     <div class="shop-type-container">
-      <!-- 商铺类型导航 -->
+      <!-- 商铺类型导航 - 结构与首页保持一致 -->
       <ShopTypeNav />
       
       <div class="type-header">
@@ -194,7 +194,15 @@ onMounted(() => {
 
 <style scoped>
 .shop-type-container {
-  padding: 20px;
+  padding: 10px 20px; /* 减小上下内边距 */
+  max-width: 1200px;
+  margin: 0 auto;
+}
+
+/* 确保类别导航与首页完全一致 */
+:deep(.shop-type-nav) {
+  width: 100%;
+  margin-bottom: 20px;
 }
 
 .type-header {

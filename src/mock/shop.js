@@ -478,7 +478,7 @@ Mock.mock(new RegExp('/api/shop/list.*'), 'get', (options) => {
   
   let filteredShops = [...shops]
   
-  // 按名称筛选
+  // 按名称筛选 - 确保只匹配名称
   if (params.name) {
     filteredShops = filteredShops.filter(shop => 
       shop.name.includes(params.name)
@@ -509,10 +509,14 @@ Mock.mock(new RegExp('/api/shop/list.*'), 'get', (options) => {
       // 根据不同字段排序
       switch (sortField) {
         case 'score':
-          result = b.score - a.score // 评分
+          result = sortOrder === 'asc' 
+            ? a.score - b.score 
+            : b.score - a.score // 评分
           break
         case 'sold':
-          result = b.sold - a.sold // 销售量
+          result = sortOrder === 'asc' 
+            ? a.sold - b.sold 
+            : b.sold - a.sold // 销售量
           break
         case 'avgPrice':
           result = sortOrder === 'asc' 

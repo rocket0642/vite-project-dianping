@@ -63,15 +63,18 @@ onMounted(async () => {
   background-color: var(--bg-primary);
   border-radius: var(--border-radius);
   box-shadow: var(--box-shadow);
-  margin-bottom: 20px;
-  padding: 15px 10px;
+  margin-bottom: 15px; /* 减小下边距 */
+  padding: 5px; /* 减小内边距 */
+  height: 80px; /* 减小固定高度 */
+  display: flex;
+  align-items: center;
 }
 
 .type-container {
   display: flex;
-  justify-content: space-evenly; /* 均匀分布各项目 */
+  justify-content: space-evenly;
   width: 100%;
-  padding: 15px 0;
+  padding: 0; /* 移除上下内边距 */
 }
 
 .type-item {
@@ -82,12 +85,22 @@ onMounted(async () => {
   cursor: pointer;
   flex: 1; /* 每个项目占据相同宽度 */
   max-width: 100px; /* 可选：限制最大宽度 */
+  transition: transform 0.3s ease, color 0.3s;
+}
+
+.type-item:hover {
+  transform: translateY(-5px);
 }
 
 .type-item .el-icon {
-  font-size: 24px;
+  font-size: 22px; /* 稍微减小图标大小 */
   color: #409EFF;
-  margin-bottom: 8px;
+  margin-bottom: 5px; /* 减小图标与文字间距 */
+  transition: transform 0.3s ease;
+}
+
+.type-item:hover .el-icon {
+  transform: scale(1.2);
 }
 
 .type-item span {

@@ -2334,10 +2334,10 @@ Mock.mock(new RegExp('/api/goods/search.*'), 'get', (options) => {
   const params = Object.fromEntries(url.searchParams.entries())
   const keyword = params.keyword || ''
   
-  // 过滤商品
+  // 过滤商品 - 只匹配名称
   const filteredGoods = goods.filter(item => 
-    item.name.includes(keyword) || 
-    (item.description && item.description.includes(keyword))
+    item.name.includes(keyword)
+    // 移除对描述的搜索
   )
   
   // 获取商品所属商铺信息

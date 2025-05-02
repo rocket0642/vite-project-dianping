@@ -86,7 +86,7 @@ onMounted(() => {
 
       <!-- 轮播图 -->
       <div class="banner">
-        <el-carousel height="300px" indicator-position="outside">
+        <el-carousel height="400px" indicator-position="outside">
           <el-carousel-item v-for="item in banners" :key="item.id">
             <el-image 
               :src="item.imgUrl" 
@@ -157,5 +157,11 @@ onMounted(() => {
 
 .shop-col {
   margin-bottom: 20px;
+}
+
+.home-container {
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 10px 20px; /* 减小上下内边距 */
 }
 </style>

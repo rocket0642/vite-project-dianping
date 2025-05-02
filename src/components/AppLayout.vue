@@ -43,7 +43,7 @@ defineProps({
   flex: 1;
   max-width: 1200px;
   margin: 0 auto;
-  padding: 20px;
+  padding: 10px 20px;
   width: 100%;
 }
 
