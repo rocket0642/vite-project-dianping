@@ -126,8 +126,8 @@ const createOrder = async () => {
     if (orderIds.length > 0) {
       ElMessage.success(`成功创建${orderIds.length}个订单`)
       
-      // 清除购物车中已购买的商品
-      cartStore.removeCheckedItems()
+      // 结算后移除已选商品，但不恢复库存（因为已经转为订单）
+      cartStore.removeCheckedItemsAfterCheckout()
       
       // 如果只有一个订单，直接跳转到支付页面
       if (orderIds.length === 1) {

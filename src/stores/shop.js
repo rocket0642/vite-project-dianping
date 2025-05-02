@@ -15,6 +15,8 @@ export const useShopStore = defineStore('shop', () => {
   const typeShops = ref([])
   const loading = ref(false)
   const total = ref(0)
+  // 存储商铺销量信息
+  const shopSales = ref({})  // 格式: {商铺id: 销量}
   
   /**
    * 获取商铺类型列表
@@ -46,7 +48,16 @@ export const useShopStore = defineStore('shop', () => {
       loading.value = true
       const res = await getShopDetail(id)
       if (res.success) {
-        shopDetail.value = res.data
+        // 初始化商铺销量
+        if (!shopSales.value[id]) {
+          shopSales.value[id] = res.data.sold || 0
+        }
+        
+        // 使用持久化的销量更新商铺数据
+        shopDetail.value = {
+          ...res.data,
+          sold: shopSales.value[id]
+        }
       }
       return res.data
     } catch (error) {
@@ -139,6 +150,33 @@ export const useShopStore = defineStore('shop', () => {
     }
   }
   
+  /**
+   * 更新商铺销量
+   * @param {number} shopId - 商铺ID
+   * @param {number} count - 变化数量，正数增加销量，负数减少销量
+   */
+  function updateShopSales(shopId, count) {
+    if (!shopSales.value[shopId] && shopSales.value[shopId] !== 0) {
+      shopSales.value[shopId] = 0
+    }
+    
+    const newSold = shopSales.value[shopId] + count
+    
+    // 销量不能小于0
+    if (newSold < 0) {
+      shopSales.value[shopId] = 0
+    } else {
+      shopSales.value[shopId] = newSold
+    }
+    
+    // 如果当前显示的是这个商铺，也更新显示
+    if (shopDetail.value.id === shopId) {
+      shopDetail.value.sold = shopSales.value[shopId]
+    }
+    
+    return true
+  }
+  
   // 计算属性
   const isLoading = computed(() => loading.value)
   const currentShop = computed(() => shopDetail.value)
@@ -157,6 +195,7 @@ export const useShopStore = defineStore('shop', () => {
     typeShops,
     loading,
     total,
+    shopSales,
     
     // 计算属性
     isLoading,
@@ -172,6 +211,24 @@ export const useShopStore = defineStore('shop', () => {
     fetchShopDetail,
     fetchShopList,
     fetchShopsByType,
-    searchShopsByKeyword
+    searchShopsByKeyword,
+    updateShopSales
+  }
+}, {
+  persist: {
+    key: 'shop-sales', // 自定义键名
+    storage: localStorage,
+    paths: ['shopSales'],
+    // 添加自定义序列化函数，只存储指定数据
+    serializer: {
+      deserialize: (value) => {
+        const parsed = JSON.parse(value);
+        return { shopSales: parsed.shopSales };
+      },
+      serialize: (state) => {
+        // 只序列化 shopSales
+        return JSON.stringify({ shopSales: state.shopSales });
+      }
+    }
   }
 })

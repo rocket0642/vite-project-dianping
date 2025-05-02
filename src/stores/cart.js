@@ -1,6 +1,9 @@
 import { defineStore } from 'pinia'
 import { ref, computed, watch } from 'vue'
 import { useUserStore } from './user'
+import { useGoodsStore } from './goods'
+import { useShopStore } from './shop'
+import { ElMessage } from 'element-plus'
 
 /**
  * 购物车状态管理
@@ -9,6 +12,8 @@ import { useUserStore } from './user'
 export const useCartStore = defineStore('cart', () => {
   // 引入用户store
   const userStore = useUserStore()
+  const goodsStore = useGoodsStore()
+  const shopStore = useShopStore()
   
   // 购物车商品列表
   const cartItems = ref([])
@@ -120,6 +125,10 @@ export const useCartStore = defineStore('cart', () => {
    * @param {number} index - 商品索引
    */
   function removeFromCart(index) {
+    const item = cartItems.value[index]
+    // 恢复库存，但不减少销量，考虑SKU
+    goodsStore.updateGoodsStock(item.id, -item.count, item.skuId)
+    
     cartItems.value.splice(index, 1)
     saveCurrentCart()
   }
@@ -135,6 +144,10 @@ export const useCartStore = defineStore('cart', () => {
     )
     
     if (index > -1) {
+      const item = cartItems.value[index]
+      // 恢复库存，但不减少销量，考虑SKU
+      goodsStore.updateGoodsStock(item.id, -item.count, item.skuId)
+      
       cartItems.value.splice(index, 1)
     }
     saveCurrentCart()
@@ -147,6 +160,31 @@ export const useCartStore = defineStore('cart', () => {
    */
   function updateItemCount(index, count) {
     if (count < 1) count = 1
+    
+    const item = cartItems.value[index]
+    const oldCount = item.count
+    const diffCount = count - oldCount
+    
+    // 如果增加数量，需要检查库存
+    if (diffCount > 0) {
+      // 检查库存是否足够，考虑SKU
+      const stockUpdated = goodsStore.updateGoodsStock(item.id, diffCount, item.skuId)
+      if (!stockUpdated) {
+        ElMessage.warning('商品库存不足')
+        return
+      }
+      
+      // 更新销量
+      goodsStore.updateGoodsSold(item.id, diffCount, item.skuId)
+      shopStore.updateShopSales(item.shopId, diffCount)
+    } 
+    // 如果减少数量，恢复库存但不减少销量
+    else if (diffCount < 0) {
+      // 恢复库存，考虑SKU
+      goodsStore.updateGoodsStock(item.id, diffCount, item.skuId)
+    }
+    
+    // 更新购物车数量
     cartItems.value[index].count = count
     saveCurrentCart()
   }
@@ -205,6 +243,11 @@ export const useCartStore = defineStore('cart', () => {
    * 清空购物车
    */
   function clearCart() {
+    // 恢复所有商品库存，注意SKU
+    cartItems.value.forEach(item => {
+      goodsStore.updateGoodsStock(item.id, -item.count, item.skuId)
+    })
+    
     cartItems.value = []
     saveCurrentCart()
   }
@@ -213,6 +256,12 @@ export const useCartStore = defineStore('cart', () => {
    * 删除选中商品
    */
   function removeCheckedItems() {
+    cartItems.value = cartItems.value.filter(item => !item.checked)
+    saveCurrentCart()
+  }
+  
+  // 新增：结算后移除选中的商品，不影响库存和销量（因为已经被订单处理）
+  function removeCheckedItemsAfterCheckout() {
     cartItems.value = cartItems.value.filter(item => !item.checked)
     saveCurrentCart()
   }
@@ -347,7 +396,8 @@ export const useCartStore = defineStore('cart', () => {
     removeCheckedItems,
     switchUserCart,
     updateItemCountByObject,
-    removeItemByObject
+    removeItemByObject,
+    removeCheckedItemsAfterCheckout
   }
 }, {
   persist: false 

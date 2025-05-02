@@ -78,6 +78,15 @@ const addToCart = () => {
     return
   }
   
+  // 检查SKU库存是否足够
+  if (currentSku.value.stock < quantity.value) {
+    ElMessage({
+      message: '商品库存不足',
+      type: 'warning'
+    })
+    return
+  }
+  
   // 确保有shopName和shopImage
   const shopName = shopInfo.value?.name || `店铺${goods.value.shopId}`
   const shopImage = shopInfo.value?.images || null
@@ -86,7 +95,7 @@ const addToCart = () => {
     id: goods.value.id,
     shopId: goods.value.shopId,
     shopName: shopName,
-    shopImage: shopImage, // 添加店铺图片
+    shopImage: shopImage,
     name: goods.value.name,
     price: currentSku.value.price,
     skuId: currentSku.value.id,
@@ -96,7 +105,11 @@ const addToCart = () => {
   
   cartStore.addToCart(cartItem, quantity.value)
   
-  // 使用ElMessage替换ElNotification
+  // 更新库存和销量（SKU级别）
+  goodsStore.updateGoodsStock(goods.value.id, quantity.value, currentSku.value.id)
+  goodsStore.updateGoodsSold(goods.value.id, quantity.value, currentSku.value.id)
+  shopStore.updateShopSales(goods.value.shopId, quantity.value)
+  
   ElMessage({
     message: '已加入购物车',
     type: 'success'
@@ -108,9 +121,17 @@ const addToCart = () => {
  */
 const buyNow = () => {
   if (!currentSku.value) {
-    ElNotification({
-      title: '提示',
+    ElMessage({
       message: '请选择商品规格',
+      type: 'warning'
+    })
+    return
+  }
+  
+  // 检查SKU库存是否足够
+  if (currentSku.value.stock < quantity.value) {
+    ElMessage({
+      message: '商品库存不足',
       type: 'warning'
     })
     return
@@ -123,7 +144,7 @@ const buyNow = () => {
     id: goods.value.id,
     shopId: goods.value.shopId,
     shopName: shopName,
-    shopImage: shopImage, // 添加店铺图片
+    shopImage: shopImage,
     name: goods.value.name,
     price: currentSku.value.price,
     skuId: currentSku.value.id,
@@ -133,6 +154,11 @@ const buyNow = () => {
   
   // 添加到购物车并立即选中
   cartStore.addToCart(cartItem, quantity.value, true)
+  
+  // 更新库存和销量（SKU级别）
+  goodsStore.updateGoodsStock(goods.value.id, quantity.value, currentSku.value.id)
+  goodsStore.updateGoodsSold(goods.value.id, quantity.value, currentSku.value.id)
+  shopStore.updateShopSales(goods.value.shopId, quantity.value)
   
   // 跳转到购物车页面
   router.push('/cart')

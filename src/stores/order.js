@@ -1,6 +1,8 @@
 import { defineStore } from 'pinia'
 import { ref, computed } from 'vue'
 import { createOrder, getOrderDetail, getUserOrders, payOrder, cancelOrder, confirmOrder } from '../api/order'
+import { useGoodsStore } from './goods'
+import { useShopStore } from './shop'
 
 /**
  * 订单状态管理
@@ -12,6 +14,10 @@ export const useOrderStore = defineStore('order', () => {
   const loading = ref(false)
   const total = ref(0)
   const orderTimers = ref({}) // 存储订单倒计时信息
+  
+  // 引入商品和商铺store
+  const goodsStore = useGoodsStore()
+  const shopStore = useShopStore()
   
   /**
    * 创建订单
@@ -119,7 +125,32 @@ export const useOrderStore = defineStore('order', () => {
   async function cancelUserOrder(orderId, reason = "用户取消") {
     try {
       loading.value = true
+      // 先获取订单详情，确保有最新数据
+      await fetchOrderDetail(orderId)
+      const order = currentOrder.value
+      
       const res = await cancelOrder(orderId, { reason })
+      
+      // 如果取消成功，恢复库存和减少销量
+      if (res.success) {
+        if (order.items && order.items.length) {
+          // 处理有多个商品的订单
+          order.items.forEach(item => {
+            // 恢复库存，考虑SKU
+            goodsStore.updateGoodsStock(item.goodsId, -item.count, item.skuId)
+            // 减少销量，考虑SKU
+            goodsStore.updateGoodsSold(item.goodsId, -item.count, item.skuId)
+          })
+          // 减少店铺销量
+          shopStore.updateShopSales(order.shopId, -order.count)
+        } else {
+          // 处理单个商品的订单
+          goodsStore.updateGoodsStock(order.goodsId, -order.count, order.skuId)
+          goodsStore.updateGoodsSold(order.goodsId, -order.count, order.skuId)
+          shopStore.updateShopSales(order.shopId, -order.count)
+        }
+      }
+      
       return res
     } catch (error) {
       console.error('取消订单失败:', error)
