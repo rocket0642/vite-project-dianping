@@ -423,7 +423,7 @@ onBeforeUnmount(() => {
   <AppLayout>
     <div class="order-list-container" v-loading="loading">
       <div class="list-header">
-        <el-button type="text" icon="ArrowLeft" @click="$router.go(-1)">返回</el-button>
+        <el-button type="text" icon="ArrowLeft" @click="$router.push('/user')">返回个人中心</el-button>
       </div>
       <div class="order-tabs">
         <div 

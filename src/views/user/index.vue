@@ -308,7 +308,7 @@ watch(() => editDialogVisible.value, (newVal) => {
   <div class="user-center-container">
     <!-- 添加返回按钮 -->
     <div class="back-button">
-      <el-button type="text" icon="ArrowLeft" @click="$router.go(-1)">返回</el-button>
+      <el-button type="text" icon="ArrowLeft" @click="$router.push('/')">返回首页</el-button>
     </div>
     
     <!-- 用户信息卡片 -->
