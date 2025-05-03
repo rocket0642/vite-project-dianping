@@ -2405,5 +2405,88 @@ Mock.mock(/\/api\/goods\/random(\?.+)?$/, 'get', (options) => {
   }
 })
 
+// 更新商品库存
+Mock.mock('/api/goods/stock', 'put', (options) => {
+  const { goodsId, count, skuId } = JSON.parse(options.body)
+  const goodsItem = goods.find(item => item.id === goodsId)
+  
+  if (!goodsItem) {
+    return {
+      success: false,
+      errorMsg: '商品不存在'
+    }
+  }
+  
+  // 更新商品总库存
+  const newStock = goodsItem.stock - count
+  
+  // 库存不能小于0
+  if (newStock < 0) {
+    return {
+      success: false,
+      errorMsg: '库存不足'
+    }
+  }
+  
+  goodsItem.stock = newStock
+  
+  // 如果有skuId，同时更新SKU库存
+  if (skuId && goodsItem.skus) {
+    const sku = goodsItem.skus.find(s => s.id === skuId)
+    if (sku) {
+      const newSkuStock = sku.stock - count
+      
+      // SKU库存不能小于0
+      if (newSkuStock < 0) {
+        return {
+          success: false,
+          errorMsg: 'SKU库存不足'
+        }
+      }
+      
+      sku.stock = newSkuStock
+    }
+  }
+  
+  return {
+    success: true,
+    data: { stock: goodsItem.stock, sku: goodsItem.skus }
+  }
+})
+
+// 更新商品销量
+Mock.mock('/api/goods/sold', 'put', (options) => {
+  const { goodsId, count, skuId } = JSON.parse(options.body)
+  const goodsItem = goods.find(item => item.id === goodsId)
+  
+  if (!goodsItem) {
+    return {
+      success: false,
+      errorMsg: '商品不存在'
+    }
+  }
+  
+  // 更新商品总销量
+  const newSold = goodsItem.sold + count
+  
+  // 销量不能小于0
+  goodsItem.sold = newSold < 0 ? 0 : newSold
+  
+  // 如果有skuId，同时更新SKU销量
+  if (skuId && goodsItem.skus) {
+    const sku = goodsItem.skus.find(s => s.id === skuId)
+    if (sku) {
+      if (!sku.sold) sku.sold = 0
+      const newSkuSold = sku.sold + count
+      sku.sold = newSkuSold < 0 ? 0 : newSkuSold
+    }
+  }
+  
+  return {
+    success: true,
+    data: { sold: goodsItem.sold }
+  }
+})
+
 // 将模块导出以便在index.js中引入
 export default {}

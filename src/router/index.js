@@ -94,11 +94,6 @@ const routes = [
   //   component: () => import('../views/voucher/seckill.vue'),
   //   meta: { title: '秒杀优惠券' }
   // },
-  // {
-  //   path: '/user/info/:id',
-  //   component: () => import('../views/user/info.vue'),
-  //   meta: { title: '用户详情' }
-  // },
   // 404页面
   {
     path: '/:pathMatch(.*)*',

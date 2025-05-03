@@ -78,3 +78,33 @@ export function getRandomGoods(count = 5) {
     params: { count }
   })
 }
+
+/**
+ * 更新商品库存
+ * @param {number} goodsId - 商品ID
+ * @param {number} count - 变化数量，正数减少库存，负数增加库存
+ * @param {number} [skuId] - SKU ID，如果有则更新具体SKU的库存
+ * @returns {Promise} - 更新结果
+ */
+export function updateGoodsStockApi(goodsId, count, skuId = null) {
+  return request({
+    url: '/goods/stock',
+    method: 'put',
+    data: { goodsId, count, skuId }
+  })
+}
+
+/**
+ * 更新商品销量
+ * @param {number} goodsId - 商品ID
+ * @param {number} count - 变化数量，正数增加销量，负数减少销量
+ * @param {number} [skuId] - SKU ID，如果有则更新具体SKU的销量
+ * @returns {Promise} - 更新结果
+ */
+export function updateGoodsSoldApi(goodsId, count, skuId = null) {
+  return request({
+    url: '/goods/sold',
+    method: 'put',
+    data: { goodsId, count, skuId }
+  })
+}

@@ -549,3 +549,27 @@ Mock.mock(new RegExp('/api/shop/list.*'), 'get', (options) => {
     total: filteredShops.length
   }
 })
+
+// 更新商铺销量
+Mock.mock('/api/shop/sales', 'put', (options) => {
+  const { shopId, count } = JSON.parse(options.body)
+  const shop = shops.find(item => item.id === shopId)
+  
+  if (!shop) {
+    return {
+      success: false,
+      errorMsg: '商铺不存在'
+    }
+  }
+  
+  // 更新商铺销量
+  const newSold = shop.sold + count
+  
+  // 销量不能小于0
+  shop.sold = newSold < 0 ? 0 : newSold
+  
+  return {
+    success: true,
+    data: { sold: shop.sold }
+  }
+})

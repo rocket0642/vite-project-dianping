@@ -1,6 +1,6 @@
 import { defineStore } from 'pinia'
 import { ref, computed } from 'vue'
-import { getGoodsDetail, getShopGoods, getRandomGoods } from '../api/goods'
+import { getGoodsDetail, getShopGoods, getRandomGoods, updateGoodsSoldApi, updateGoodsStockApi } from '../api/goods'
 
 /**
  * 商品状态管理
@@ -123,10 +123,13 @@ export const useGoodsStore = defineStore('goods', () => {
    * @param {number} count - 变化数量，正数减少库存，负数增加库存
    * @param {number} skuId - SKU ID，如果有则更新具体SKU的库存
    */
-  function updateGoodsStock(goodsId, count, skuId = null) {
+  async function updateGoodsStock(goodsId, count, skuId = null) {
     if (!goodsInventory.value[goodsId]) {
       return false
     }
+
+    const res = await updateGoodsStockApi(goodsId, count, skuId)
+    console.log(res)
     
     // 商品总库存始终更新
     const newStock = goodsInventory.value[goodsId].stock - count
@@ -172,10 +175,13 @@ export const useGoodsStore = defineStore('goods', () => {
    * @param {number} count - 变化数量，正数增加销量，负数减少销量
    * @param {number} skuId - SKU ID，如果有则更新具体SKU的销量
    */
-  function updateGoodsSold(goodsId, count, skuId = null) {
+  async function updateGoodsSold(goodsId, count, skuId = null) {
     if (!goodsInventory.value[goodsId]) {
       return false
     }
+
+    const res = await updateGoodsSoldApi(goodsId, count, skuId)
+    console.log(res)
     
     // 更新商品总销量
     const newSold = goodsInventory.value[goodsId].sold + count

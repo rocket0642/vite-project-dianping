@@ -1,7 +1,7 @@
 <script setup>
-import { ref, watch } from 'vue'
+import { ref } from 'vue'
 import { useRouter } from 'vue-router'
-import { Search, Shop, Goods } from '@element-plus/icons-vue'
+import { Search } from '@element-plus/icons-vue'
 
 // 路由实例
 const router = useRouter()
@@ -32,12 +32,6 @@ const handleSearch = () => {
   }
 }
 
-/**
- * 切换搜索类型
- */
-const switchSearchType = (type) => {
-  searchType.value = type
-}
 </script>
 
 <template>

@@ -1,6 +1,6 @@
 import { defineStore } from 'pinia'
 import { ref, computed } from 'vue'
-import { getShopDetail, getShopList, getShopTypes, getShopsByType, searchShops } from '../api/shop'
+import { getShopDetail, getShopList, getShopTypes, getShopsByType, searchShops, updateShopSalesApi } from '../api/shop'
 
 /**
  * 商铺状态管理
@@ -155,7 +155,11 @@ export const useShopStore = defineStore('shop', () => {
    * @param {number} shopId - 商铺ID
    * @param {number} count - 变化数量，正数增加销量，负数减少销量
    */
-  function updateShopSales(shopId, count) {
+  async function updateShopSales(shopId, count) {
+    // 更新后端库存
+    const res = await updateShopSalesApi(shopId, count)
+    console.log(res)
+
     if (!shopSales.value[shopId] && shopSales.value[shopId] !== 0) {
       shopSales.value[shopId] = 0
     }
