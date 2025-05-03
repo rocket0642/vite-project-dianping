@@ -1,6 +1,7 @@
 import axios from 'axios'
 import { ElMessage } from 'element-plus'
 import router from '../router'
+import { useUserStore } from '../stores/user'
 
 /**
  * 创建axios实例，配置基础URL和超时时间
@@ -16,12 +17,28 @@ const request = axios.create({
  */
 request.interceptors.request.use(
   config => {
-    // 从pinia持久化存储中获取token
-    const userStore = JSON.parse(localStorage.getItem('user-store') || '{}')
+    // 从useUserStore获取token
+    const userStore = useUserStore()
+    
+    // 检查token是否存在
     if (userStore.token) {
+      // 检查token是否过期
+      if (userStore.isTokenExpired()) {
+        router.push({
+          path: '/login',
+          query: { redirect: router.currentRoute.value.fullPath }
+        })
+        ElMessage.error('登录已过期，请重新登录')
+        return Promise.reject(new Error('Token已过期'))
+      }
+      
+      // token有效，添加到请求头
       config.headers['Authorization'] = userStore.token
+      
+      // 刷新token过期时间
+      userStore.refreshTokenExpireTime()
     }
-    console.log(config.headers['Authorization'])
+    
     return config
   },
   error => Promise.reject(error)
@@ -35,6 +52,12 @@ request.interceptors.response.use(
   response => {
     const { data } = response
     
+    // 每次成功响应也刷新token过期时间
+    const userStore = useUserStore()
+    if (userStore.token) {
+      userStore.refreshTokenExpireTime()
+    }
+    
     // 直接返回完整响应数据，包括success和data字段
     // 这样在组件中可以通过res.success判断请求是否成功
     return data
@@ -43,7 +66,9 @@ request.interceptors.response.use(
     // 处理401未授权错误
     if (error.response && error.response.status === 401) {
       // 清除本地token
-      localStorage.removeItem('token')
+      const userStore = useUserStore()
+      userStore.logout()
+      
       // 跳转到登录页
       router.push({
         path: '/login',

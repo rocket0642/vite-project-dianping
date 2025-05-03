@@ -48,7 +48,6 @@ const editDialogVisible = ref(false)
 // 统一编辑表单数据
 const editForm = ref({
   // 基本信息
-  id: '',
   nickName: '',
   icon: '',
   city: '',
@@ -273,7 +272,6 @@ const openEditDialog = () => {
   // 统一设置所有用户信息
   editForm.value = {
     // 基本信息
-    id: userInfo.value.id,
     nickName: userInfo.value.nickName || '',
     icon: userInfo.value.icon || '',
     city: userInfo.value.city || '',
@@ -311,7 +309,6 @@ const submitEditForm = async () => {
   try {
     // 更新基本信息
     await updateUserInfo({
-      id: editForm.value.id,
       nickName: editForm.value.nickName,
       icon: editForm.value.icon
     })
@@ -325,8 +322,6 @@ const submitEditForm = async () => {
       email: editForm.value.email
     })
 
-    // 强制更新本地用户信息
-    await userStore.fetchUserInfo()
 
     // 直接更新本地计算属性，确保视图立即更新
     Object.assign(userStore.userInfo, {
@@ -415,7 +410,7 @@ onMounted(async () => {
   }
 })
 
-// 监听用户ID变化，重新加载数据
+// 监听用户变化，重新加载数据
 watch(() => userStore.userPhone, (newUserPhone, oldUserPhone) => {
   if (newUserPhone && newUserPhone !== oldUserPhone) {
     loadUserAddresses()
@@ -428,7 +423,6 @@ watch(() => editDialogVisible.value, (newVal) => {
   if (newVal) {
     // 如果对话框打开，强制同步最新用户信息到表单
     editForm.value = {
-      id: userInfo.value.id,
       nickName: userInfo.value.nickName || '',
       icon: userInfo.value.icon || '',
       city: userInfo.value.city || '',

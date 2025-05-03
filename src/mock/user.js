@@ -54,7 +54,7 @@ const users = [
 
 // 从token中统一获取userPhone的辅助函数
 function getUserPhoneFromToken() {
-  const userStore = JSON.parse(localStorage.getItem('user-store') || '{}')
+  const userStore = JSON.parse(sessionStorage.getItem('user-store') || '{}')
   console.log(userStore)
   const userPhone = userStore.userPhone
   return userPhone? userPhone : ""

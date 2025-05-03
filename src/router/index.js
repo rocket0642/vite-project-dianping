@@ -1,4 +1,5 @@
 import { createRouter, createWebHistory } from 'vue-router'
+import { useUserStore } from '../stores/user'
 
 /**
  * 路由配置
@@ -139,12 +140,15 @@ router.beforeEach((to, from, next) => {
   
   // 权限验证
   if (to.meta.requiresAuth) {
-    // 从pinia持久化存储中获取token
-    const userStore = JSON.parse(localStorage.getItem('user-store') || '{}')
-    console.log(userStore)
-    const token = userStore.token
-    if (!token) {
-      next({ path: '/login', query: { redirect: to.fullPath } })
+    // 使用 Pinia Store 获取用户状态
+    const userStore = useUserStore()
+    
+    if (!userStore.isLogin) {
+      // 未登录时重定向到登录页，并携带重定向信息
+      next({ 
+        path: '/login', 
+        query: { redirect: to.fullPath } 
+      })
       return
     }
   }

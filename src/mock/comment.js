@@ -25,7 +25,7 @@ function saveComments(comments) {
 // 在comment.js中添加获取用户信息的函数
 function getUserInfo() {
   try {
-    const userStoreData = JSON.parse(localStorage.getItem('user-store') || '{}');
+    const userStoreData = JSON.parse(sessionStorage.getItem('user-store') || '{}');
     return userStoreData.userInfo || {};
   } catch (e) {
     console.error('获取用户信息失败:', e);
