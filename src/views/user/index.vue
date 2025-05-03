@@ -3,7 +3,7 @@ import { ref, onMounted, computed, watch, onUnmounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { useUserStore } from '../../stores/user'
 import { getUserAddresses } from '../../api/address'
-import { updateUserInfo, updateUserDetail, getUserInfo } from '../../api/user'
+import { updateUserInfo, updateUserDetail } from '../../api/user'
 import { getUserOrderStatistics } from '../../api/order'
 import {
   ElMessage, ElMessageBox, ElAvatar, ElButton, ElDialog, ElForm, ElFormItem, ElInput,

@@ -22,14 +22,14 @@ const loading = ref(true)
 const total = ref(0)
 const currentPage = ref(1)
 const pageSize = ref(8)
-const sortBy = ref('') // 排序字段
+const sortBy = ref('score') // 排序字段
 const sortOrder = ref('desc') // 排序方向
 
 // 排序选项
 const sortOptions = [
   { value: 'score', label: '按评分排序' },
   { value: 'sold', label: '按销量排序' },
-  { value: 'avgPrice', label: '按均价排序' }
+  { value: 'avg_price', label: '按均价排序' }
 ]
 
 /**
@@ -40,7 +40,6 @@ const loadTypeShops = async () => {
   try {
     const params = {
       current: currentPage.value,
-      pageSize: pageSize.value
     }
     
     // 添加排序参数

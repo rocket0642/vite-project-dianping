@@ -109,9 +109,9 @@ const handleLogin = async () => {
     let res;
     // 根据登录方式调用不同的登录接口
     if (loginType.value === 'code') {
-      res = await userStore.userLogin(loginForm.phone, loginForm.code)
+      res = await userStore.userLogin(loginForm.phone, loginForm.code, null)
     } else {
-      res = await userStore.userLoginByPassword(loginForm.phone, loginForm.password)
+      res = await userStore.userLogin(loginForm.phone, null, loginForm.password)
     }
     
     if (res && res.success) {

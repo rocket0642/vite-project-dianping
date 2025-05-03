@@ -2,10 +2,11 @@
 import { ref, reactive } from 'vue'
 import { useRouter } from 'vue-router'
 import { ElMessage } from 'element-plus'
-import { getCode, register } from '../../api/user'
+import { useUserStore } from '../../stores/user'
 
 // 获取路由实例
 const router = useRouter()
+const userStore = useUserStore()
 
 // 表单数据
 const registerForm = reactive({
@@ -65,28 +66,28 @@ const getVerificationCode = async () => {
   } catch (error) {
     return
   }
-  
+
   // 禁用按钮并开始倒计时
   codeButtonStatus.disabled = true
   codeButtonStatus.countdown = 60
   codeButtonStatus.text = `${codeButtonStatus.countdown}秒后重新获取`
-  
+
   codeButtonStatus.timer = setInterval(() => {
     codeButtonStatus.countdown--
     codeButtonStatus.text = `${codeButtonStatus.countdown}秒后重新获取`
-    
+
     if (codeButtonStatus.countdown <= 0) {
       clearInterval(codeButtonStatus.timer)
       codeButtonStatus.disabled = false
       codeButtonStatus.text = '获取验证码'
     }
   }, 1000)
-  
+
   // 调用获取验证码接口
   try {
-    const res = await getCode(registerForm.phone)
+    const res = await userStore.fetchCode(registerForm.phone)
     if (res.success) {
-      ElMessage.success('验证码已发送，请查看控制台')
+      ElMessage.success('验证码已发送')
     } else {
       // 如果手机号已注册，提示用户去登录
       ElMessage.warning(res.errorMsg || '获取验证码失败')
@@ -114,15 +115,11 @@ const handleRegister = async () => {
   } catch (error) {
     return
   }
-  
+
   try {
     // 调用注册接口
-    const res = await register({
-      phone: registerForm.phone,
-      code: registerForm.code,
-      password: registerForm.password
-    })
-    
+    const res = await userStore.userRegister(registerForm)
+
     if (res.success) {
       ElMessage.success('注册成功，请登录')
       // 注册成功后跳转到登录页
@@ -156,88 +153,64 @@ const goToLogin = () => {
       <div class="back-button">
         <el-button icon="ArrowLeft" type="text" @click="$router.push('/')">返回首页</el-button>
       </div>
-      
-      <el-form 
-        ref="formRef"
-        :model="registerForm"
-        :rules="rules"
-        label-position="top"
-        class="register-form"
-      >
+
+      <el-form ref="formRef" :model="registerForm" :rules="rules" label-position="top" class="register-form">
         <!-- 手机号输入框 -->
         <el-form-item prop="phone" label="手机号">
-          <el-input 
-            v-model="registerForm.phone"
-            placeholder="请输入手机号"
-            maxlength="11"
-          >
+          <el-input v-model="registerForm.phone" placeholder="请输入手机号" maxlength="11">
             <template #prefix>
-              <el-icon><Iphone /></el-icon>
+              <el-icon>
+                <Iphone />
+              </el-icon>
             </template>
           </el-input>
         </el-form-item>
-        
+
         <!-- 验证码 -->
         <el-form-item prop="code" label="验证码">
           <div class="code-input-group">
-            <el-input 
-              v-model="registerForm.code"
-              placeholder="请输入验证码"
-              maxlength="6"
-            >
+            <el-input v-model="registerForm.code" placeholder="请输入验证码" maxlength="6">
               <template #prefix>
-                <el-icon><Key /></el-icon>
+                <el-icon>
+                  <Key />
+                </el-icon>
               </template>
             </el-input>
-            <el-button 
-              type="primary" 
-              :disabled="codeButtonStatus.disabled"
-              @click="getVerificationCode"
-            >
+            <el-button type="primary" :disabled="codeButtonStatus.disabled" @click="getVerificationCode">
               {{ codeButtonStatus.text }}
             </el-button>
           </div>
         </el-form-item>
-        
+
         <!-- 密码 -->
         <el-form-item prop="password" label="密码">
-          <el-input 
-            v-model="registerForm.password"
-            type="password"
-            placeholder="请输入密码"
-            show-password
-          >
+          <el-input v-model="registerForm.password" type="password" placeholder="请输入密码" show-password>
             <template #prefix>
-              <el-icon><Lock /></el-icon>
+              <el-icon>
+                <Lock />
+              </el-icon>
             </template>
           </el-input>
         </el-form-item>
-        
+
         <!-- 确认密码 -->
         <el-form-item prop="confirmPassword" label="确认密码">
-          <el-input 
-            v-model="registerForm.confirmPassword"
-            type="password"
-            placeholder="请确认密码"
-            show-password
-          >
+          <el-input v-model="registerForm.confirmPassword" type="password" placeholder="请确认密码" show-password>
             <template #prefix>
-              <el-icon><Lock /></el-icon>
+              <el-icon>
+                <Lock />
+              </el-icon>
             </template>
           </el-input>
         </el-form-item>
-        
+
         <!-- 注册按钮 -->
         <el-form-item>
-          <el-button 
-            type="primary" 
-            class="register-button"
-            @click="handleRegister"
-          >
+          <el-button type="primary" class="register-button" @click="handleRegister">
             注册
           </el-button>
         </el-form-item>
-        
+
         <!-- 登录链接 -->
         <div class="form-footer">
           <span>已有账号？</span>
@@ -320,5 +293,4 @@ const goToLogin = () => {
   left: 16px;
   z-index: 10;
 }
-
 </style>

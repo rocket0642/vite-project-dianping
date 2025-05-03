@@ -1,6 +1,6 @@
 import { defineStore } from 'pinia'
-import { ref, computed, onMounted, onBeforeUnmount } from 'vue'
-import { login, loginByPassword, getCode, getUserInfo } from '../api/user'
+import { ref, computed } from 'vue'
+import { login, getCode, getUser, getUserInfo, register } from '../api/user'
 import { useCartStore } from './cart'
 
 /**
@@ -54,13 +54,14 @@ export const useUserStore = defineStore('user', () => {
    * 验证码登录
    * @param {string} phone - 手机号
    * @param {string} code - 验证码
+   * @param {string} password - 密码
    * @returns {Promise} - 登录结果
    */
-  async function userLogin(phone, code) {
+  async function userLogin(phone, code, password) {
     try {
-      const res = await login(phone, code)
+      const res = await login(phone, code, password)
       if (res.success) {
-        token.value = res.data.token
+        token.value = res.data
         userPhone.value = phone
         // 设置Token过期时间
         setTokenExpireTime()
@@ -76,28 +77,17 @@ export const useUserStore = defineStore('user', () => {
       throw error
     }
   }
-  
+
   /**
-   * 密码登录
+   * 注册
    * @param {string} phone - 手机号
+   * @param {string} code - 验证码
    * @param {string} password - 密码
-   * @returns {Promise} - 登录结果
+   * @returns {Promise} - 注册结果
    */
-  async function userLoginByPassword(phone, password) {
+  async function userRegister(data) {
     try {
-      const res = await loginByPassword(phone, password)
-      if (res.success) {
-        token.value = res.data.token
-        userPhone.value = phone
-        // 设置Token过期时间
-        setTokenExpireTime()
-        await fetchUserInfo()
-        // 登录成功后重新加载购物车数据
-        const cartStore = useCartStore()
-        if (cartStore) {
-          cartStore.switchUserCart(userPhone.value)
-        }
-      }
+      const res = await register(data)
       return res
     } catch (error) {
       throw error
@@ -122,7 +112,15 @@ export const useUserStore = defineStore('user', () => {
       if (Object.keys(userInfo.value).length > 0) {
         return userInfo.value
       }
-      const res = await getUserInfo()
+      const res1 = await getUser()
+      const res2 = await getUserInfo(res1.data.id)
+      const res = {
+        success: res1.success,
+        data: {
+          ...res1.data,
+          ...res2.data
+        }
+      }
       if (res.success) {
         userInfo.value = res.data
       }
@@ -189,12 +187,12 @@ export const useUserStore = defineStore('user', () => {
     tokenExpireTime,
     isLogin,
     userLogin,
-    userLoginByPassword,
     fetchCode,
     fetchUserInfo,
     refreshTokenExpireTime,
     logout,
-    isTokenExpired
+    isTokenExpired,
+    userRegister
   }
 }, {
   persist: {

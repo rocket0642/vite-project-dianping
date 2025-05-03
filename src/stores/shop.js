@@ -69,7 +69,7 @@ export const useShopStore = defineStore('shop', () => {
   }
   
   /**
-   * 获取商铺列表
+   * 获取推荐商铺列表
    * @param {Object} params - 查询参数
    * @returns {Promise} - 商铺列表
    */

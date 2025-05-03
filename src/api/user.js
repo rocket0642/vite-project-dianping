@@ -4,13 +4,14 @@ import request from '../utils/request'
  * 验证码登录
  * @param {string} phone - 手机号
  * @param {string} code - 验证码
+ * @param {string} password - 密码
  * @returns {Promise} - 登录结果
  */
-export function login(phone, code) {
+export function login(phone, code, password) {
   return request({
     url: '/user/login',
     method: 'post',
-    data: { phone, code }
+    data: { phone, code, password }
   })
 }
 
@@ -61,7 +62,17 @@ export function register(data) {
  * 获取用户信息
  * @returns {Promise} - 用户信息
  */
-export function getUserInfo() {
+export function getUserInfo(id) {
+  return request({
+    url: `/user/info/${id}`,
+    method: 'get'
+  })
+}
+/**
+ * 获取用户信息
+ * @returns {Promise} - 用户信息
+ */
+export function getUser() {
   return request({
     url: '/user/me',
     method: 'get'
@@ -80,6 +91,7 @@ export function updateUserInfo(data) {
     data
   })
 }
+
 
 /**
  * 更新用户详细信息

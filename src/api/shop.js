@@ -13,7 +13,7 @@ export function getShopDetail(id) {
 }
 
 /**
- * 获取商铺列表
+ * 获取推荐商铺列表
  * @param {Object} params - 查询参数
  * @param {string} [params.name] - 商铺名称
  * @param {number} [params.typeId] - 商铺类型ID
@@ -23,7 +23,7 @@ export function getShopDetail(id) {
  */
 export function getShopList(params) {
   return request({
-    url: '/shop/list',
+    url: '/shop/recommend',
     method: 'get',
     params
   })
@@ -48,7 +48,7 @@ export function getShopTypes() {
  */
 export function getShopsByType(typeId, params = {}) {
   return request({
-    url: '/shop/list',
+    url: '/shop/of/type',
     method: 'get',
     params: { ...params, typeId }
   })
@@ -62,7 +62,7 @@ export function getShopsByType(typeId, params = {}) {
  */
 export function searchShops(keyword, params = {}) {
   return request({
-    url: '/shop/list',
+    url: '/shop/search',
     method: 'get',
     params: { ...params, name: keyword }
   })
@@ -76,7 +76,7 @@ export function searchShops(keyword, params = {}) {
  */
 export function updateShopSalesApi(shopId, count) {
   return request({
-    url: '/shop/sales',
+    url: '/shop/sold',
     method: 'put',
     data: { shopId, count }
   })

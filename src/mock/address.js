@@ -6,7 +6,6 @@ let addresses = JSON.parse(localStorage.getItem('mock_addresses') || '[]')
 // 从token获取用户
 function getUserPhoneFromToken() {
   const userStore = JSON.parse(sessionStorage.getItem('user-store') || '{}')
-  console.log(userStore)
   const userPhone = userStore.userPhone
   return userPhone? userPhone : ""
 }

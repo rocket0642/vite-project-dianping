@@ -10,7 +10,7 @@ import App from './App.vue'
 import router from './router'
 
 // 导入mock数据（仅在开发环境使用）
-import './mock'
+// import './mock'
 
 // 创建pinia实例并使用持久化插件
 const pinia = createPinia()

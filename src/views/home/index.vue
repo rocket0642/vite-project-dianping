@@ -5,14 +5,17 @@ import { ElCarousel, ElCarouselItem, ElImage, ElRow, ElCol } from 'element-plus'
 import AppLayout from '../../components/AppLayout.vue'
 import ShopCard from '../../components/ShopCard.vue'
 import ShopTypeNav from '../../components/ShopTypeNav.vue'
-import { getShopList } from '../../api/shop'
 import { useGoodsStore } from '../../stores/goods'
+import { useShopStore } from '../../stores/shop'
 
 // 路由实例
 const router = useRouter()
 
 // 商品状态管理
 const goodsStore = useGoodsStore()
+
+// 商铺状态管理
+const shopStore = useShopStore()
 
 // 轮播图数据
 const banners = ref([])
@@ -52,7 +55,7 @@ const loadBanners = async () => {
 const loadRecommendShops = async () => {
   try {
     // 按评分排序并限制返回4个商铺
-    const res = await getShopList({
+    const res = await shopStore.fetchShopList({
       sortBy: 'score',
       limit: 4
     })

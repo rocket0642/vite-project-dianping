@@ -30,7 +30,7 @@ const sortOrder = ref('desc')
 const shopSortOptions = [
   { value: 'score', label: '按评分排序' },
   { value: 'sold', label: '按销量排序' },
-  { value: 'avgPrice', label: '按均价排序' }
+  { value: 'avg_price', label: '按均价排序' }
 ]
 
 // 商品排序选项
@@ -44,7 +44,6 @@ const searchForm = reactive({
   keyword: '',
   type: 'shop',
   current: 1,
-  pageSize: 8,
   sortBy: '',
   sortOrder: 'desc'
 })
@@ -201,7 +200,7 @@ const updateSearchFromQuery = () => {
   searchForm.keyword = keyword || ''
   searchForm.type = type || 'shop'
   searchForm.current = parseInt(page) || 1
-  searchForm.sortBy = querySortBy || ''
+  searchForm.sortBy = querySortBy || 'price'
   searchForm.sortOrder = querySortOrder || 'desc'
   
   activeTab.value = type || 'shop'

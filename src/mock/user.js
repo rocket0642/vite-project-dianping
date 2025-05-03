@@ -55,7 +55,6 @@ const users = [
 // 从token中统一获取userPhone的辅助函数
 function getUserPhoneFromToken() {
   const userStore = JSON.parse(sessionStorage.getItem('user-store') || '{}')
-  console.log(userStore)
   const userPhone = userStore.userPhone
   return userPhone? userPhone : ""
 }
@@ -136,11 +135,7 @@ Mock.mock('/api/user/login', 'post', (options) => {
   
   return {
     success: true,
-    data: {
-      id: user.id,
-      token,
-      userId: user.id
-    }
+    data: token
   }
 })
 
@@ -260,7 +255,6 @@ Mock.mock('/api/user/me', 'get', (options) => {
   
   // 从token中提取用户ID
   const userPhone = getUserPhoneFromToken()
-  console.log(userPhone)
 
   if (userPhone === "") {
     return {
