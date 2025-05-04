@@ -7,7 +7,7 @@ import request from '../utils/request'
  */
 export function getGoodsDetail(id) {
   return request({
-    url: `/goods/${id}`,
+    url: `/goods/detail/${id}`,
     method: 'get'
   })
 }
@@ -24,6 +24,8 @@ export function getShopGoods(shopId) {
     params: { shopId }
   })
 }
+
+
 
 /**
  * 添加商品
@@ -51,6 +53,9 @@ export function updateGoods(data) {
   })
 }
 
+
+
+
 /**
  * 搜索商品
  * @param {string} keyword - 搜索关键词
@@ -58,12 +63,14 @@ export function updateGoods(data) {
  * @returns {Promise<Object>} - 搜索结果
  */
 export function searchGoods(keyword, params = {}) {
-  const queryString = new URLSearchParams({
-    keyword,
-    ...params
-  }).toString()
-  
-  return request.get(`/api/goods/search?${queryString}`)
+  return request({
+    url: '/api/goods/search',
+    method: 'get',
+    params: {
+      keyword,
+      ...params
+    }
+  })
 }
 
 /**

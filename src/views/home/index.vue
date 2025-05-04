@@ -55,13 +55,13 @@ const loadBanners = async () => {
 const loadRecommendShops = async () => {
   try {
     // 按评分排序并限制返回4个商铺
-    const res = await shopStore.fetchShopList({
+    await shopStore.fetchShopList({
       sortBy: 'score',
       limit: 4
     })
     
-    if (res && res.success) {
-      recommendShops.value = res.data
+    if (shopStore.shopList && shopStore.shopList.length > 0) {
+      recommendShops.value = shopStore.shopList
       console.log('推荐商铺数据:', recommendShops.value)
     }
   } catch (error) {

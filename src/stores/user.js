@@ -15,7 +15,7 @@ export const useUserStore = defineStore('user', () => {
   const tokenExpireTime = ref(null) // Token过期时间
   const tokenTimer = ref(null) // 定时器引用
   // token时效
-  const TOKEN_EXPIRE_TIME = 10 * 60 * 1000 // 10分钟
+  const TOKEN_EXPIRE_TIME = 30 * 60 * 1000 // 30分钟
   // 计算属性
   const isLogin = computed(() => !!token.value)
   

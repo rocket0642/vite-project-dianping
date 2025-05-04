@@ -21,7 +21,7 @@ const shops = ref([])
 const loading = ref(true)
 const total = ref(0)
 const currentPage = ref(1)
-const pageSize = ref(8)
+const pageSize = ref(9)
 const sortBy = ref('score') // 排序字段
 const sortOrder = ref('desc') // 排序方向
 
@@ -40,6 +40,7 @@ const loadTypeShops = async () => {
   try {
     const params = {
       current: currentPage.value,
+      pageSize: pageSize.value
     }
     
     // 添加排序参数

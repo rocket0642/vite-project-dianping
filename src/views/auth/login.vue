@@ -77,7 +77,7 @@ const getCode = async () => {
   try {
     const res = await userStore.fetchCode(loginForm.phone)
     if (res.success) {
-      ElMessage.success('验证码已发送，请查看控制台')
+      ElMessage.success('验证码已发送')
     } else {
       ElMessage.warning(res.errorMsg || '获取验证码失败')
       // 重置按钮状态

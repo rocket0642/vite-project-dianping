@@ -6,8 +6,6 @@ import { Location, Clock, Phone, Collection, Star } from '@element-plus/icons-vu
 import AppLayout from '../../components/AppLayout.vue'
 import { useShopStore } from '../../stores/shop'
 import { useGoodsStore } from '../../stores/goods'
-import { getShopGoods } from '../../api/goods'
-import { getShopComments } from '../../api/comment'
 import { useCommentStore } from '../../stores/comment'
 
 // 获取路由参数
@@ -66,10 +64,8 @@ const toggleCollection = () => {
  */
 const loadShopGoods = async () => {
   try {
-    const res = await getShopGoods(shopId)
-    if (res.success) {
-      shopGoods.value = res.data
-    }
+    await goodsStore.fetchShopGoods(shopId)
+    shopGoods.value = goodsStore.currentShopGoods
   } catch (error) {
     console.error('加载商铺商品失败:', error)
   }

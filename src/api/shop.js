@@ -7,7 +7,7 @@ import request from '../utils/request'
  */
 export function getShopDetail(id) {
   return request({
-    url: `/shop/${id}`,
+    url: `/shop/detail/${id}`,
     method: 'get'
   })
 }

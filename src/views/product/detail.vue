@@ -100,7 +100,7 @@ const addToCart = () => {
     price: currentSku.value.price,
     skuId: currentSku.value.id,
     skuName: currentSku.value.name,
-    imageUrl: goods.value.imageUrl
+    imageUrl: goods.value.images
   }
   
   cartStore.addToCart(cartItem, quantity.value)
@@ -149,7 +149,7 @@ const buyNow = () => {
     price: currentSku.value.price,
     skuId: currentSku.value.id,
     skuName: currentSku.value.name,
-    imageUrl: goods.value.imageUrl
+    imageUrl: goods.value.images
   }
   
   // 添加到购物车并立即选中
@@ -185,7 +185,7 @@ onMounted(async () => {
   // 如果有商铺ID，尝试获取商铺信息
   if (goods.value && goods.value.shopId) {
     try {
-      const shopRes = await shopStore.fetchShopDetail(goods.value.shopId)
+      await shopStore.fetchShopDetail(goods.value.shopId)
       shopInfo.value = shopStore.currentShop
     } catch (error) {
       console.error('获取商铺信息失败:', error)
@@ -235,9 +235,9 @@ onMounted(async () => {
                 <el-carousel height="400px" indicator-position="outside">
                   <el-carousel-item>
                     <el-image 
-                      :src="goods.imageUrl" 
+                      :src="goods.images" 
                       fit="cover"
-                      :preview-src-list="[goods.imageUrl]"
+                      :preview-src-list="[goods.images]"
                     />
                   </el-carousel-item>
                 </el-carousel>
@@ -295,7 +295,7 @@ onMounted(async () => {
                   
                   <!-- 这里可以放图文详情 -->
                   <div class="detail-images">
-                    <el-image :src="goods.imageUrl" fit="cover" />
+                    <el-image :src="goods.images" fit="cover" />
                   </div>
                 </div>
               </el-tab-pane>

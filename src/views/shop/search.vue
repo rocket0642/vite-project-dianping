@@ -6,7 +6,7 @@ import { ArrowUp, ArrowDown } from '@element-plus/icons-vue'
 import AppLayout from '../../components/AppLayout.vue'
 import ShopCard from '../../components/ShopCard.vue'
 import { useShopStore } from '../../stores/shop'
-import { searchGoods } from '../../api/goods'
+import { useGoodsStore } from '../../stores/goods'
 
 // 路由相关
 const route = useRoute()
@@ -14,7 +14,8 @@ const router = useRouter()
 
 // 商铺状态管理
 const shopStore = useShopStore()
-
+// 商品状态管理
+const goodsStore = useGoodsStore()
 // 状态
 const loading = ref(false)
 const shops = ref([])
@@ -23,7 +24,7 @@ const total = ref(0)
 const activeTab = ref('shop')
 
 // 排序相关
-const sortBy = ref('')
+const sortBy = ref('sold')
 const sortOrder = ref('desc')
 
 // 商铺排序选项
@@ -42,9 +43,9 @@ const goodsSortOptions = [
 // 搜索条件
 const searchForm = reactive({
   keyword: '',
-  type: 'shop',
   current: 1,
-  sortBy: '',
+  pageSize: 9,
+  sortBy: 'sold',
   sortOrder: 'desc'
 })
 
@@ -72,11 +73,9 @@ const searchGoodsItems = async () => {
   loading.value = true
   try {
     const { keyword, ...params } = searchForm
-    const res = await searchGoods(keyword, params)
-    if (res.success) {
-      goods.value = res.data
-      total.value = res.total
-    }
+    const result = await goodsStore.searchGoodsByKeyword(keyword, params)
+    goods.value = result.list
+    total.value = result.total
   } catch (error) {
     console.error('搜索商品失败:', error)
   } finally {
@@ -200,11 +199,11 @@ const updateSearchFromQuery = () => {
   searchForm.keyword = keyword || ''
   searchForm.type = type || 'shop'
   searchForm.current = parseInt(page) || 1
-  searchForm.sortBy = querySortBy || 'price'
+  searchForm.sortBy = querySortBy || 'sold'
   searchForm.sortOrder = querySortOrder || 'desc'
   
   activeTab.value = type || 'shop'
-  sortBy.value = querySortBy || ''
+  sortBy.value = querySortBy || 'sold'
   sortOrder.value = querySortOrder || 'desc'
   
   // 执行搜索

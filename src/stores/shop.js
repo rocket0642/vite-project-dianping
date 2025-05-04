@@ -79,12 +79,8 @@ export const useShopStore = defineStore('shop', () => {
       const res = await getShopList(params)
       if (res.success) {
         shopList.value = res.data
-        total.value = res.total || 0
       }
-      return {
-        list: res.data,
-        total: res.total
-      }
+      return shopList.value
     } catch (error) {
       console.error('获取商铺列表失败:', error)
       throw error
@@ -109,12 +105,12 @@ export const useShopStore = defineStore('shop', () => {
       }
       const res = await getShopsByType(typeId, queryParams)
       if (res.success) {
-        typeShops.value = res.data
-        total.value = res.total || 0
+        typeShops.value = res.data.list
+        total.value = res.data.total || 0
       }
       return {
-        list: res.data,
-        total: res.total
+        list: typeShops.value,
+        total: total.value
       }
     } catch (error) {
       console.error('获取分类商铺失败:', error)
@@ -135,12 +131,12 @@ export const useShopStore = defineStore('shop', () => {
       loading.value = true
       const res = await searchShops(keyword, params)
       if (res.success) {
-        searchResults.value = res.data
-        total.value = res.total || 0
+        searchResults.value = res.data.list
+        total.value = res.data.total || 0
       }
       return {
-        list: res.data,
-        total: res.total
+        list: searchResults.value,
+        total: total.value
       }
     } catch (error) {
       console.error('搜索商铺失败:', error)
