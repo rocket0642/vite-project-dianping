@@ -95,6 +95,7 @@ const createOrder = async () => {
         shopId: group.shopId,
         shopName: group.shopName,
         shopImage: group.shopImage,
+        count: group.items.reduce((sum, item) => sum + item.count, 0),
         // 商品信息列表
         items: group.items.map(item => ({
           goodsId: item.id,

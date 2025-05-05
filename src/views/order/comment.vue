@@ -2,7 +2,6 @@
 import { ref, onMounted } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { ElMessage, ElNotification } from 'element-plus'
-import { checkOrderComment } from '../../api/comment'
 import { getOrderDetail } from '../../api/order'
 import AppLayout from '../../components/AppLayout.vue'
 import { Plus } from '@element-plus/icons-vue'
@@ -62,17 +61,16 @@ const handleRemoveImage = (file) => {
 }
 
 /**
- * 检查订单是否已评价 - 简化版
+ * 检查订单是否已评价
  */
 const checkHasComment = async () => {
   try {
-    // 直接从服务器获取评价状态
-    const res = await checkOrderComment(orderId);
-    alreadyCommented.value = res.data;
+    // 使用store方法替代直接API调用
+    alreadyCommented.value = await commentStore.checkCommentDirectly(orderId);
     
-      if (alreadyCommented.value) {
+    if (alreadyCommented.value) {
       ElMessage.warning('该订单已评价');
-        setTimeout(() => {
+      setTimeout(() => {
         router.push('/order/list');
       }, 1500);
     }

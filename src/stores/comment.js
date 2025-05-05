@@ -133,6 +133,24 @@ export const useCommentStore = defineStore('comment', () => {
     shopComments.value = {}
   }
   
+  /**
+   * 检查订单是否已评价（直接从API获取）
+   * @param {number} orderId - 订单ID
+   * @returns {Promise<boolean>} - 是否已评价
+   */
+  async function checkCommentDirectly(orderId) {
+    try {
+      loading.value = true
+      const res = await checkOrderComment(orderId)
+      return res.data
+    } catch (error) {
+      console.error('检查订单评价状态失败:', error)
+      return false
+    } finally {
+      loading.value = false
+    }
+  }
+  
   // 计算属性
   const isLoading = computed(() => loading.value)
   
@@ -149,7 +167,8 @@ export const useCommentStore = defineStore('comment', () => {
     submitUserComment,
     checkIfOrderCommented,
     fetchShopComments,
-    clearAllComments
+    clearAllComments,
+    checkCommentDirectly
   }
 }, {
   persist: true // 使用默认配置，更简洁

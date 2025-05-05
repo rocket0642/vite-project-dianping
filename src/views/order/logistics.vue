@@ -644,6 +644,23 @@ onBeforeUnmount(() => {
               </div>
             </div>
           </div>
+
+          <!-- 添加商品信息展示 -->
+          <div class="order-goods-section">
+            <h3>订单商品</h3>
+            <div v-if="order.items && order.items.length" class="order-products">
+              <div v-for="(item, index) in order.items" :key="`${order.id}-${index}`" class="goods-item">
+                <div class="goods-image" v-if="item.goodsImage">
+                  <img :src="item.goodsImage" alt="商品图片" />
+                </div>
+                <div class="goods-content">
+                  <div class="goods-name">{{ item.goodsName }}</div>
+                  <div class="goods-quantity">x{{ item.count }}</div>
+                  <div class="goods-price">¥{{ (item.price / 100).toFixed(2) }}</div>
+                </div>
+              </div>
+            </div>
+          </div>
         </div>
 
         <!-- 收货信息 -->
@@ -852,5 +869,64 @@ onBeforeUnmount(() => {
 .address-info {
   color: #666;
   line-height: 1.8;
+}
+
+.order-goods-section {
+  padding: 15px;
+  border-top: 1px solid #ebeef5;
+}
+
+.order-goods-section h3 {
+  margin-top: 0;
+  margin-bottom: 15px;
+  font-size: 16px;
+  color: #333;
+}
+
+.goods-item {
+  display: flex;
+  align-items: center;
+  padding: 10px 0;
+  border-bottom: 1px dashed #ebeef5;
+}
+
+.goods-item:last-child {
+  border-bottom: none;
+}
+
+.goods-image {
+  width: 60px;
+  height: 60px;
+  border-radius: 4px;
+  overflow: hidden;
+  margin-right: 10px;
+}
+
+.goods-image img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.goods-content {
+  flex: 1;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.goods-name {
+  flex: 1;
+  font-size: 14px;
+}
+
+.goods-quantity {
+  color: #606266;
+  margin: 0 10px;
+}
+
+.goods-price {
+  color: #f56c6c;
+  font-weight: bold;
 }
 </style>

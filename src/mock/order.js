@@ -219,7 +219,7 @@ Mock.mock(/\/api\/order\/list(\?.+)?$/, 'get', (options) => {
   
   return {
     success: true,
-    data: pagedOrders,
+    list: pagedOrders,
     total: total
   };
 });

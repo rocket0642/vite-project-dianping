@@ -398,9 +398,19 @@ onBeforeUnmount(() => {
         
         <div class="order-goods">
           <div class="goods-shop">{{ order.shopName }}</div>
-          <div v-for="(item, index) in order.items" :key="index" class="goods-item">
-            <span class="goods-name">{{ item.goodsName }}</span>
-            <span class="goods-count">x{{ item.count }}</span>
+          <div v-if="order.items && order.items.length" class="goods-list">
+            <div v-for="(item, index) in order.items" :key="`${order.id}-${index}`" class="goods-item">
+              <div class="goods-image" v-if="item.goodsImage">
+                <img :src="item.goodsImage" alt="商品图片" />
+              </div>
+              <div class="goods-details">
+                <span class="goods-name">{{ item.goodsName }}</span>
+                <span v-if="item.skuName" class="goods-sku">规格：{{ item.skuName }}</span>
+                <span class="goods-price">¥{{ (item.price / 100).toFixed(2) }}</span>
+              </div>
+              <div class="goods-count">x{{ item.count }}</div>
+              <div class="goods-subtotal">¥{{ (item.price * item.count / 100).toFixed(2) }}</div>
+            </div>
           </div>
         </div>
         
@@ -575,10 +585,66 @@ onBeforeUnmount(() => {
   color: #303133;
 }
 
+.goods-list {
+  margin-top: 10px;
+}
+
 .goods-item {
   display: flex;
-  justify-content: space-between;
+  align-items: center;
+  padding: 10px 0;
+  border-bottom: 1px dashed #ebeef5;
+}
+
+.goods-item:last-child {
+  border-bottom: none;
+}
+
+.goods-image {
+  width: 50px;
+  height: 50px;
+  border-radius: 4px;
+  overflow: hidden;
+  margin-right: 10px;
+}
+
+.goods-image img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.goods-details {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+}
+
+.goods-name {
+  font-size: 14px;
+  margin-bottom: 5px;
+}
+
+.goods-sku {
+  font-size: 12px;
+  color: #909399;
+  margin-bottom: 5px;
+}
+
+.goods-price {
+  color: #f56c6c;
+}
+
+.goods-count {
   color: #606266;
+  margin: 0 15px;
+}
+
+.goods-subtotal {
+  color: #f56c6c;
+  font-weight: bold;
+  width: 80px;
+  text-align: right;
 }
 
 .order-address {

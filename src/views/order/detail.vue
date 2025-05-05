@@ -6,6 +6,7 @@ import AppLayout from '../../components/AppLayout.vue'
 import { useOrderStore } from '../../stores/order'
 import { useUserStore } from '../../stores/user'
 import { checkOrderComment } from '../../api/comment'
+import { useCommentStore } from '../../stores/comment'
 
 // 路由实例
 const route = useRoute()
@@ -14,6 +15,7 @@ const router = useRouter()
 // 状态管理
 const orderStore = useOrderStore()
 const userStore = useUserStore()
+const commentStore = useCommentStore()
 
 // 状态
 const loading = ref(true)
@@ -111,8 +113,7 @@ const getPayTypeText = (payType) => {
  */
 const checkOrderIsCommented = async () => {
   try {
-    const res = await checkOrderComment(orderId)
-    isCommented.value = res
+    isCommented.value = await commentStore.checkCommentDirectly(orderId)
   } catch (error) {
     console.error('检查订单评价状态失败:', error)
   }
@@ -337,10 +338,12 @@ onMounted(() => {
         
         <!-- 订单内容 -->
         <div class="order-content-section">
-          <div class="goods-info">
-            <div class="goods-name">{{ order.goodsName }}</div>
-            <div class="goods-quantity">x{{ order.count }}</div>
-            <div class="goods-price">¥{{ formatPrice(order.goodsPrice) }}</div>
+          <div v-if="order.items && order.items.length" class="order-products">
+            <div v-for="(item, index) in order.items" :key="`${order.id}-${index}`" class="goods-info">
+              <div class="goods-name">{{ item.goodsName }}</div>
+              <div class="goods-quantity">x{{ item.count }}</div>
+              <div class="goods-price">¥{{ formatPrice(item.price) }}</div>
+            </div>
           </div>
           
           <div class="order-amount">

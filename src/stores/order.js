@@ -1,6 +1,6 @@
 import { defineStore } from 'pinia'
 import { ref, computed } from 'vue'
-import { createOrder, getOrderDetail, getUserOrders, payOrder, cancelOrder, confirmOrder } from '../api/order'
+import { createOrder, getOrderDetail, getUserOrders, payOrder, cancelOrder, confirmOrder, getUserOrderStatistics } from '../api/order'
 import { useGoodsStore } from './goods'
 import { useShopStore } from './shop'
 
@@ -71,12 +71,12 @@ export const useOrderStore = defineStore('order', () => {
       loading.value = true
       const res = await getUserOrders(params)
       if (res.success) {
-        orderList.value = res.data
-        total.value = res.total || 0
+        orderList.value = res.data.list
+        total.value = res.data.total || 0
       }
       return {
-        list: res.data,
-        total: res.total
+        list: res.data.list,
+        total: res.data.total
       }
     } catch (error) {
       console.error('获取订单列表失败:', error)
@@ -245,6 +245,23 @@ export const useOrderStore = defineStore('order', () => {
     return stats
   })
   
+  /**
+   * 获取用户订单统计数据
+   * @returns {Promise} - 订单统计数据
+   */
+  async function fetchOrderStatistics() {
+    try {
+      loading.value = true
+      const res = await getUserOrderStatistics()
+      return res
+    } catch (error) {
+      console.error('获取订单统计数据失败:', error)
+      throw error
+    } finally {
+      loading.value = false
+    }
+  }
+  
   return {
     // 状态
     currentOrder,
@@ -267,6 +284,7 @@ export const useOrderStore = defineStore('order', () => {
     confirmUserOrder,
     startOrderCountdown,
     getOrderRemainingTime,
-    clearOrderCountdown
+    clearOrderCountdown,
+    fetchOrderStatistics,
   }
 })

@@ -14,6 +14,7 @@ import * as echarts from 'echarts/core'
 import { BarChart, PieChart, LineChart } from 'echarts/charts'
 import { GridComponent, TooltipComponent, TitleComponent, LegendComponent } from 'echarts/components'
 import { CanvasRenderer } from 'echarts/renderers'
+import { useOrderStore } from '../../stores/order'
 
 // 注册 ECharts 需要的组件
 echarts.use([
@@ -34,6 +35,8 @@ const router = useRouter()
 const userStore = useUserStore()
 // 添加地址状态
 const addressStore = useAddressStore()
+// 添加订单状态
+const orderStore = useOrderStore()
 
 // 组件状态
 const loading = ref(true)
@@ -99,7 +102,7 @@ const loadUserAddresses = async () => {
 const loadOrderStatistics = async () => {
   try {
     statisticsLoading.value = true
-    const res = await getUserOrderStatistics()
+    const res = await orderStore.fetchOrderStatistics()
     if (res.success) {
       orderStatistics.value = res.data
       // 在数据加载完成后初始化图表
