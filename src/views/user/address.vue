@@ -1,22 +1,20 @@
 <script setup>
-import { ref, onMounted, computed } from 'vue'
+import { ref, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { useUserStore } from '../../stores/user'
+import { useAddressStore } from '../../stores/address'
 import AppLayout from '../../components/AppLayout.vue'
 import AddressForm from '../../components/AddressForm.vue'
-import { getUserAddresses, addUserAddress, updateUserAddress, deleteUserAddress, setDefaultAddress } from '../../api/address'
 
 // 路由实例
 const router = useRouter()
 
-// 用户状态
+// 用户状态和地址状态
 const userStore = useUserStore()
-const userId = computed(() => userStore.userId)
+const addressStore = useAddressStore()
 
 // 组件状态
-const loading = ref(false)
-const addressList = ref([])
 const formVisible = ref(false)
 const isEdit = ref(false)
 const currentAddress = ref({})
@@ -31,16 +29,7 @@ const loadAddresses = async () => {
     return
   }
   
-  loading.value = true
-  try {
-    const res = await getUserAddresses()
-    addressList.value = res
-  } catch (error) {
-    console.error('获取地址列表失败:', error)
-    ElMessage.error('获取地址列表失败')
-  } finally {
-    loading.value = false
-  }
+  await addressStore.fetchAddresses()
 }
 
 /**
@@ -72,17 +61,13 @@ const openEditForm = (address) => {
 const handleSubmit = async (address) => {
   try {
     if (isEdit.value) {
-      await updateUserAddress(address)
-      ElMessage.success('地址更新成功')
+      await addressStore.updateAddress(address)
     } else {
-      await addUserAddress(address)
-      ElMessage.success('地址添加成功')
+      await addressStore.addAddress(address)
     }
     formVisible.value = false
-    loadAddresses()
   } catch (error) {
     console.error('保存地址失败:', error)
-    ElMessage.error('保存地址失败')
   }
 }
 
@@ -90,14 +75,7 @@ const handleSubmit = async (address) => {
  * 设置默认地址
  */
 const handleSetDefault = async (id) => {
-  try {
-    await setDefaultAddress(id)
-    ElMessage.success('设置默认地址成功')
-    loadAddresses()
-  } catch (error) {
-    console.error('设置默认地址失败:', error)
-    ElMessage.error('设置默认地址失败')
-  }
+  await addressStore.setDefault(id)
 }
 
 /**
@@ -109,19 +87,11 @@ const handleDelete = (id) => {
     cancelButtonText: '取消',
     type: 'warning'
   }).then(async () => {
-    try {
-      await deleteUserAddress(id)
-      ElMessage.success('地址删除成功')
-      loadAddresses()
-    } catch (error) {
-      console.error('删除地址失败:', error)
-      ElMessage.error('删除地址失败')
-    }
+    await addressStore.removeAddress(id)
   }).catch(() => {
     // 用户取消操作
   })
 }
-
 
 /**
  * 组件挂载时获取地址列表
@@ -145,13 +115,13 @@ onMounted(() => {
           添加新地址
         </el-button>
         
-        <div v-loading="loading" class="address-list">
-          <div v-if="addressList.length === 0 && !loading" class="empty-tip">
+        <div v-loading="addressStore.isLoading" class="address-list">
+          <div v-if="addressStore.addressList.length === 0 && !addressStore.isLoading" class="empty-tip">
             <el-empty description="暂无收货地址" />
             <el-button type="primary" @click="openAddForm">添加地址</el-button>
           </div>
           
-          <div v-for="address in addressList" :key="address.id" class="address-item">
+          <div v-for="address in addressStore.addressList" :key="address.id" class="address-item">
             <div class="address-info">
               <div class="address-header">
                 <span class="address-name">{{ address.name }}</span>

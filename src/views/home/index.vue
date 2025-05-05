@@ -29,20 +29,17 @@ const recommendShops = ref([])
  */
 const loadBanners = async () => {
   try {
-    // 获取随机商品作为轮播图
-    const randomGoods = await goodsStore.fetchRandomGoods(5)
-    
-    if (randomGoods && randomGoods.length > 0) {
-      // 将商品数据转换为轮播图格式
-      banners.value = randomGoods.map((item, index) => ({
-        id: item.id,
-        imgUrl: item.imageUrl,
-        link: `/product/${item.id}`,
-        name: item.name
-      }))
-      
-      console.log('轮播图数据:', banners.value)
-    }
+    // 获取商品作为轮播图
+    const recommendGoods = await goodsStore.fetchRecommendGoods(5)
+
+    // 将商品数据转换为轮播图格式
+    banners.value = recommendGoods.map((item, index) => ({
+      id: item.id,
+      imgUrl: item.images,
+      link: `/product/${item.id}`,
+      name: item.name
+    }))
+
   } catch (error) {
     console.error('加载轮播图数据失败:', error)
   }
@@ -59,10 +56,9 @@ const loadRecommendShops = async () => {
       sortBy: 'score',
       limit: 4
     })
-    
+
     if (shopStore.shopList && shopStore.shopList.length > 0) {
       recommendShops.value = shopStore.shopList
-      console.log('推荐商铺数据:', recommendShops.value)
     }
   } catch (error) {
     console.error('加载推荐商铺失败:', error)
@@ -91,12 +87,7 @@ onMounted(() => {
       <div class="banner">
         <el-carousel height="400px" indicator-position="outside">
           <el-carousel-item v-for="item in banners" :key="item.id">
-            <el-image 
-              :src="item.imgUrl" 
-              fit="cover"
-              class="banner-image"
-              @click="router.push(item.link)"
-            />
+            <el-image :src="item.imgUrl" fit="cover" class="banner-image" @click="router.push(item.link)" />
             <div class="banner-title">{{ item.name }}</div>
           </el-carousel-item>
         </el-carousel>
@@ -106,15 +97,7 @@ onMounted(() => {
       <div class="recommend-shops">
         <h2 class="section-title">推荐商铺</h2>
         <el-row :gutter="20">
-          <el-col 
-            v-for="shop in recommendShops" 
-            :key="shop.id" 
-            :xs="24" 
-            :sm="12" 
-            :md="8" 
-            :lg="6"
-            class="shop-col"
-          >
+          <el-col v-for="shop in recommendShops" :key="shop.id" :xs="24" :sm="12" :md="8" :lg="6" class="shop-col">
             <ShopCard :shop="shop" />
           </el-col>
         </el-row>
@@ -165,6 +148,7 @@ onMounted(() => {
 .home-container {
   max-width: 1200px;
   margin: 0 auto;
-  padding: 10px 20px; /* 减小上下内边距 */
+  padding: 10px 20px;
+  /* 减小上下内边距 */
 }
 </style>

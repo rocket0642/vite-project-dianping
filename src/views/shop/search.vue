@@ -76,6 +76,8 @@ const searchGoodsItems = async () => {
     const result = await goodsStore.searchGoodsByKeyword(keyword, params)
     goods.value = result.list
     total.value = result.total
+    console.log(goods.value)
+    console.log(total.value)
   } catch (error) {
     console.error('搜索商品失败:', error)
   } finally {
@@ -108,9 +110,9 @@ const handleTabChange = (tab) => {
   activeTab.value = tab
   
   // 切换标签页时重置排序
-  sortBy.value = ''
+  sortBy.value = 'sold'
   sortOrder.value = 'desc'
-  searchForm.sortBy = ''
+  searchForm.sortBy = 'sold'
   searchForm.sortOrder = 'desc'
   
   if (tab === 'shop') {
@@ -302,7 +304,7 @@ onMounted(() => {
               >
                 <div class="goods-card-content">
                   <div class="goods-image">
-                    <el-image :src="item.imageUrl" fit="cover" />
+                    <el-image :src="item.images" fit="cover" />
                   </div>
                   <div class="goods-info">
                     <h3 class="goods-name">{{ item.name }}</h3>

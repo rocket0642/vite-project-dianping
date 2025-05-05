@@ -1,5 +1,5 @@
 <script setup>
-import { ref, onMounted, watch } from 'vue'
+import { ref, onMounted, watch, computed } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { ElImage, ElTabs, ElTabPane, ElRate, ElIcon, ElSkeleton, ElSkeletonItem, ElPagination } from 'element-plus'
 import { Location, Clock, Phone, Collection, Star } from '@element-plus/icons-vue'
@@ -24,10 +24,8 @@ const commentStore = useCommentStore()
 
 // 状态
 const loading = ref(true)
-const shop = ref({})
 const activeTab = ref('goods')
 const isCollected = ref(false)
-const shopGoods = ref([])
 const commentsLoading = ref(false)
 const comments = ref([])
 const commentsTotal = ref(0)
@@ -36,6 +34,10 @@ const commentsPagination = ref({
   pageSize: 5
 })
 
+
+const shop = computed(() => shopStore.currentShop)
+const shopGoods = computed(() => goodsStore.currentShopGoods)
+
 /**
  * 加载商铺详情数据
  */
@@ -43,7 +45,6 @@ const loadShopDetail = async () => {
   loading.value = true
   try {
     await shopStore.fetchShopDetail(shopId)
-    shop.value = shopStore.currentShop
   } catch (error) {
     console.error('加载商铺详情失败:', error)
   } finally {
@@ -65,7 +66,6 @@ const toggleCollection = () => {
 const loadShopGoods = async () => {
   try {
     await goodsStore.fetchShopGoods(shopId)
-    shopGoods.value = goodsStore.currentShopGoods
   } catch (error) {
     console.error('加载商铺商品失败:', error)
   }
@@ -193,7 +193,7 @@ const hidePhone = (phone) => {
                   <div class="shop-meta">
                     <div class="shop-score">
                       <el-rate 
-                        v-model="shop.score" 
+                        :model-value="shop.score / 10" 
                         disabled 
                         show-score 
                         text-color="#ff9900"
@@ -257,7 +257,7 @@ const hidePhone = (phone) => {
                 <div class="shop-goods">
                   <div v-if="shopGoods.length > 0" class="goods-grid">
                     <div v-for="item in shopGoods" :key="item.id" class="goods-item" @click="goToGoodsDetail(item.id)">
-                      <el-image :src="item.imageUrl" fit="cover" class="goods-image" />
+                      <el-image :src="item.images" fit="cover" class="goods-image" />
                       <div class="goods-info">
                         <h3 class="goods-name">{{ item.name }}</h3>
                         <div class="goods-price">

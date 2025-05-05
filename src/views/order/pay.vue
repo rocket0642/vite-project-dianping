@@ -4,8 +4,7 @@ import { useRoute, useRouter } from 'vue-router'
 import { ElMessage, ElMessageBox, ElDialog, ElButton, ElRadio, ElEmpty } from 'element-plus'
 import AppLayout from '../../components/AppLayout.vue'
 import { useOrderStore } from '../../stores/order'
-import { useUserStore } from '../../stores/user'
-import { getUserAddresses } from '../../api/address'
+import { useAddressStore } from '../../stores/address'
 
 // 路由实例
 const route = useRoute()
@@ -13,8 +12,7 @@ const router = useRouter()
 
 // 状态管理
 const orderStore = useOrderStore()
-const userStore = useUserStore()
-
+const addressStore = useAddressStore()
 // 状态
 const loading = ref(true)
 const paying = ref(false)
@@ -266,16 +264,15 @@ const initAddress = () => {
 /**
  * 加载用户地址列表
  */
-const loadUserAddresses = async () => {
+ const loadUserAddresses = async () => {
   addressesLoading.value = true
   try {
-    const res = await getUserAddresses()
-    addresses.value = res
+    await addressStore.fetchAddresses()
+    addresses.value = addressStore.addressList
     
     // 如果没有选中地址，且有默认地址，则使用默认地址
     if (!selectedAddress.value && addresses.value.length > 0) {
-      const defaultAddress = addresses.value.find(addr => addr.isDefault)
-      selectedAddress.value = defaultAddress || addresses.value[0]
+      selectedAddress.value = addressStore.defaultAddress || addresses.value[0]
     }
   } catch (error) {
     console.error('加载地址列表失败:', error)

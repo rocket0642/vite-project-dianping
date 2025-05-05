@@ -62,29 +62,31 @@ export function updateGoods(data) {
  * @param {Object} params - 其他查询参数
  * @returns {Promise<Object>} - 搜索结果
  */
-export function searchGoods(keyword, params = {}) {
+export function searchGoods(keyword, params) {
   return request({
-    url: '/api/goods/search',
+    url: '/goods/search',
     method: 'get',
     params: {
-      keyword,
+      name: keyword,
       ...params
     }
   })
 }
 
 /**
- * 获取随机商品列表
+ * 获取推荐商品列表
  * @param {number} count - 需要获取的商品数量
- * @returns {Promise<Object>} - 随机商品列表
+ * @returns {Promise<Object>} - 推荐商品列表
  */
-export function getRandomGoods(count = 5) {
+export function getRecommendGoods(count) {
   return request({
-    url: '/api/goods/random',
+    url: '/goods/recommend',
     method: 'get',
     params: { count }
   })
 }
+
+
 
 /**
  * 更新商品库存
@@ -93,7 +95,7 @@ export function getRandomGoods(count = 5) {
  * @param {number} [skuId] - SKU ID，如果有则更新具体SKU的库存
  * @returns {Promise} - 更新结果
  */
-export function updateGoodsStockApi(goodsId, count, skuId = null) {
+export function updateGoodsStockApi(goodsId, count, skuId) {
   return request({
     url: '/goods/stock',
     method: 'put',
@@ -108,7 +110,10 @@ export function updateGoodsStockApi(goodsId, count, skuId = null) {
  * @param {number} [skuId] - SKU ID，如果有则更新具体SKU的销量
  * @returns {Promise} - 更新结果
  */
-export function updateGoodsSoldApi(goodsId, count, skuId = null) {
+
+
+
+export function updateGoodsSoldApi(goodsId, count, skuId) {
   return request({
     url: '/goods/sold',
     method: 'put',

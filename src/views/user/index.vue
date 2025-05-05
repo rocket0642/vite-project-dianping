@@ -2,7 +2,7 @@
 import { ref, onMounted, computed, watch, onUnmounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { useUserStore } from '../../stores/user'
-import { getUserAddresses } from '../../api/address'
+import { useAddressStore } from '../../stores/address'
 import { updateUserInfo, updateUserDetail } from '../../api/user'
 import { getUserOrderStatistics } from '../../api/order'
 import {
@@ -32,6 +32,8 @@ const router = useRouter()
 
 // 用户状态
 const userStore = useUserStore()
+// 添加地址状态
+const addressStore = useAddressStore()
 
 // 组件状态
 const loading = ref(true)
@@ -40,7 +42,6 @@ const statisticsLoading = ref(true)
 
 // 用户信息
 const userInfo = computed(() => userStore.userInfo)
-const userPhone = computed(() => userStore.userPhone)
 
 // 编辑对话框可见性
 const editDialogVisible = ref(false)
@@ -83,8 +84,10 @@ let monthlySpendingChart = null
 const loadUserAddresses = async () => {
   try {
     addressLoading.value = true
-    const res = await getUserAddresses()
-    addresses.value = res.slice(0, 3) // 只显示前3个地址
+    // 使用store的方法获取地址
+    await addressStore.fetchAddresses()
+    // 仍然保留只显示前3个地址的逻辑
+    addresses.value = addressStore.addressList.slice(0, 3)
     addressLoading.value = false
   } catch (error) {
     console.error('获取地址列表失败:', error)

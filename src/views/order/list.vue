@@ -5,14 +5,14 @@ import { ElMessage, ElDialog, ElRadio, ElButton, ElEmpty, ElPagination } from 'e
 import AppLayout from '../../components/AppLayout.vue'
 import { useOrderStore } from '../../stores/order'
 import { useUserStore } from '../../stores/user'
-import { getUserAddresses } from '../../api/address'
+import { useAddressStore } from '../../stores/address'
 
 // 路由和存储
 const router = useRouter()
 const route = useRoute()
 const orderStore = useOrderStore()
 const userStore = useUserStore()
-
+const addressStore = useAddressStore()
 // 状态
 const loading = ref(false)
 const activeTab = ref('all')
@@ -329,15 +329,14 @@ const openAddressDialog = (orderId) => {
 /**
  * 加载用户地址列表
  */
-const loadUserAddresses = async () => {
+ const loadUserAddresses = async () => {
   addressesLoading.value = true
   try {
-    const res = await getUserAddresses()
-    addresses.value = res
+    await addressStore.fetchAddresses()
+    addresses.value = addressStore.addressList
     
     if (!selectedAddress.value && addresses.value.length > 0) {
-      const defaultAddress = addresses.value.find(addr => addr.isDefault)
-      selectedAddress.value = defaultAddress || addresses.value[0]
+      selectedAddress.value = addressStore.defaultAddress || addresses.value[0]
     }
   } catch (error) {
     console.error('加载地址列表失败:', error)

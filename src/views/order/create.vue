@@ -6,13 +6,14 @@ import AppLayout from '../../components/AppLayout.vue'
 import { useCartStore } from '../../stores/cart'
 import { useOrderStore } from '../../stores/order'
 import { useUserStore } from '../../stores/user'
-import { getUserAddresses } from '../../api/address'
+import { useAddressStore } from '../../stores/address'
 import { Check, Plus } from '@element-plus/icons-vue'
 
 // 路由实例
 const router = useRouter()
 
 // 状态管理
+const addressStore = useAddressStore()
 const cartStore = useCartStore()
 const orderStore = useOrderStore()
 const userStore = useUserStore()
@@ -37,7 +38,7 @@ const selectedAddress = ref(null)
 const groupedCheckedItems = computed(() => {
   const items = cartStore.checkedItems
   const groups = {}
-  
+
   items.forEach(item => {
     if (!groups[item.shopId]) {
       groups[item.shopId] = {
@@ -48,11 +49,11 @@ const groupedCheckedItems = computed(() => {
         totalAmount: 0
       }
     }
-    
+
     groups[item.shopId].items.push(item)
     groups[item.shopId].totalAmount += item.price * item.count
   })
-  
+
   return Object.values(groups)
 })
 
@@ -75,17 +76,17 @@ const createOrder = async () => {
     ElMessage.warning('请选择收货地址')
     return
   }
-  
+
   if (groupedCheckedItems.value.length === 0) {
     ElMessage.warning('请选择要购买的商品')
     return
   }
-  
+
   loading.value = true
-  
+
   try {
     const orderIds = []
-    
+
     // 按照店铺分别创建订单
     for (const group of groupedCheckedItems.value) {
       // 准备订单数据
@@ -100,7 +101,7 @@ const createOrder = async () => {
           goodsName: item.name,
           count: item.count,
           price: item.price,
-          imageUrl: item.imageUrl,
+          images: item.images,
           skuId: item.skuId || null,
           skuName: item.skuName || null,
         })),
@@ -115,20 +116,20 @@ const createOrder = async () => {
         payType: orderForm.value.payType,
         remark: orderForm.value.remark
       }
-      
+
       const orderId = await orderStore.createNewOrder(orderData)
-      
+
       if (orderId) {
         orderIds.push(orderId)
       }
     }
-    
+
     if (orderIds.length > 0) {
       ElMessage.success(`成功创建${orderIds.length}个订单`)
-      
+
       // 结算后移除已选商品，但不恢复库存（因为已经转为订单）
       cartStore.removeCheckedItemsAfterCheckout()
-      
+
       // 如果只有一个订单，直接跳转到支付页面
       if (orderIds.length === 1) {
         router.push(`/order/pay/${orderIds[0]}`)
@@ -160,13 +161,12 @@ const goBack = () => {
 const loadAddresses = async () => {
   addressesLoading.value = true
   try {
-    const res = await getUserAddresses()
-    addresses.value = res
-    
+    await addressStore.fetchAddresses()
+    addresses.value = addressStore.addressList
+
     // 如果有默认地址，选择默认地址
     if (addresses.value.length > 0) {
-      const defaultAddress = addresses.value.find(addr => addr.isDefault)
-      selectedAddress.value = defaultAddress || addresses.value[0]
+      selectedAddress.value = addressStore.defaultAddress || addresses.value[0]
     }
   } catch (error) {
     console.error('获取地址列表失败:', error)
@@ -197,13 +197,13 @@ onMounted(() => {
     router.push('/login?redirect=/order/create')
     return
   }
-  
+
   if (cartStore.checkedCount === 0) {
     ElMessage.warning('请先选择要购买的商品')
     router.push('/cart')
     return
   }
-  
+
   // 加载地址列表
   loadAddresses()
 })
@@ -215,31 +215,29 @@ onMounted(() => {
       <div class="page-header">
         <h1>创建订单</h1>
       </div>
-      
+
       <!-- 收货地址 -->
       <div class="section address-section">
         <div class="section-header">
           <h2 class="section-title">收货地址</h2>
           <el-button type="primary" size="small" @click="goToAddressManage">
-            <el-icon><Plus /></el-icon>
+            <el-icon>
+              <Plus />
+            </el-icon>
             管理地址
           </el-button>
         </div>
-        
+
         <div v-loading="addressesLoading" class="address-content">
           <div v-if="addresses.length === 0 && !addressesLoading" class="empty-address">
             <p>您还没有添加收货地址</p>
             <el-button type="primary" size="small" @click="goToAddressManage">添加地址</el-button>
           </div>
-          
+
           <div v-else class="address-list">
-            <div
-              v-for="address in addresses"
-              :key="address.id"
-              class="address-item"
+            <div v-for="address in addresses" :key="address.id" class="address-item"
               :class="{ 'active': selectedAddress && selectedAddress.id === address.id }"
-              @click="selectAddress(address)"
-            >
+              @click="selectAddress(address)">
               <div class="address-info">
                 <div class="address-header">
                   <span class="address-name">{{ address.name }}</span>
@@ -249,17 +247,19 @@ onMounted(() => {
                 <div class="address-detail">{{ address.address }}</div>
               </div>
               <div class="address-check" v-if="selectedAddress && selectedAddress.id === address.id">
-                <el-icon color="#409EFF"><Check /></el-icon>
+                <el-icon color="#409EFF">
+                  <Check />
+                </el-icon>
               </div>
             </div>
           </div>
         </div>
       </div>
-      
+
       <!-- 订单商品（按店铺分组） -->
       <div class="section goods-section">
         <h2 class="section-title">商品信息</h2>
-        
+
         <div v-for="group in groupedCheckedItems" :key="group.shopId" class="shop-group">
           <div class="shop-header">
             <h3 class="shop-name">{{ group.shopName }}</h3>
@@ -267,15 +267,11 @@ onMounted(() => {
               小计：<span class="price">¥{{ formatPrice(group.totalAmount) }}</span>
             </div>
           </div>
-          
+
           <div class="goods-list">
-            <div 
-              v-for="item in group.items" 
-              :key="`${item.id}-${item.skuId || 0}`"
-              class="goods-item"
-            >
+            <div v-for="item in group.items" :key="`${item.id}-${item.skuId || 0}`" class="goods-item">
               <div class="goods-image">
-                <img :src="item.imageUrl" :alt="item.name">
+                <img :src="item.images" :alt="item.name">
               </div>
               <div class="goods-info">
                 <div class="goods-name">{{ item.name }}</div>
@@ -290,11 +286,11 @@ onMounted(() => {
               </div>
             </div>
           </div>
-          
+
           <el-divider v-if="groupedCheckedItems.indexOf(group) < groupedCheckedItems.length - 1" />
         </div>
       </div>
-      
+
       <!-- 支付方式 -->
       <div class="section payment-section">
         <h2 class="section-title">支付方式</h2>
@@ -303,20 +299,14 @@ onMounted(() => {
           <el-radio :label="2">支付宝</el-radio>
         </el-radio-group>
       </div>
-      
+
       <!-- 订单备注 -->
       <div class="section remark-section">
         <h2 class="section-title">订单备注</h2>
-        <el-input 
-          v-model="orderForm.remark"
-          type="textarea"
-          placeholder="请输入订单备注信息"
-          :rows="3"
-          maxlength="200"
-          show-word-limit
-        ></el-input>
+        <el-input v-model="orderForm.remark" type="textarea" placeholder="请输入订单备注信息" :rows="3" maxlength="200"
+          show-word-limit></el-input>
       </div>
-      
+
       <!-- 订单总结 -->
       <div class="section summary-section">
         <div class="summary-row">
@@ -332,15 +322,11 @@ onMounted(() => {
           <span>{{ groupedCheckedItems.length }}个</span>
         </div>
       </div>
-      
+
       <!-- 底部按钮 -->
       <div class="order-footer">
         <el-button @click="goBack">返回购物车</el-button>
-        <el-button 
-          type="primary" 
-          :loading="loading" 
-          @click="createOrder"
-        >
+        <el-button type="primary" :loading="loading" @click="createOrder">
           提交订单
         </el-button>
       </div>
@@ -569,17 +555,18 @@ onMounted(() => {
   .address-list {
     grid-template-columns: 1fr;
   }
-  
+
   .goods-item {
     flex-wrap: wrap;
   }
-  
+
   .goods-info {
     width: calc(100% - 75px);
     margin-bottom: 10px;
   }
-  
-  .goods-count, .goods-subtotal {
+
+  .goods-count,
+  .goods-subtotal {
     margin-left: 75px;
   }
 }

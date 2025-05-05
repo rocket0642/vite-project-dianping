@@ -69,7 +69,7 @@ const goToCart = () => {
         <div class="user-avatar-container">
           <div v-if="userStore.isLogin" class="avatar-wrapper" @click="goToUserCenter">
             <el-avatar :size="32" :src="userStore.userInfo.icon || defaultAvatar"></el-avatar>
-            <span class="username">{{ userStore.userInfo.nickName || userStore.userInfo.phone }}</span>
+            <span class="username">{{ userStore.userInfo.nickName || userStore.userPhone }}</span>
           </div>
           <div v-else class="login-btns">
             <el-button size="small" @click="goToLogin">登录</el-button>

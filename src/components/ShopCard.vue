@@ -38,7 +38,7 @@ const goToShopDetail = () => {
       </div>
       <div class="shop-stats">
         <span class="sold">已售{{ shop.sold }}</span>
-        <span class="score">评分{{ shop.score }}</span>
+        <span class="score">评分{{ shop.score / 10 }}</span>
       </div>
     </div>
   </div>

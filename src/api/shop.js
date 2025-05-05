@@ -78,6 +78,6 @@ export function updateShopSalesApi(shopId, count) {
   return request({
     url: '/shop/sold',
     method: 'put',
-    data: { shopId, count }
+    data: { id: shopId, count }
   })
 }

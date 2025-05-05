@@ -21,11 +21,13 @@ const shopStore = useShopStore()
 
 // 状态
 const loading = ref(true)
-const goods = ref({})
 const selectedSkuId = ref(null)
 const quantity = ref(1)
 const activeTab = ref('detail')
 const shopInfo = ref(null)
+
+// 在detail.vue中修改为使用计算属性而不是ref
+const goods = computed(() => goodsStore.currentGoods)
 
 // 当前选中的SKU
 const currentSku = computed(() => {
@@ -69,7 +71,7 @@ const loadGoodsDetail = async () => {
 /**
  * 加入购物车
  */
-const addToCart = () => {
+const addToCart = async () => {
   if (!currentSku.value) {
     ElMessage({
       message: '请选择商品规格',
@@ -77,7 +79,7 @@ const addToCart = () => {
     })
     return
   }
-  
+
   // 检查SKU库存是否足够
   if (currentSku.value.stock < quantity.value) {
     ElMessage({
@@ -86,11 +88,11 @@ const addToCart = () => {
     })
     return
   }
-  
+
   // 确保有shopName和shopImage
   const shopName = shopInfo.value?.name || `店铺${goods.value.shopId}`
   const shopImage = shopInfo.value?.images || null
-  
+
   const cartItem = {
     id: goods.value.id,
     shopId: goods.value.shopId,
@@ -100,66 +102,30 @@ const addToCart = () => {
     price: currentSku.value.price,
     skuId: currentSku.value.id,
     skuName: currentSku.value.name,
-    imageUrl: goods.value.images
+    images: goods.value.images
   }
-  
-  cartStore.addToCart(cartItem, quantity.value)
-  
-  // 更新库存和销量（SKU级别）
-  goodsStore.updateGoodsStock(goods.value.id, quantity.value, currentSku.value.id)
-  goodsStore.updateGoodsSold(goods.value.id, quantity.value, currentSku.value.id)
-  shopStore.updateShopSales(goods.value.shopId, quantity.value)
-  
-  ElMessage({
-    message: '已加入购物车',
-    type: 'success'
-  })
+
+  try {
+    // 继续其他操作
+    const res = await cartStore.addToCart(cartItem, quantity.value)
+    if (!res) {
+      ElMessage.warning('库存不足')
+      return
+    }
+
+    ElMessage.success('已加入购物车')
+  } catch (error) {
+    console.error('加入购物车失败:', error)
+    ElMessage.error('加入购物车失败')
+  }
 }
 
 /**
  * 立即购买
  */
-const buyNow = () => {
-  if (!currentSku.value) {
-    ElMessage({
-      message: '请选择商品规格',
-      type: 'warning'
-    })
-    return
-  }
-  
-  // 检查SKU库存是否足够
-  if (currentSku.value.stock < quantity.value) {
-    ElMessage({
-      message: '商品库存不足',
-      type: 'warning'
-    })
-    return
-  }
-  
-  const shopName = shopInfo.value?.name || `店铺${goods.value.shopId}`
-  const shopImage = shopInfo.value?.images || null
-  
-  const cartItem = {
-    id: goods.value.id,
-    shopId: goods.value.shopId,
-    shopName: shopName,
-    shopImage: shopImage,
-    name: goods.value.name,
-    price: currentSku.value.price,
-    skuId: currentSku.value.id,
-    skuName: currentSku.value.name,
-    imageUrl: goods.value.images
-  }
-  
-  // 添加到购物车并立即选中
-  cartStore.addToCart(cartItem, quantity.value, true)
-  
-  // 更新库存和销量（SKU级别）
-  goodsStore.updateGoodsStock(goods.value.id, quantity.value, currentSku.value.id)
-  goodsStore.updateGoodsSold(goods.value.id, quantity.value, currentSku.value.id)
-  shopStore.updateShopSales(goods.value.shopId, quantity.value)
-  
+const buyNow = async () => {
+  await addToCart()
+
   // 跳转到购物车页面
   router.push('/cart')
 }
@@ -181,7 +147,7 @@ const handleQuantityChange = (value) => {
 // 组件挂载时加载数据
 onMounted(async () => {
   await loadGoodsDetail()
-  
+
   // 如果有商铺ID，尝试获取商铺信息
   if (goods.value && goods.value.shopId) {
     try {
@@ -225,7 +191,7 @@ onMounted(async () => {
             </div>
           </div>
         </template>
-        
+
         <!-- 实际内容 -->
         <template #default>
           <div v-if="goods.id" class="goods-detail">
@@ -234,65 +200,50 @@ onMounted(async () => {
               <div class="goods-image">
                 <el-carousel height="400px" indicator-position="outside">
                   <el-carousel-item>
-                    <el-image 
-                      :src="goods.images" 
-                      fit="cover"
-                      :preview-src-list="[goods.images]"
-                    />
+                    <el-image :src="goods.images" fit="cover" :preview-src-list="[goods.images]" />
                   </el-carousel-item>
                 </el-carousel>
               </div>
-              
+
               <!-- 商品信息 -->
               <div class="goods-info">
                 <h1 class="goods-name">{{ goods.name }}</h1>
-                
+
                 <div class="goods-price">
                   <span class="current-price">¥{{ formatCurrentPrice }}</span>
                   <span v-if="formatOriginalPrice" class="original-price">¥{{ formatOriginalPrice }}</span>
                 </div>
-                
+
                 <div class="goods-stats">
                   <span class="goods-sold">已售{{ goods.sold }}件</span>
                   <span class="goods-stock">库存{{ goods.stock }}件</span>
                 </div>
-                
+
                 <!-- SKU选择 -->
                 <div v-if="goods.skus && goods.skus.length > 0" class="sku-wrapper">
-                  <SkuSelector 
-                    :skus="goods.skus"
-                    v-model:selected="selectedSkuId"
-                    @update:selected="handleSkuSelected"
-                    @quantity-change="handleQuantityChange"
-                  />
+                  <SkuSelector :skus="goods.skus" v-model:selected="selectedSkuId" @update:selected="handleSkuSelected"
+                    @quantity-change="handleQuantityChange" />
                 </div>
-                
+
                 <!-- 按钮区域 -->
                 <div class="goods-actions">
-                  <el-button 
-                    type="primary" 
-                    :icon="ShoppingCart"
-                    @click="addToCart"
-                  >
+                  <el-button type="primary" :icon="ShoppingCart" @click="addToCart">
                     加入购物车
                   </el-button>
-                  <el-button 
-                    type="danger"
-                    @click="buyNow"
-                  >
+                  <el-button type="danger" @click="buyNow">
                     立即购买
                   </el-button>
                 </div>
               </div>
             </div>
-            
+
             <!-- 商品详情选项卡 -->
             <el-tabs v-model="activeTab" class="goods-tabs">
               <el-tab-pane label="商品详情" name="detail">
                 <div class="goods-detail-content">
                   <h3>商品描述</h3>
                   <p>{{ goods.description }}</p>
-                  
+
                   <!-- 这里可以放图文详情 -->
                   <div class="detail-images">
                     <el-image :src="goods.images" fit="cover" />
@@ -306,7 +257,7 @@ onMounted(async () => {
               </el-tab-pane>
             </el-tabs>
           </div>
-          
+
           <div v-else class="goods-not-found">
             <h2>商品不存在或已下架</h2>
             <el-button type="primary" @click="$router.push('/')">
@@ -372,7 +323,8 @@ onMounted(async () => {
   margin-bottom: 20px;
 }
 
-.goods-sold, .goods-stock {
+.goods-sold,
+.goods-stock {
   margin-right: 20px;
   color: #666;
 }
@@ -423,11 +375,11 @@ onMounted(async () => {
   .goods-header {
     flex-direction: column;
   }
-  
+
   .goods-image {
     width: 100%;
   }
-  
+
   .goods-info {
     padding: 15px;
   }

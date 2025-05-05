@@ -294,7 +294,7 @@ const continueShopping = () => {
             >
               <!-- 商品图片 -->
               <div class="item-image" @click="goToGoods(item.id)">
-                <img :src="item.imageUrl" :alt="item.name">
+                <img :src="item.images" :alt="item.name">
               </div>
               
               <!-- 商品信息 -->

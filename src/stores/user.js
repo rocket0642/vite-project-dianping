@@ -1,6 +1,6 @@
 import { defineStore } from 'pinia'
 import { ref, computed } from 'vue'
-import { login, getCode, getUser, getUserInfo, register } from '../api/user'
+import { login, getCode, getUserInfo, register } from '../api/user'
 import { useCartStore } from './cart'
 
 /**
@@ -112,19 +112,11 @@ export const useUserStore = defineStore('user', () => {
       if (Object.keys(userInfo.value).length > 0) {
         return userInfo.value
       }
-      const res1 = await getUser()
-      const res2 = await getUserInfo(res1.data.id)
-      const res = {
-        success: res1.success,
-        data: {
-          ...res1.data,
-          ...res2.data
-        }
-      }
+      const res = await getUserInfo()
       if (res.success) {
         userInfo.value = res.data
       }
-      return res
+      return userInfo.value
     } catch (error) {
       throw error
     }

@@ -62,22 +62,13 @@ export function register(data) {
  * 获取用户信息
  * @returns {Promise} - 用户信息
  */
-export function getUserInfo(id) {
+export function getUserInfo() {
   return request({
-    url: `/user/info/${id}`,
+    url: `/user/info`,
     method: 'get'
   })
 }
-/**
- * 获取用户信息
- * @returns {Promise} - 用户信息
- */
-export function getUser() {
-  return request({
-    url: '/user/me',
-    method: 'get'
-  })
-}
+
 
 /**
  * 更新用户基本信息
