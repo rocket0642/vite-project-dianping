@@ -55,11 +55,9 @@ const editForm = ref({
   introduce: '',
   gender: true,
   birthday: '',
-  email: ''
+  email: '',
+  iconFile: null
 })
-
-// 图片上传URL
-const uploadUrl = ref('/api/upload')
 
 // 地址数据
 const addresses = ref([])
@@ -281,7 +279,8 @@ const openEditDialog = () => {
     introduce: userInfo.value.introduce || '',
     gender: userInfo.value.gender !== undefined ? userInfo.value.gender : false,
     birthday: userInfo.value.birthday || '',
-    email: userInfo.value.email || ''
+    email: userInfo.value.email || '',
+    iconFile: null
   }
 
   console.log('填充到表单的信息:', editForm.value) // 添加日志
@@ -289,20 +288,31 @@ const openEditDialog = () => {
 }
 
 /**
- * 处理图片上传成功
- * @param {Object} response - 上传响应
+ * 处理图片上传
+ * @param {Object} file - 上传的文件对象
  */
-const handleUploadSuccess = (response) => {
-  // 实际项目中应该从响应中获取图片URL
-  editForm.value.icon = response.data || 'https://cube.elemecdn.com/3/7c/3ea6beec64369c2642b92c6726f1epng.png'
-  ElMessage.success('头像上传成功')
-}
-
-/**
- * 处理图片上传失败
- */
-const handleUploadError = () => {
-  ElMessage.error('头像上传失败')
+const handleAvatarChange = (file) => {
+  // 创建一个临时URL用于预览
+  if (file.raw) {
+    // 检查文件类型
+    if (!['image/jpeg', 'image/png', 'image/gif'].includes(file.raw.type)) {
+      ElMessage.error('只能上传JPG/PNG/GIF格式的图片！')
+      return false
+    }
+    // 检查文件大小
+    if (file.raw.size / 1024 / 1024 > 2) {
+      ElMessage.error('图片大小不能超过2MB！')
+      return false
+    }
+    
+    // 创建临时URL预览图片
+    editForm.value.icon = URL.createObjectURL(file.raw)
+    ElMessage.success('头像已选择')
+    
+    // 这里可以保存文件对象以便后续处理
+    editForm.value.iconFile = file.raw
+    return false // 阻止自动上传
+  }
 }
 
 /**
@@ -310,6 +320,21 @@ const handleUploadError = () => {
  */
 const submitEditForm = async () => {
   try {
+    // 如果有新上传的头像文件，处理文件上传
+    if (editForm.value.iconFile) {
+      // 在实际应用中，这里会使用FormData上传文件
+      const formData = new FormData()
+      formData.append('file', editForm.value.iconFile)
+      
+      // 模拟上传成功
+      // 在实际项目中，这里应该调用后端API上传文件
+      // const uploadRes = await uploadUserAvatar(formData)
+      // editForm.value.icon = uploadRes.data.url
+      
+      // 暂时直接使用本地预览URL(仅测试用)
+      console.log('文件将被上传:', editForm.value.iconFile.name)
+    }
+
     // 更新基本信息
     await updateUserInfo({
       nickName: editForm.value.nickName,
@@ -324,7 +349,6 @@ const submitEditForm = async () => {
       birthday: editForm.value.birthday,
       email: editForm.value.email
     })
-
 
     // 直接更新本地计算属性，确保视图立即更新
     Object.assign(userStore.userInfo, {
@@ -432,7 +456,8 @@ watch(() => editDialogVisible.value, (newVal) => {
       introduce: userInfo.value.introduce || '',
       gender: userInfo.value.gender !== undefined ? userInfo.value.gender : false,
       birthday: userInfo.value.birthday || '',
-      email: userInfo.value.email || ''
+      email: userInfo.value.email || '',
+      iconFile: null
     }
   }
 })
@@ -654,8 +679,14 @@ onUnmounted(() => {
         <!-- 基本信息 -->
         <h4 class="form-section-title">基本信息</h4>
         <el-form-item label="头像">
-          <el-upload class="avatar-uploader" :action="uploadUrl" :show-file-list="false"
-            :on-success="handleUploadSuccess" :on-error="handleUploadError" accept="image/*">
+          <el-upload
+            class="avatar-uploader"
+            action="#"
+            :auto-upload="false"
+            :show-file-list="false"
+            :on-change="handleAvatarChange"
+            accept="image/jpeg,image/png,image/gif"
+          >
             <img v-if="editForm.icon" :src="editForm.icon" class="avatar">
             <el-icon v-else class="avatar-uploader-icon">
               <Plus />
@@ -1002,5 +1033,11 @@ onUnmounted(() => {
   .chart-container {
     height: 250px;
   }
+}
+
+.avatar-upload-tip {
+  font-size: 12px;
+  color: #909399;
+  margin-top: 5px;
 }
 </style>
