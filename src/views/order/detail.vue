@@ -5,7 +5,6 @@ import { ElMessage, ElMessageBox, ElSteps, ElStep, ElTag } from 'element-plus'
 import AppLayout from '../../components/AppLayout.vue'
 import { useOrderStore } from '../../stores/order'
 import { useUserStore } from '../../stores/user'
-import { checkOrderComment } from '../../api/comment'
 import { useCommentStore } from '../../stores/comment'
 
 // 路由实例

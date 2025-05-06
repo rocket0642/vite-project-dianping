@@ -121,7 +121,6 @@ const submitOrderComment = async () => {
       content: commentForm.value.content,
       score: commentForm.value.score,
       images: commentForm.value.images,
-      userPhone: userStore.userPhone // 关联用户电话
     }
     
     const res = await commentStore.submitUserComment(commentData)

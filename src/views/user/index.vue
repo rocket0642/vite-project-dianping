@@ -388,14 +388,6 @@ const goToAddressManage = () => {
 }
 
 /**
- * 跳转到商铺详情
- * @param {number} id - 商铺ID
- */
-const goToShopDetail = (id) => {
-  router.push(`/shop/${id}`)
-}
-
-/**
  * 退出登录
  */
 const logout = () => {
