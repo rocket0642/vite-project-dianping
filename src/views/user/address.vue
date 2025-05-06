@@ -1,11 +1,11 @@
 <script setup>
-import { ref, onMounted } from 'vue'
-import { useRouter } from 'vue-router'
 import { ElMessage, ElMessageBox } from 'element-plus'
-import { useUserStore } from '../../stores/user'
-import { useAddressStore } from '../../stores/address'
-import AppLayout from '../../components/AppLayout.vue'
+import { onMounted, ref } from 'vue'
+import { useRouter } from 'vue-router'
 import AddressForm from '../../components/AddressForm.vue'
+import AppLayout from '../../components/AppLayout.vue'
+import { useAddressStore } from '../../stores/address'
+import { useUserStore } from '../../stores/user'
 
 // 路由实例
 const router = useRouter()

@@ -1,13 +1,13 @@
 <script setup>
-import { ref, computed, onMounted } from 'vue'
+import { Check, Plus } from '@element-plus/icons-vue'
+import { ElButton, ElDivider, ElInput, ElMessage, ElRadio, ElRadioGroup } from 'element-plus'
+import { computed, onMounted, ref } from 'vue'
 import { useRouter } from 'vue-router'
-import { ElMessage, ElRadioGroup, ElRadio, ElInput, ElButton, ElDivider } from 'element-plus'
 import AppLayout from '../../components/AppLayout.vue'
+import { useAddressStore } from '../../stores/address'
 import { useCartStore } from '../../stores/cart'
 import { useOrderStore } from '../../stores/order'
 import { useUserStore } from '../../stores/user'
-import { useAddressStore } from '../../stores/address'
-import { Check, Plus } from '@element-plus/icons-vue'
 
 // 路由实例
 const router = useRouter()

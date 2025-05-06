@@ -1,6 +1,6 @@
 <script setup>
-import { ref, computed, watch } from 'vue'
-import { ElRadioGroup, ElRadio, ElInputNumber } from 'element-plus'
+import { ElInputNumber, ElRadio, ElRadioGroup } from 'element-plus'
+import { computed, ref, watch } from 'vue'
 
 // 定义props
 const props = defineProps({

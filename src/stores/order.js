@@ -1,6 +1,6 @@
 import { defineStore } from 'pinia'
-import { ref, computed } from 'vue'
-import { createOrder, getOrderDetail, getUserOrders, payOrder, cancelOrder, confirmOrder, getUserOrderStatistics, deliveryOrder } from '../api/order'
+import { computed, ref } from 'vue'
+import { cancelOrder, confirmOrder, createOrder, deliveryOrder, getOrderDetail, getUserOrders, getUserOrderStatistics, payOrder } from '../api/order'
 import { useGoodsStore } from './goods'
 import { useShopStore } from './shop'
 

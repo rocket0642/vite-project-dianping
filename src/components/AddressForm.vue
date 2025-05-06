@@ -44,8 +44,8 @@
 </template>
 
 <script setup>
+import { ElButton, ElForm, ElFormItem, ElInput, ElSwitch } from 'element-plus'
 import { ref, watch } from 'vue'
-import { ElForm, ElFormItem, ElInput, ElSwitch, ElButton } from 'element-plus'
 
 const props = defineProps({
   address: {

@@ -1,20 +1,27 @@
 <script setup>
-import { ref, onMounted, computed, watch, onUnmounted } from 'vue'
-import { useRouter } from 'vue-router'
-import { useUserStore } from '../../stores/user'
-import { useAddressStore } from '../../stores/address'
-import { updateUserInfo, updateUserDetail } from '../../api/user'
-import { getUserOrderStatistics } from '../../api/order'
-import {
-  ElMessage, ElMessageBox, ElAvatar, ElButton, ElDialog, ElForm, ElFormItem, ElInput,
-  ElUpload, ElIcon, ElTag, ElSkeleton, ElSkeletonItem, ElSelect, ElOption, ElDatePicker, ElRadio, ElRadioGroup
-} from 'element-plus'
-import { Plus, Edit, Delete, Location, Money, Box, Van, ChatDotRound, Document } from '@element-plus/icons-vue'
+import { Box, ChatDotRound, Document, Edit, Location, Money, Plus, Van } from '@element-plus/icons-vue'
+import { BarChart, LineChart, PieChart } from 'echarts/charts'
+import { GridComponent, LegendComponent, TitleComponent, TooltipComponent } from 'echarts/components'
 import * as echarts from 'echarts/core'
-import { BarChart, PieChart, LineChart } from 'echarts/charts'
-import { GridComponent, TooltipComponent, TitleComponent, LegendComponent } from 'echarts/components'
 import { CanvasRenderer } from 'echarts/renderers'
+import {
+  ElAvatar, ElButton,
+  ElDatePicker,
+  ElDialog, ElForm, ElFormItem,
+  ElIcon,
+  ElInput,
+  ElMessage, ElMessageBox,
+  ElRadio, ElRadioGroup,
+  ElSkeleton, ElSkeletonItem,
+  ElTag,
+  ElUpload
+} from 'element-plus'
+import { computed, onMounted, onUnmounted, ref, watch } from 'vue'
+import { useRouter } from 'vue-router'
+import { updateUserDetail, updateUserInfo } from '../../api/user'
+import { useAddressStore } from '../../stores/address'
 import { useOrderStore } from '../../stores/order'
+import { useUserStore } from '../../stores/user'
 
 // 注册 ECharts 需要的组件
 echarts.use([

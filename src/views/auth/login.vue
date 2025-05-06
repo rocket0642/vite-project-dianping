@@ -1,7 +1,7 @@
 <script setup>
-import { ref, reactive } from 'vue'
-import { useRouter, useRoute } from 'vue-router'
 import { ElMessage } from 'element-plus'
+import { reactive, ref } from 'vue'
+import { useRoute, useRouter } from 'vue-router'
 import { useUserStore } from '../../stores/user'
 
 // 获取路由实例和用户状态管理

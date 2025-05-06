@@ -1,12 +1,12 @@
 <script setup>
-import { ref, reactive, watch, onMounted } from 'vue'
+import { ArrowDown, ArrowUp } from '@element-plus/icons-vue'
+import { ElButton, ElCard, ElEmpty, ElOption, ElPagination, ElSelect, ElSkeleton, ElTabPane, ElTabs } from 'element-plus'
+import { onMounted, reactive, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
-import { ElPagination, ElEmpty, ElSkeleton, ElCard, ElTabs, ElTabPane, ElSelect, ElOption, ElButton } from 'element-plus'
-import { ArrowUp, ArrowDown } from '@element-plus/icons-vue'
 import AppLayout from '../../components/AppLayout.vue'
 import ShopCard from '../../components/ShopCard.vue'
-import { useShopStore } from '../../stores/shop'
 import { useGoodsStore } from '../../stores/goods'
+import { useShopStore } from '../../stores/shop'
 
 // 路由相关
 const route = useRoute()

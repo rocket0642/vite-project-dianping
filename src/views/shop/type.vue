@@ -1,8 +1,8 @@
 <script setup>
-import { ref, onMounted, watch } from 'vue'
+import { ArrowDown, ArrowUp } from '@element-plus/icons-vue'
+import { ElButton, ElCard, ElEmpty, ElOption, ElPagination, ElSelect, ElSkeleton } from 'element-plus'
+import { onMounted, ref, watch } from 'vue'
 import { useRoute } from 'vue-router'
-import { ElPagination, ElEmpty, ElSkeleton, ElCard, ElSelect, ElOption, ElButton } from 'element-plus'
-import { ArrowUp, ArrowDown } from '@element-plus/icons-vue'
 import AppLayout from '../../components/AppLayout.vue'
 import ShopCard from '../../components/ShopCard.vue'
 import ShopTypeNav from '../../components/ShopTypeNav.vue'

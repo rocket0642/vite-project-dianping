@@ -1,12 +1,12 @@
 <script setup>
-import { ref, onMounted, watch, computed } from 'vue'
+import { Clock, Collection, Location, Phone, Star } from '@element-plus/icons-vue'
+import { ElIcon, ElImage, ElPagination, ElRate, ElSkeleton, ElSkeletonItem, ElTabPane, ElTabs } from 'element-plus'
+import { computed, onMounted, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
-import { ElImage, ElTabs, ElTabPane, ElRate, ElIcon, ElSkeleton, ElSkeletonItem, ElPagination } from 'element-plus'
-import { Location, Clock, Phone, Collection, Star } from '@element-plus/icons-vue'
 import AppLayout from '../../components/AppLayout.vue'
-import { useShopStore } from '../../stores/shop'
-import { useGoodsStore } from '../../stores/goods'
 import { useCommentStore } from '../../stores/comment'
+import { useGoodsStore } from '../../stores/goods'
+import { useShopStore } from '../../stores/shop'
 
 // 获取路由参数
 const route = useRoute()

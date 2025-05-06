@@ -1,9 +1,9 @@
+import { ElMessage } from 'element-plus'
 import { defineStore } from 'pinia'
-import { ref, computed, watch } from 'vue'
-import { useUserStore } from './user'
+import { computed, ref, watch } from 'vue'
 import { useGoodsStore } from './goods'
 import { useShopStore } from './shop'
-import { ElMessage } from 'element-plus'
+import { useUserStore } from './user'
 
 /**
  * 购物车状态管理

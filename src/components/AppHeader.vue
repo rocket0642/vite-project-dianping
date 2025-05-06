@@ -1,10 +1,10 @@
 <script setup>
+import { HomeFilled, ShoppingCart } from '@element-plus/icons-vue'
+import { ElBadge, ElButton } from 'element-plus'
 import { computed } from 'vue'
 import { useRouter } from 'vue-router'
-import { useUserStore } from '../stores/user'
 import { useCartStore } from '../stores/cart'
-import { ElButton, ElBadge } from 'element-plus'
-import { ShoppingCart, HomeFilled } from '@element-plus/icons-vue'
+import { useUserStore } from '../stores/user'
 import SearchBar from './SearchBar.vue'
 
 // 路由实例

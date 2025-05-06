@@ -1,10 +1,10 @@
 <script setup>
-import { ref, computed, onMounted, onBeforeUnmount } from 'vue'
+import { ElButton, ElDialog, ElEmpty, ElMessage, ElMessageBox, ElRadio } from 'element-plus'
+import { computed, onBeforeUnmount, onMounted, ref } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
-import { ElMessage, ElMessageBox, ElDialog, ElButton, ElRadio, ElEmpty } from 'element-plus'
 import AppLayout from '../../components/AppLayout.vue'
-import { useOrderStore } from '../../stores/order'
 import { useAddressStore } from '../../stores/address'
+import { useOrderStore } from '../../stores/order'
 
 // 路由实例
 const route = useRoute()

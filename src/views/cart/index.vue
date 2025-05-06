@@ -1,8 +1,8 @@
 <script setup>
-import { ref, computed, onMounted, watch } from 'vue'
+import { Delete } from '@element-plus/icons-vue'
+import { ElButton, ElCheckbox, ElEmpty, ElInputNumber, ElMessage, ElMessageBox } from 'element-plus'
+import { computed, ref, watch } from 'vue'
 import { useRouter } from 'vue-router'
-import { ElMessage, ElMessageBox, ElEmpty, ElButton, ElCheckbox, ElInputNumber, ElDivider } from 'element-plus'
-import { Delete, ShoppingCart } from '@element-plus/icons-vue'
 import AppLayout from '../../components/AppLayout.vue'
 import { useCartStore } from '../../stores/cart'
 import { useUserStore } from '../../stores/user'

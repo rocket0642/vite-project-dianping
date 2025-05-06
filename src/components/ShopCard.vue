@@ -1,6 +1,6 @@
 <script setup>
-import { useRouter } from 'vue-router'
 import { ElImage } from 'element-plus'
+import { useRouter } from 'vue-router'
 
 // 路由实例
 const router = useRouter()

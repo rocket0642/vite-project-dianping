@@ -1,12 +1,12 @@
 <script setup>
-import { ref, computed, onMounted } from 'vue'
+import { ShoppingCart } from '@element-plus/icons-vue'
+import { ElButton, ElCarousel, ElCarouselItem, ElImage, ElMessage, ElSkeleton, ElTabPane, ElTabs } from 'element-plus'
+import { computed, onMounted, ref } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
-import { ElNotification, ElSkeleton, ElCarousel, ElCarouselItem, ElImage, ElTabs, ElTabPane, ElButton, ElMessage } from 'element-plus'
-import { ShoppingCart, Star } from '@element-plus/icons-vue'
 import AppLayout from '../../components/AppLayout.vue'
 import SkuSelector from '../../components/SkuSelector.vue'
-import { useGoodsStore } from '../../stores/goods'
 import { useCartStore } from '../../stores/cart'
+import { useGoodsStore } from '../../stores/goods'
 import { useShopStore } from '../../stores/shop'
 
 // 路由

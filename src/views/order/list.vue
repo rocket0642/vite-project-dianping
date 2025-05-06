@@ -1,11 +1,11 @@
 <script setup>
-import { ref, computed, onMounted, onBeforeUnmount, watch } from 'vue'
-import { useRouter, useRoute } from 'vue-router'
-import { ElMessage, ElDialog, ElRadio, ElButton, ElEmpty, ElPagination } from 'element-plus'
+import { ElButton, ElDialog, ElEmpty, ElMessage, ElPagination, ElRadio } from 'element-plus'
+import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue'
+import { useRoute, useRouter } from 'vue-router'
 import AppLayout from '../../components/AppLayout.vue'
+import { useAddressStore } from '../../stores/address'
 import { useOrderStore } from '../../stores/order'
 import { useUserStore } from '../../stores/user'
-import { useAddressStore } from '../../stores/address'
 
 // 路由和存储
 const router = useRouter()
@@ -425,13 +425,13 @@ onMounted(async () => {
   if (route.query.status) {
     const tabName = statusToTabMap[status] || 'all';
     orderStore.orderListPageState.activeTab = tabName;
-    
+
     // 如果是从个人中心点击过来的，重置页码为1
     if (fromUserCenter) {
       orderStore.orderListPageState.paginationState[tabName].currentPage = 1;
     }
   }
-  
+
   await loadOrders();
 });
 
@@ -449,17 +449,17 @@ watch(
       4: 'unreceived',
       5: 'uncommented'
     };
-    
+
     // 仅当路由状态参数与当前activeTab不一致时更新
     const newTab = statusToTabMap[status] || 'all';
     if (newTab !== orderStore.orderListPageState.activeTab || fromUserCenter) {
       orderStore.orderListPageState.activeTab = newTab;
-      
+
       // 如果是从个人中心点击过来的，重置页码为1
       if (fromUserCenter) {
         orderStore.orderListPageState.paginationState[newTab].currentPage = 1;
       }
-      
+
       loadOrders();
     }
   },

@@ -1,13 +1,13 @@
-import { defineStore } from 'pinia'
-import { ref, computed } from 'vue'
-import { 
-  getUserAddresses, 
-  addUserAddress, 
-  updateUserAddress, 
-  deleteUserAddress, 
-  setDefaultAddress 
-} from '../api/address'
 import { ElMessage } from 'element-plus'
+import { defineStore } from 'pinia'
+import { computed, ref } from 'vue'
+import {
+  addUserAddress,
+  deleteUserAddress,
+  getUserAddresses,
+  setDefaultAddress,
+  updateUserAddress
+} from '../api/address'
 
 /**
  * 地址管理状态

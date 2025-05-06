@@ -1,6 +1,6 @@
 import { defineStore } from 'pinia'
-import { ref, computed } from 'vue'
-import { getGoodsDetail, getShopGoods, getRecommendGoods, updateGoodsSoldApi, updateGoodsStockApi, searchGoods } from '../api/goods'
+import { computed, ref } from 'vue'
+import { getGoodsDetail, getRecommendGoods, getShopGoods, searchGoods, updateGoodsSoldApi, updateGoodsStockApi } from '../api/goods'
 
 /**
  * 商品状态管理
