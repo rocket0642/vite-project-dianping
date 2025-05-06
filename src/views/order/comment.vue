@@ -21,11 +21,8 @@ const alreadyCommented = ref(false)
 
 // 评价表单
 const commentForm = ref({
-  userId: 0,
-  shopId: 0,
   orderId: orderId,
-  goodsId: 0,
-  goodsName: '',
+  shopId: 0,
   content: '',
   score: 5,
   images: []
@@ -39,6 +36,14 @@ const uploadUrl = 'https://mock-api.com/upload' // 模拟上传地址
 const userStore = useUserStore()
 const commentStore = useCommentStore()
 const orderStore = useOrderStore()
+
+/**
+ * 格式化价格
+ */
+const formatPrice = (price) => {
+  if (!price || isNaN(price)) return '0.00'
+  return (price / 100).toFixed(2)
+}
 
 /**
  * 上传图片成功回调
@@ -65,7 +70,7 @@ const handleRemoveImage = (file) => {
 const checkHasComment = async () => {
   try {
     // 使用store方法替代直接API调用
-    alreadyCommented.value = await commentStore.checkCommentDirectly(orderId);
+    alreadyCommented.value = await commentStore.checkIfOrderCommented(orderId);
     
     if (alreadyCommented.value) {
       ElMessage.warning('该订单已评价');
@@ -84,14 +89,11 @@ const checkHasComment = async () => {
 const loadOrderDetail = async () => {
   loading.value = true
   try {
-    const res = await orderStore.fetchOrderDetail(orderId)
-    order.value = res
+    await orderStore.fetchOrderDetail(orderId)
+    order.value = orderStore.currentOrder
     
     // 填充评价表单
-    commentForm.value.userId = order.value.userId || userStore.userInfo.id
     commentForm.value.shopId = order.value.shopId
-    commentForm.value.goodsId = order.value.goodsId
-    commentForm.value.goodsName = order.value.goodsName
   } catch (error) {
     console.error('加载订单详情失败:', error)
     ElMessage.error('加载订单详情失败')
@@ -116,8 +118,6 @@ const submitOrderComment = async () => {
     const commentData = {
       orderId: orderId,
       shopId: order.value.shopId,
-      goodsId: order.value.goodsId,
-      goodsName: order.value.goodsName,
       content: commentForm.value.content,
       score: commentForm.value.score,
       images: commentForm.value.images,
@@ -148,7 +148,7 @@ const submitOrderComment = async () => {
 }
 
 /**
- * 返回订单详情页
+ * 返回订单列表页
  */
 const goBack = () => {
   router.push('/order/list')
@@ -181,7 +181,7 @@ onMounted(() => {
           sub-title="每个订单只能评价一次"
         >
           <template #extra>
-            <el-button type="primary" @click="goBack">返回订单详情</el-button>
+            <el-button type="primary" @click="goBack">返回订单列表</el-button>
           </template>
         </el-result>
       </div>
@@ -194,21 +194,35 @@ onMounted(() => {
             <span>{{ order.id }}</span>
           </div>
           <div class="info-item">
-            <span class="label">商品:</span>
-            <span>{{ order.goodsName }}</span>
-          </div>
-          <div class="info-item">
-            <span class="label">数量:</span>
-            <span>{{ order.count }}</span>
+            <span class="label">店铺:</span>
+            <span>{{ order.shopName }}</span>
           </div>
           <div class="info-item">
             <span class="label">总价:</span>
-            <span class="price">¥{{ (order.amount / 100).toFixed(2) }}</span>
+            <span class="price">¥{{ formatPrice(order.amount) }}</span>
+          </div>
+        </div>
+        
+        <!-- 显示订单中的所有商品 -->
+        <div class="goods-list">
+          <h3>商品详情</h3>
+          <div v-for="(item, index) in order.items" :key="index" class="goods-item">
+            <div class="goods-image" v-if="item.goodsImage">
+              <img :src="item.goodsImage" alt="商品图片" />
+            </div>
+            <div class="goods-details">
+              <div class="goods-name">{{ item.goodsName }}</div>
+              <div class="goods-sku" v-if="item.skuName">规格: {{ item.skuName }}</div>
+              <div class="goods-price-count">
+                <span class="price">¥{{ formatPrice(item.price) }}</span>
+                <span class="count">x{{ item.count }}</span>
+              </div>
+            </div>
           </div>
         </div>
         
         <div class="rate-section">
-          <span class="rate-label">商品评分:</span>
+          <span class="rate-label">整体评分:</span>
           <el-rate
             v-model="commentForm.score"
             :colors="['#99A9BF', '#F7BA2A', '#FF9900']"
@@ -218,11 +232,12 @@ onMounted(() => {
         </div>
         
         <div class="content-section">
+          <span class="content-label">评价内容:</span>
           <el-input
             v-model="commentForm.content"
             type="textarea"
             :rows="4"
-            placeholder="请输入您的评价内容..."
+            placeholder="请输入您对整个订单的评价内容..."
             maxlength="200"
             show-word-limit
           />
@@ -307,7 +322,7 @@ onMounted(() => {
 }
 
 .order-info {
-  margin-bottom: 30px;
+  margin-bottom: 20px;
   padding: 15px;
   background-color: #f8f8f8;
   border-radius: 8px;
@@ -335,6 +350,68 @@ onMounted(() => {
   font-weight: bold;
 }
 
+/* 商品列表样式 */
+.goods-list {
+  margin-bottom: 20px;
+  padding: 15px;
+  background-color: #f8f8f8;
+  border-radius: 8px;
+}
+
+.goods-list h3 {
+  font-size: 16px;
+  margin-top: 0;
+  margin-bottom: 15px;
+}
+
+.goods-item {
+  display: flex;
+  padding: 10px 0;
+  border-bottom: 1px dashed #e0e0e0;
+}
+
+.goods-item:last-child {
+  border-bottom: none;
+}
+
+.goods-image {
+  width: 60px;
+  height: 60px;
+  margin-right: 10px;
+  border-radius: 4px;
+  overflow: hidden;
+}
+
+.goods-image img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.goods-details {
+  flex: 1;
+}
+
+.goods-name {
+  font-weight: bold;
+  margin-bottom: 5px;
+}
+
+.goods-sku {
+  font-size: 12px;
+  color: #909399;
+  margin-bottom: 5px;
+}
+
+.goods-price-count {
+  display: flex;
+  justify-content: space-between;
+}
+
+.count {
+  color: #606266;
+}
+
 .rate-section,
 .content-section,
 .upload-section {
@@ -342,6 +419,7 @@ onMounted(() => {
 }
 
 .rate-label,
+.content-label,
 .upload-label {
   display: block;
   margin-bottom: 10px;

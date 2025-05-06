@@ -51,7 +51,7 @@ onMounted(async () => {
         class="type-item"
         @click="goToShopType(type.id)"
       >
-        <!-- <el-icon><component :is="type.icon" /></el-icon> -->
+        <el-icon><component :is="type.icon" /></el-icon>
         <span>{{ type.name }}</span>
       </div>
     </div>

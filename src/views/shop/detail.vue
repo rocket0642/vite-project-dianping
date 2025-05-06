@@ -78,13 +78,12 @@ const loadShopComments = async () => {
   commentsLoading.value = true
   try {
     const params = {
-      shopId: shopId,
       current: commentsPagination.value.current,
       pageSize: commentsPagination.value.pageSize
     }
     
     const result = await commentStore.fetchShopComments(shopId, params)
-    comments.value = result.data || []
+    comments.value = result.list || []
     commentsTotal.value = result.total || 0
   } catch (error) {
     console.error('加载商铺评价失败:', error)
@@ -293,13 +292,13 @@ const hidePhone = (phone) => {
                           <div class="comment-header">
                             <div class="user-avatar">
                               <el-image 
-                                :src="comment.userIcon || 'https://cube.elemecdn.com/3/7c/3ea6beec64369c2642b92c6726f1epng.png'" 
+                                :src="comment.icon || 'https://cube.elemecdn.com/0/88/03b0d39583f48206768a7534e55bcpng.png'" 
                                 fit="cover" 
                               />
                             </div>
                             <div class="user-info">
                               <div class="user-name">
-                                {{ comment.userNickName || hidePhone(comment.userPhone) || '匿名用户' }}
+                                {{ comment.nickName || '匿名用户' }}
                               </div>
                               <div class="comment-date">{{ formatDate(comment.createTime) }}</div>
                             </div>

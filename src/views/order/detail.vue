@@ -112,7 +112,7 @@ const getPayTypeText = (payType) => {
  */
 const checkOrderIsCommented = async () => {
   try {
-    isCommented.value = await commentStore.checkCommentDirectly(orderId)
+    isCommented.value = await commentStore.checkIfOrderCommented(orderId)
   } catch (error) {
     console.error('检查订单评价状态失败:', error)
   }

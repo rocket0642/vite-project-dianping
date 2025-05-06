@@ -391,10 +391,7 @@ onBeforeUnmount(() => {
   <AppLayout>
     <div class="order-pay-container" v-loading="loading">
       <div class="page-header">
-        <el-button type="text" icon="ArrowLeft" @click="$router.push('/order/list')">返回订单列表</el-button>
-      </div>
-      <div class="back-button">
-        <el-button icon="ArrowLeft" @click="goBack" text>返回订单</el-button>
+        <el-button type="text" icon="ArrowLeft" @click="goBack">返回</el-button>
       </div>
 
       <div class="pay-header">
@@ -525,10 +522,6 @@ onBeforeUnmount(() => {
   background-color: #fff;
   border-radius: 8px;
   box-shadow: 0 2px 12px rgba(0, 0, 0, 0.1);
-}
-
-.back-button {
-  margin-bottom: 15px;
 }
 
 .pay-header {

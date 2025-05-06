@@ -77,7 +77,10 @@ export const useCommentStore = defineStore('comment', () => {
       
       // 查询服务器
       const res = await checkOrderComment(orderId)
-      return res.data
+      if(res.success){
+        return true
+      }
+      return false
     } catch (error) {
       console.error('检查订单评价状态失败:', error)
       return false
@@ -102,11 +105,11 @@ export const useCommentStore = defineStore('comment', () => {
         }
         
         // 直接使用服务器返回的评论，避免重复
-        shopComments.value[shopId] = [...res.data]
+        shopComments.value[shopId] = [...res.data.list]
         
         return {
-          data: shopComments.value[shopId],
-          total: res.total || 0
+          list: shopComments.value[shopId],
+          total: res.data.total || 0
         }
       }
       
@@ -133,24 +136,6 @@ export const useCommentStore = defineStore('comment', () => {
     shopComments.value = {}
   }
   
-  /**
-   * 检查订单是否已评价（直接从API获取）
-   * @param {number} orderId - 订单ID
-   * @returns {Promise<boolean>} - 是否已评价
-   */
-  async function checkCommentDirectly(orderId) {
-    try {
-      loading.value = true
-      const res = await checkOrderComment(orderId)
-      return res.data
-    } catch (error) {
-      console.error('检查订单评价状态失败:', error)
-      return false
-    } finally {
-      loading.value = false
-    }
-  }
-  
   // 计算属性
   const isLoading = computed(() => loading.value)
   
@@ -168,7 +153,6 @@ export const useCommentStore = defineStore('comment', () => {
     checkIfOrderCommented,
     fetchShopComments,
     clearAllComments,
-    checkCommentDirectly
   }
 }, {
   persist: true // 使用默认配置，更简洁

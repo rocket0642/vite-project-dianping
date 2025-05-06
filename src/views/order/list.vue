@@ -290,7 +290,7 @@ const confirmOrder = async (orderId) => {
  * 再次购买
  */
 const buyAgain = (order) => {
-  router.push(`/product/${order.goodsId}`)
+  router.push(`/shop/${order.shopId}`)
 }
 
 /**
@@ -555,19 +555,6 @@ function getDefaultImage(type) {
                 </div>
                 <div class="product-price">¥{{ formatPrice(item.price * item.count) }}</div>
               </div>
-            </div>
-            <!-- 向下兼容，如果没有items数组，则显示单个商品 -->
-            <div v-else class="order-product">
-              <div class="product-image" @click="goToGoodsDetail(order.goodsId)">
-                <img :src="order.goodsImage || getDefaultImage('goods')" alt="商品图片" />
-              </div>
-              <div class="product-info">
-                <div class="product-name" @click="goToGoodsDetail(order.goodsId)">
-                  {{ order.goodsName }}
-                </div>
-                <div class="product-quantity">x{{ order.count }}</div>
-              </div>
-              <div class="product-price">¥{{ formatPrice(order.amount) }}</div>
             </div>
 
             <!-- 显示收货地址信息 -->
