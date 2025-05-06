@@ -21,5 +21,16 @@ export default defineConfig({
         rewrite: (path) => path.replace(/^\/api/, '')
       }
     }
+  },
+  build: {
+    rollupOptions: {
+      external: [], // 不要将Element Plus图标设为外部依赖
+      // 确保正确处理外部依赖
+      output: {
+        manualChunks: {
+          'element-plus-icons': ['@element-plus/icons-vue']
+        }
+      }
+    }
   }
 })
