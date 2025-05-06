@@ -70,8 +70,8 @@ watch(shopCheckedMap, (newVal) => {
 /**
  * 更新商品数量
  */
-const updateCount = (index, count) => {
-  cartStore.updateItemCount(index, count)
+const updateCount = async (index, count) => {
+  await cartStore.updateItemCount(index, count)
 }
 
 /**

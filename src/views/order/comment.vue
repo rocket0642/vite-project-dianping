@@ -2,7 +2,6 @@
 import { ref, onMounted } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { ElMessage, ElNotification } from 'element-plus'
-import { getOrderDetail } from '../../api/order'
 import AppLayout from '../../components/AppLayout.vue'
 import { Plus } from '@element-plus/icons-vue'
 import { useUserStore } from '../../stores/user'

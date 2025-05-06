@@ -377,7 +377,7 @@ const submitEditForm = async () => {
  * @param {number} status - 订单状态
  */
 const goToOrderList = (status) => {
-  router.push(`/order/list?status=${status}`)
+  router.push(`/order/list?status=${status}&fromUserCenter=true`)
 }
 
 /**

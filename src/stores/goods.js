@@ -24,6 +24,10 @@ export const useGoodsStore = defineStore('goods', () => {
   async function updateGoodsStock(goodsId, count, skuId) {
 
     try {
+      // 先确保获取商品详情
+      if (!goodsDetail.value || goodsDetail.value.id !== goodsId) {
+        await fetchGoodsDetail(goodsId)
+      }
       const res = await updateGoodsStockApi(goodsId, count, skuId)
       if (res.success) {
         // 商品总库存更新
@@ -53,6 +57,10 @@ export const useGoodsStore = defineStore('goods', () => {
   async function updateGoodsSold(goodsId, count, skuId) {
 
     try {
+      // 先确保获取商品详情
+      if (!goodsDetail.value || goodsDetail.value.id !== goodsId) {
+        await fetchGoodsDetail(goodsId)
+      }
       const res = await updateGoodsSoldApi(goodsId, count, skuId)
       if (res.success) {
         // 商品总销量更新

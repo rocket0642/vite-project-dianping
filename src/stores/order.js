@@ -1,6 +1,6 @@
 import { defineStore } from 'pinia'
 import { ref, computed } from 'vue'
-import { createOrder, getOrderDetail, getUserOrders, payOrder, cancelOrder, confirmOrder, getUserOrderStatistics } from '../api/order'
+import { createOrder, getOrderDetail, getUserOrders, payOrder, cancelOrder, confirmOrder, getUserOrderStatistics, deliveryOrder } from '../api/order'
 import { useGoodsStore } from './goods'
 import { useShopStore } from './shop'
 
@@ -15,10 +15,23 @@ export const useOrderStore = defineStore('order', () => {
   const total = ref(0)
   const orderTimers = ref({}) // 存储订单倒计时信息
   
+  // 订单列表页面状态
+  const orderListPageState = ref({
+    activeTab: 'all',
+    paginationState: {
+      all: { currentPage: 1, total: 0 },
+      paid: { currentPage: 1, total: 0 },
+      unpaid: { currentPage: 1, total: 0 },
+      canceled: { currentPage: 1, total: 0 },
+      unreceived: { currentPage: 1, total: 0 },
+      uncommented: { currentPage: 1, total: 0 }
+    }
+  })
+
   // 引入商品和商铺store
   const goodsStore = useGoodsStore()
   const shopStore = useShopStore()
-  
+
   /**
    * 创建订单
    * @param {Object} orderData - 订单数据
@@ -39,7 +52,7 @@ export const useOrderStore = defineStore('order', () => {
       loading.value = false
     }
   }
-  
+
   /**
    * 获取订单详情
    * @param {number} id - 订单ID
@@ -60,7 +73,7 @@ export const useOrderStore = defineStore('order', () => {
       loading.value = false
     }
   }
-  
+
   /**
    * 获取用户订单列表
    * @param {Object} params - 查询参数
@@ -85,7 +98,7 @@ export const useOrderStore = defineStore('order', () => {
       loading.value = false
     }
   }
-  
+
   /**
    * 支付订单
    * @param {number} orderId - 订单ID
@@ -98,12 +111,12 @@ export const useOrderStore = defineStore('order', () => {
       // 确保orderId是数字
       const id = parseInt(orderId);
       const res = await payOrder(id, payType)
-      
+
       // 支付成功后刷新订单详情
       if (res.success) {
         await fetchOrderDetail(id)
       }
-      
+
       return res
     } catch (error) {
       console.error('支付订单失败:', error)
@@ -115,42 +128,16 @@ export const useOrderStore = defineStore('order', () => {
       loading.value = false
     }
   }
-  
+
   /**
    * 取消订单
-   * @param {number} orderId - 订单ID
-   * @param {string} reason - 取消原因
+   * @param {Object} data - 取消原因等数据
    * @returns {Promise} - 取消结果
    */
-  async function cancelUserOrder(orderId, reason = "用户取消") {
+  async function cancelUserOrder(data) {
     try {
       loading.value = true
-      // 先获取订单详情，确保有最新数据
-      await fetchOrderDetail(orderId)
-      const order = currentOrder.value
-      
-      const res = await cancelOrder(orderId, { reason })
-      
-      // 如果取消成功，恢复库存和减少销量
-      if (res.success) {
-        if (order.items && order.items.length) {
-          // 处理有多个商品的订单
-          order.items.forEach(item => {
-            // 恢复库存，考虑SKU
-            goodsStore.updateGoodsStock(item.goodsId, -item.count, item.skuId)
-            // 减少销量，考虑SKU
-            goodsStore.updateGoodsSold(item.goodsId, -item.count, item.skuId)
-          })
-          // 减少店铺销量
-          shopStore.updateShopSales(order.shopId, -order.count)
-        } else {
-          // 处理单个商品的订单
-          goodsStore.updateGoodsStock(order.goodsId, -order.count, order.skuId)
-          goodsStore.updateGoodsSold(order.goodsId, -order.count, order.skuId)
-          shopStore.updateShopSales(order.shopId, -order.count)
-        }
-      }
-      
+      const res = await cancelOrder(data)
       return res
     } catch (error) {
       console.error('取消订单失败:', error)
@@ -159,16 +146,34 @@ export const useOrderStore = defineStore('order', () => {
       loading.value = false
     }
   }
-  
+
   /**
-   * 确认收货
+   * 发货
    * @param {number} orderId - 订单ID
-   * @returns {Promise} - 确认结果
+   * @returns {Promise} - 发货结果
    */
   async function confirmUserOrder(orderId) {
     try {
       loading.value = true
       const res = await confirmOrder(orderId)
+      return res
+    } catch (error) {
+      console.error('发货失败:', error)
+      throw error
+    } finally {
+      loading.value = false
+    }
+  }
+
+  /**
+   * 确认收货
+   * @param {number} orderId - 订单ID
+   * @returns {Promise} - 确认收货结果  
+   */
+  async function deliveryUserOrder(orderId) {
+    try {
+      loading.value = true
+      const res = await deliveryOrder(orderId)
       return res
     } catch (error) {
       console.error('确认收货失败:', error)
@@ -188,12 +193,12 @@ export const useOrderStore = defineStore('order', () => {
       // 设置30分钟倒计时，从当前时间开始
       const expireTime = Date.now() + 30 * 60 * 1000;
       orderTimers.value[orderId] = expireTime;
-      
+
       // 持久化保存
       localStorage.setItem(`order_timer_${orderId}`, expireTime.toString());
     }
   }
-  
+
   /**
    * 获取订单剩余时间（秒）
    * @param {number} orderId - 订单ID
@@ -203,16 +208,16 @@ export const useOrderStore = defineStore('order', () => {
     // 从本地存储获取倒计时信息
     const savedTime = localStorage.getItem(`order_timer_${orderId}`);
     const expireTime = savedTime ? parseInt(savedTime) : orderTimers.value[orderId];
-    
+
     if (!expireTime) return 0;
-    
+
     const now = Date.now();
     const remainingMs = expireTime - now;
-    
+
     // 返回剩余秒数，如果已经过期则返回0
     return Math.max(0, Math.floor(remainingMs / 1000));
   }
-  
+
   /**
    * 清除订单倒计时
    * @param {number} orderId - 订单ID
@@ -221,11 +226,11 @@ export const useOrderStore = defineStore('order', () => {
     delete orderTimers.value[orderId];
     localStorage.removeItem(`order_timer_${orderId}`);
   }
-  
+
   // 计算属性
   const isLoading = computed(() => loading.value)
   const orderTotal = computed(() => total.value)
-  
+
   // 获取订单统计
   const getOrderStats = computed(() => {
     const stats = {
@@ -234,17 +239,17 @@ export const useOrderStore = defineStore('order', () => {
       unreceived: 0,
       uncommented: 0
     }
-    
+
     orderList.value.forEach(order => {
       if (order.status === 1) stats.unpaid++
       else if (order.status === 2) stats.undelivered++
       else if (order.status === 3) stats.unreceived++
       else if (order.status === 4) stats.uncommented++
     })
-    
+
     return stats
   })
-  
+
   /**
    * 获取用户订单统计数据
    * @returns {Promise} - 订单统计数据
@@ -261,7 +266,7 @@ export const useOrderStore = defineStore('order', () => {
       loading.value = false
     }
   }
-  
+
   return {
     // 状态
     currentOrder,
@@ -269,12 +274,13 @@ export const useOrderStore = defineStore('order', () => {
     loading,
     total,
     orderTimers,
-    
+    orderListPageState,
+
     // 计算属性
     isLoading,
     orderTotal,
     orderStats: getOrderStats,
-    
+
     // 方法
     createNewOrder,
     fetchOrderDetail,
@@ -282,9 +288,16 @@ export const useOrderStore = defineStore('order', () => {
     payUserOrder,
     cancelUserOrder,
     confirmUserOrder,
+    deliveryUserOrder,
     startOrderCountdown,
     getOrderRemainingTime,
     clearOrderCountdown,
     fetchOrderStatistics,
+  }
+}, {
+  persist: {
+    key: 'order-store',
+    storage: sessionStorage,
+    paths: ['orderListPageState']  // 仅持久化列表页面状态
   }
 })

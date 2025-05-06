@@ -161,7 +161,10 @@ const cancelOrder = () => {
   )
     .then(async () => {
       try {
-        const res = await orderStore.cancelUserOrder(orderId)
+        const res = await orderStore.cancelUserOrder({
+          orderId,
+          cancelReason: `用户取消订单`
+        })
         if (res.success) {
           ElMessage.success('订单已取消')
           loadOrderDetail()
@@ -200,7 +203,7 @@ const confirmReceipt = () => {
   )
     .then(async () => {
       try {
-        const res = await orderStore.confirmUserOrder(orderId)
+        const res = await orderStore.deliveryUserOrder(orderId)
         if (res.success) {
           ElMessage.success('确认收货成功')
           loadOrderDetail()

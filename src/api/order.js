@@ -59,34 +59,45 @@ export function getUserOrderStatistics() {
  */
 export function payOrder(orderId, payType = 1) {
   return request({
-    url: '/order/pay',
-    method: 'post',
-    data: { orderId, payType }
+    url: `/order/pay/${orderId}`,
+    method: 'put',
+    params: { payType }
   })
 }
 
 /**
  * 取消订单
- * @param {number} orderId - 订单ID
  * @param {Object} data - 取消原因等数据
  * @returns {Promise} - 取消结果
  */
-export function cancelOrder(orderId, data = {}) {
+export function cancelOrder(data) {
   return request({
-    url: `/order/cancel/${orderId}`,
-    method: 'post',
+    url: `/order/cancel`,
+    method: 'put',
     data
+  })
+}
+
+/**
+ * 发货
+ * @param {number} orderId - 订单ID
+ * @returns {Promise} - 发货结果
+ */
+export function confirmOrder(orderId) {
+  return request({
+    url: `/order/confirm/${orderId}`,
+    method: 'put'
   })
 }
 
 /**
  * 确认收货
  * @param {number} orderId - 订单ID
- * @returns {Promise} - 确认结果
+ * @returns {Promise} - 确认收货结果
  */
-export function confirmOrder(orderId) {
+export function deliveryOrder(orderId) {
   return request({
-    url: `/order/confirm/${orderId}`,
-    method: 'post'
+    url: `/order/delivery/${orderId}`,
+    method: 'put'
   })
 }

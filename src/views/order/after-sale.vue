@@ -43,7 +43,8 @@ const refundReasons = [
  * @returns {string} - 格式化后的价格
  */
 const formatPrice = (price) => {
-  return (price / 100).toFixed(2)
+  if (!price || isNaN(price)) return '0.00';
+  return (price / 100).toFixed(2);
 }
 
 /**
@@ -131,13 +132,13 @@ const submitRefund = async () => {
       description: refundForm.value.description,
       images: refundForm.value.images
     }
-    
+
     // 提交售后申请并取消订单
-    const res = await orderStore.cancelUserOrder(orderId, {
-      reason: `售后申请：${refundForm.value.reason}`,
-      refundData: refundData
+    const res = await orderStore.cancelUserOrder({
+      orderId,
+      cancelReason: `售后申请：${JSON.stringify(refundData)}`,
     })
-    
+
     if (res.success) {
       ElMessage.success('售后申请已提交，订单已取消')
       router.push(`/order/detail/${orderId}`)
@@ -159,7 +160,7 @@ onMounted(() => {
     router.push('/login?redirect=/order/after-sale/' + orderId)
     return
   }
-  
+
   loadOrderDetail()
 })
 </script>
@@ -171,94 +172,69 @@ onMounted(() => {
         <div class="loading-spinner"></div>
         <p>正在加载订单信息...</p>
       </div>
-      
+
       <template v-else>
         <div class="page-header">
           <h1>申请售后</h1>
           <el-button @click="router.back()">返回</el-button>
         </div>
-        
+
         <!-- 订单信息 -->
         <div class="order-info">
-          <div class="order-item">
-            <div class="goods-info">
-              <div class="goods-name">{{ order.goodsName }}</div>
-              <div class="goods-quantity">x{{ order.count }}</div>
-              <div class="goods-price">¥{{ formatPrice(order.goodsPrice) }}</div>
+          <!-- 多个商品情况：遍历显示items数组 -->
+          <template v-if="order.items && order.items.length">
+            <div v-for="(item, index) in order.items" :key="index" class="order-item">
+              <div class="goods-info">
+                <div class="goods-name">{{ item.goodsName }}</div>
+                <div class="goods-quantity">x{{ item.count }}</div>
+                <div class="goods-price">¥{{ formatPrice(item.price) }}</div>
+              </div>
+              <div v-if="index === 0" class="order-amount">
+                <div>订单号：{{ order.id }}</div>
+                <div>订单金额：¥{{ formatPrice(order.amount) }}</div>
+              </div>
             </div>
-            <div class="order-amount">
-              <div>订单号：{{ order.id }}</div>
-              <div>订单金额：¥{{ formatPrice(order.amount) }}</div>
-            </div>
-          </div>
+          </template>
         </div>
-        
+
         <!-- 退款表单 -->
         <div class="refund-form">
           <div class="form-item">
             <label>退款原因：</label>
             <el-select v-model="refundForm.reason" placeholder="请选择退款原因">
-              <el-option
-                v-for="item in refundReasons"
-                :key="item.value"
-                :label="item.label"
-                :value="item.value"
-              />
+              <el-option v-for="item in refundReasons" :key="item.value" :label="item.label" :value="item.value" />
             </el-select>
           </div>
-          
+
           <div class="form-item">
             <label>退款金额：</label>
-            <el-input
-              v-model.number="refundForm.amount"
-              type="number"
-              placeholder="请输入退款金额"
-              :min="0"
-              :max="order.amount / 100"
-              style="width: 200px;"
-            />
+            <el-input v-model.number="refundForm.amount" type="number" placeholder="请输入退款金额" :min="0"
+              :max="order.amount / 100" style="width: 200px;" />
             <span class="amount-tip">元（最多{{ formatPrice(order.amount) }}元）</span>
           </div>
-          
+
           <div class="form-item">
             <label>问题描述：</label>
-            <el-input
-              v-model="refundForm.description"
-              type="textarea"
-              placeholder="请详细描述问题"
-              :rows="4"
-              maxlength="500"
-              show-word-limit
-            />
+            <el-input v-model="refundForm.description" type="textarea" placeholder="请详细描述问题" :rows="4" maxlength="500"
+              show-word-limit />
           </div>
-          
+
           <div class="form-item">
             <label>上传凭证：</label>
             <div class="upload-area">
-              <el-upload
-                action="/api/upload" 
-                list-type="picture-card"
-                :before-upload="beforeUpload"
-                :on-success="handleUploadSuccess"
-                :on-error="handleUploadError"
-                :on-remove="handleRemove"
-                multiple
-                :limit="5"
-              >
+              <el-upload action="/api/upload" list-type="picture-card" :before-upload="beforeUpload"
+                :on-success="handleUploadSuccess" :on-error="handleUploadError" :on-remove="handleRemove" multiple
+                :limit="5">
                 <div class="upload-icon">+</div>
                 <div class="upload-text">上传图片</div>
               </el-upload>
               <div class="upload-tip">最多上传5张图片，每张不超过2MB</div>
             </div>
           </div>
-          
+
           <div class="form-action">
             <el-button @click="goBack">取消</el-button>
-            <el-button 
-              type="primary" 
-              :loading="submitting" 
-              @click="submitRefund"
-            >
+            <el-button type="primary" :loading="submitting" @click="submitRefund">
               提交申请
             </el-button>
           </div>
@@ -307,8 +283,13 @@ onMounted(() => {
 }
 
 @keyframes spin {
-  0% { transform: rotate(0deg); }
-  100% { transform: rotate(360deg); }
+  0% {
+    transform: rotate(0deg);
+  }
+
+  100% {
+    transform: rotate(360deg);
+  }
 }
 
 .order-info {

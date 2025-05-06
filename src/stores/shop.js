@@ -15,8 +15,6 @@ export const useShopStore = defineStore('shop', () => {
   const typeShops = ref([])
   const loading = ref(false)
   const total = ref(0)
-  // 存储商铺销量信息
-  const shopSales = ref({})  // 格式: {商铺id: 销量}
   
   /**
    * 获取商铺类型列表
@@ -145,6 +143,9 @@ export const useShopStore = defineStore('shop', () => {
   async function updateShopSales(shopId, count) {
     // 更新后端库存
     try {
+      if (!shopDetail.value || shopDetail.value.id !== shopId) {
+        await fetchShopDetail(shopId)
+      }
       const res = await updateShopSalesApi(shopId, count)
       if (res.success) {
         shopDetail.value.sold = res.data

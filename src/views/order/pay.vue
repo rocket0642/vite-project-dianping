@@ -46,28 +46,28 @@ const loadOrder = async () => {
   loading.value = true
   try {
     const result = await orderStore.fetchOrderDetail(orderId)
-    
+
     if (!result) {
       ElMessage.error('订单不存在')
       router.replace('/order/list')
       return
     }
-    
+
     order.value = orderStore.currentOrder
-    
+
     // 如果订单已支付或已取消，跳转到订单详情页
     if (order.value.status !== 1) {
       ElMessage.info('该订单已不在待支付状态')
       router.replace(`/order/detail/${orderId}`)
       return
     }
-    
+
     // 初始化地址
     initAddress()
-    
+
     // 初始化倒计时
     initCountdown()
-    
+
   } catch (error) {
     console.error('加载订单失败:', error)
     ElMessage.error('订单加载失败')
@@ -86,22 +86,22 @@ const initCountdown = () => {
     startCountdown();
     return;
   }
-  
+
   try {
     // 从订单创建时间计算剩余时间
-    const createTime = new Date(order.value.createTime.replace(/-/g, '/')).getTime();
-    const expireTime = createTime + 30 * 60 * 1000; // 30分钟后过期
+    const createTime = new Date(order.value.createTime).getTime();
+    const expireTime = createTime + 20 * 60 * 1000; // 30分钟后过期
     const now = Date.now();
-    
+
     // 计算剩余秒数
     const remainingTime = Math.max(0, Math.floor((expireTime - now) / 1000));
-    
+
     if (remainingTime <= 0) {
       // 订单已超时，自动取消
       handleExpiredOrder();
       return;
     }
-    
+
     countdown.value = remainingTime;
     startCountdown();
   } catch (error) {
@@ -116,10 +116,10 @@ const initCountdown = () => {
  */
 const startCountdown = () => {
   clearInterval(timer.value)
-  
+
   timer.value = setInterval(() => {
     countdown.value--
-    
+
     if (countdown.value <= 0) {
       clearInterval(timer.value)
       handleExpiredOrder()
@@ -132,9 +132,21 @@ const startCountdown = () => {
  */
 const handleExpiredOrder = async () => {
   try {
-    // 取消订单
-    await orderStore.cancelUserOrder(orderId, "超时自动取消")
+    // 如果订单状态不是3（已取消），则先调用取消接口
+    if (order.value && order.value.status !== 3) {
+      const res = await orderStore.cancelUserOrder({
+        orderId,
+        cancelReason: `超时自动取消`
+      })
+      if (!res.success) {
+        ElMessage.error(res.errorMsg || '订单取消失败')
+      }
+    }
     
+    // 清除倒计时
+    clearInterval(timer.value)
+    
+    // 显示提示框
     ElMessageBox.alert(
       '订单已超时自动取消',
       '支付超时',
@@ -146,9 +158,8 @@ const handleExpiredOrder = async () => {
       }
     )
   } catch (error) {
-    console.error('取消订单失败:', error)
-    ElMessage.error('系统错误，请稍后重试')
-    router.push('/order/list')
+    console.error('处理超时订单失败:', error)
+    ElMessage.error('处理超时订单失败，请稍后重试')
   }
 }
 
@@ -157,22 +168,29 @@ const handleExpiredOrder = async () => {
  */
 const payOrder = async () => {
   if (paying.value) return
-  
+
   paying.value = true
   try {
     const res = await orderStore.payUserOrder(orderId, payType.value)
-    
+
     if (res && res.success) {
       ElMessage.success('支付成功')
       // 清除倒计时
       clearInterval(timer.value)
-      
+
       // 添加通知 - 5秒后系统将自动发货
       ElMessage.info('系统将在5秒后自动发货')
-      
+
       // 延时5秒后跳转到订单详情页
-      setTimeout(() => {
-        router.push(`/order/detail/${orderId}`)
+      setTimeout(async () => {
+        // 发货
+        const res = await orderStore.confirmUserOrder(orderId)
+        if (res.success) {
+          // 跳转到订单详情页
+          router.push(`/order/detail/${orderId}`)
+        } else {
+          ElMessage.error(res?.errorMsg || '发货失败，请稍后重试')
+        }
       }, 5000)
     } else {
       ElMessage.error(res?.errorMsg || '支付失败，请稍后重试')
@@ -199,7 +217,10 @@ const cancelOrder = async () => {
         type: 'warning'
       }
     ).then(async () => {
-      const res = await orderStore.cancelUserOrder(orderId)
+      const res = await orderStore.cancelUserOrder({
+        orderId,
+        cancelReason: `用户取消`
+      })
       if (res.success) {
         ElMessage.success('订单已取消')
         // 清除倒计时
@@ -256,7 +277,7 @@ const initAddress = () => {
       address: order.value.addressDetail
     }
   }
-  
+
   // 加载用户地址列表
   loadUserAddresses()
 }
@@ -264,12 +285,12 @@ const initAddress = () => {
 /**
  * 加载用户地址列表
  */
- const loadUserAddresses = async () => {
+const loadUserAddresses = async () => {
   addressesLoading.value = true
   try {
     await addressStore.fetchAddresses()
     addresses.value = addressStore.addressList
-    
+
     // 如果没有选中地址，且有默认地址，则使用默认地址
     if (!selectedAddress.value && addresses.value.length > 0) {
       selectedAddress.value = addressStore.defaultAddress || addresses.value[0]
@@ -309,7 +330,7 @@ const updateOrderAddress = async () => {
     ElMessage.warning('请选择收货地址')
     return
   }
-  
+
   try {
     // 这里应该有一个更新订单地址的API，但目前没有实现
     // 模拟更新成功
@@ -317,7 +338,7 @@ const updateOrderAddress = async () => {
     order.value.addressName = selectedAddress.value.name
     order.value.addressPhone = selectedAddress.value.phone
     order.value.addressDetail = selectedAddress.value.address
-    
+
     ElMessage.success('收货地址已更新')
     addressDialogVisible.value = false
   } catch (error) {
@@ -375,27 +396,27 @@ onBeforeUnmount(() => {
       <div class="back-button">
         <el-button icon="ArrowLeft" @click="goBack" text>返回订单</el-button>
       </div>
-      
+
       <div class="pay-header">
         <h2>订单支付</h2>
-        
+
         <div class="countdown">
           <span class="countdown-label">支付剩余时间：</span>
           <span class="countdown-time">{{ countdownText }}</span>
         </div>
       </div>
-      
+
       <div class="order-info" v-if="order.id">
         <div class="order-number">
           <span>订单号：{{ order.id }}</span>
           <span>下单时间：{{ order.createTime }}</span>
         </div>
-        
+
         <div class="order-amount">
           <span class="amount-label">支付金额：</span>
           <span class="amount-value">¥{{ formatAmount }}</span>
         </div>
-        
+
         <div class="order-goods">
           <div class="goods-shop">{{ order.shopName }}</div>
           <div v-if="order.items && order.items.length" class="goods-list">
@@ -413,7 +434,7 @@ onBeforeUnmount(() => {
             </div>
           </div>
         </div>
-        
+
         <div class="order-address">
           <div class="address-header">
             <div class="address-title">收货信息</div>
@@ -435,27 +456,19 @@ onBeforeUnmount(() => {
           </div>
         </div>
       </div>
-      
+
       <div class="payment-methods">
         <h3>支付方式</h3>
-        
+
         <div class="method-list">
-          <div 
-            class="method-item" 
-            :class="{ active: payType === 1 }"
-            @click="selectPayType(1)"
-          >
+          <div class="method-item" :class="{ active: payType === 1 }" @click="selectPayType(1)">
             <span class="method-icon wechat-icon">
               <i class="el-icon-wechat"></i>
             </span>
             <span class="method-name">微信支付</span>
           </div>
-          
-          <div 
-            class="method-item" 
-            :class="{ active: payType === 2 }"
-            @click="selectPayType(2)"
-          >
+
+          <div class="method-item" :class="{ active: payType === 2 }" @click="selectPayType(2)">
             <span class="method-icon alipay-icon">
               <i class="el-icon-alipay"></i>
             </span>
@@ -463,7 +476,7 @@ onBeforeUnmount(() => {
           </div>
         </div>
       </div>
-      
+
       <div class="actions">
         <button class="pay-btn" @click="payOrder" :disabled="paying">
           {{ paying ? '支付中...' : '立即支付' }}
@@ -471,22 +484,14 @@ onBeforeUnmount(() => {
         <button class="cancel-btn" @click="cancelOrder">取消订单</button>
         <button class="skip-btn" @click="skipPayment">暂不支付</button>
       </div>
-      
+
       <!-- 地址选择对话框 -->
-      <el-dialog
-        v-model="addressDialogVisible"
-        title="选择收货地址"
-        width="600px"
-      >
+      <el-dialog v-model="addressDialogVisible" title="选择收货地址" width="600px">
         <div class="address-dialog-content" v-loading="addressesLoading">
           <el-empty v-if="addresses.length === 0" description="暂无收货地址" />
-          <div 
-            v-else
-            v-for="address in addresses" 
-            :key="address.id" 
+          <div v-else v-for="address in addresses" :key="address.id"
             :class="['address-dialog-item', { active: selectedAddress && selectedAddress.id === address.id }]"
-            @click="selectAddress(address)"
-          >
+            @click="selectAddress(address)">
             <div class="address-info">
               <div class="contact">
                 <span class="name">{{ address.name }}</span>
@@ -496,11 +501,7 @@ onBeforeUnmount(() => {
               <div class="detail">{{ address.address }}</div>
             </div>
             <div class="address-actions">
-              <el-radio 
-                v-model="selectedAddress.id" 
-                :label="address.id"
-                @change="selectAddress(address)"
-              >选择</el-radio>
+              <el-radio v-model="selectedAddress.id" :label="address.id" @change="selectAddress(address)">选择</el-radio>
             </div>
           </div>
         </div>
@@ -781,7 +782,9 @@ onBeforeUnmount(() => {
   gap: 20px;
 }
 
-.pay-btn, .cancel-btn, .skip-btn {
+.pay-btn,
+.cancel-btn,
+.skip-btn {
   padding: 10px 20px;
   border: none;
   border-radius: 4px;
@@ -825,5 +828,4 @@ onBeforeUnmount(() => {
 .page-header {
   margin-bottom: 15px;
 }
-
 </style>

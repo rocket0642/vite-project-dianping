@@ -15,19 +15,19 @@ const userStore = useUserStore()
 const addressStore = useAddressStore()
 // 状态
 const loading = ref(false)
-const activeTab = ref('all')
-const pageSize = ref(3) // 每页显示3条记录
+// 使用store中的页面状态，而不是本地状态
+const activeTab = computed({
+  get: () => orderStore.orderListPageState.activeTab,
+  set: (val) => orderStore.orderListPageState.activeTab = val
+})
+const pageSize = ref(5) // 每页显示3条记录
 const countdowns = ref({}) // 用于存储倒计时显示值
 const timers = ref({})
 
-// 每个状态的分页状态独立存储
-const paginationState = ref({
-  all: { currentPage: 1, total: 0 },
-  paid: { currentPage: 1, total: 0 },
-  unpaid: { currentPage: 1, total: 0 },
-  canceled: { currentPage: 1, total: 0 },
-  unreceived: { currentPage: 1, total: 0 },
-  uncommented: { currentPage: 1, total: 0 }
+// 分页状态使用store中的数据
+const paginationState = computed({
+  get: () => orderStore.orderListPageState.paginationState,
+  set: (val) => orderStore.orderListPageState.paginationState = val
 })
 
 // 地址相关
@@ -41,7 +41,9 @@ const currentOrderId = ref(null)
 const orders = computed(() => orderStore.orderList)
 const currentPage = computed({
   get: () => paginationState.value[activeTab.value].currentPage,
-  set: (val) => paginationState.value[activeTab.value].currentPage = val
+  set: (val) => {
+    orderStore.orderListPageState.paginationState[activeTab.value].currentPage = val
+  }
 })
 const total = computed(() => paginationState.value[activeTab.value].total)
 
@@ -54,7 +56,7 @@ const loadOrders = async () => {
     router.push('/login?redirect=/order/list')
     return
   }
-  
+
   loading.value = true
   try {
     // 将tab值转换为API状态值
@@ -66,31 +68,32 @@ const loadOrders = async () => {
       'unreceived': 4,
       'uncommented': 5
     };
-    
+
     const statusValue = tabToStatusMap[activeTab.value];
     const params = {
       current: currentPage.value,
       pageSize: pageSize.value
     };
-    
+
     // 如果是多状态（已支付选项卡），使用statuses参数
     if (Array.isArray(statusValue)) {
       params.statuses = statusValue.join(',');
-    } 
+    }
     // 否则使用单一status参数
     else if (statusValue !== undefined) {
       params.status = statusValue;
     }
-    
+
     // 对于待评价标签，额外添加未评价条件
     if (activeTab.value === 'uncommented') {
       params.uncommented = true;
     }
-    
+
     const result = await orderStore.fetchOrderList(params);
-    
-    paginationState.value[activeTab.value].total = result.total || 0;
-    
+
+    // 更新store中的分页状态
+    orderStore.orderListPageState.paginationState[activeTab.value].total = result.total || 0;
+
     // 为未支付订单启动倒计时
     startCountdowns();
   } catch (error) {
@@ -106,7 +109,7 @@ const loadOrders = async () => {
  */
 const startCountdowns = () => {
   clearAllTimers()
-  
+
   orders.value.forEach(order => {
     if (order.status === 1) {
       initOrderCountdown(order)
@@ -119,23 +122,23 @@ const startCountdowns = () => {
  */
 const initOrderCountdown = (order) => {
   const orderId = order.id
-  
-  const createTime = new Date(order.createTime.replace(/-/g, '/')).getTime()
-  const expireTime = createTime + 30 * 60 * 1000
+
+  const createTime = new Date(order.createTime).getTime()
+  const expireTime = createTime + 20 * 60 * 1000
   const now = Date.now()
-  
+
   let remainingTime = expireTime - now
-  
+
   if (remainingTime <= 0) {
     cancelExpiredOrder(orderId)
     return
   }
-  
+
   updateCountdownDisplay(orderId, remainingTime)
-  
+
   timers.value[orderId] = setInterval(() => {
     remainingTime -= 1000
-    
+
     if (remainingTime <= 0) {
       clearInterval(timers.value[orderId])
       cancelExpiredOrder(orderId)
@@ -159,11 +162,22 @@ const updateCountdownDisplay = (orderId, milliseconds) => {
  */
 const cancelExpiredOrder = async (orderId) => {
   try {
-    await orderStore.cancelUserOrder(orderId, "超时自动取消")
-    ElMessage.info(`订单 ${orderId} 已超时自动取消`)
-    loadOrders()
+    // 如果订单状态不是3（已取消），则先调用取消接口
+    if (orders.value && orders.value.status !== 3) {
+      const res = await orderStore.cancelUserOrder({
+        orderId,
+        cancelReason: `超时自动取消`
+      })
+      if (!res.success) {
+        ElMessage.error(res.errorMsg || '订单取消失败')
+      } else {
+        ElMessage.info(`订单 ${orderId} 已超时自动取消`)
+        loadOrders()
+      }
+    }
   } catch (error) {
     console.error('取消过期订单失败:', error)
+    ElMessage.error('取消过期订单失败，请稍后重试')
   }
 }
 
@@ -181,18 +195,20 @@ const clearAllTimers = () => {
  * 切换标签页
  */
 const handleTabChange = (tab) => {
-  activeTab.value = tab
+  // 更新store中的页面状态
+  orderStore.orderListPageState.activeTab = tab;
   // 不重置页码，直接使用各自的currentPage
-  router.push({ query: { status: tabToStatusMap[tab] } })
-  loadOrders()
+  router.push({ query: { status: tabToStatusMap[tab] } });
+  loadOrders();
 }
 
 /**
  * 分页变化
  */
 const handlePageChange = (page) => {
-  currentPage.value = page
-  loadOrders()
+  // 更新store中的页面状态
+  orderStore.orderListPageState.paginationState[activeTab.value].currentPage = page;
+  loadOrders();
 }
 
 /**
@@ -232,7 +248,10 @@ const goToPay = (orderId) => {
  */
 const cancelOrder = async (orderId) => {
   try {
-    const res = await orderStore.cancelUserOrder(orderId, "用户取消")
+    const res = await orderStore.cancelUserOrder({
+      orderId,
+      cancelReason: `用户取消`
+    })
     if (res.success) {
       ElMessage.success('订单已取消')
       if (timers.value[orderId]) {
@@ -254,7 +273,7 @@ const cancelOrder = async (orderId) => {
  */
 const confirmOrder = async (orderId) => {
   try {
-    const res = await orderStore.confirmUserOrder(orderId)
+    const res = await orderStore.deliveryUserOrder(orderId)
     if (res.success) {
       ElMessage.success('已确认收货')
       loadOrders()
@@ -306,7 +325,7 @@ const goToComment = (orderId) => {
 /**
  * 申请售后/退款
  */
- const applyRefund = (orderId) => {
+const applyRefund = (orderId) => {
   router.push(`/order/after-sale/${orderId}`)
 }
 
@@ -329,12 +348,12 @@ const openAddressDialog = (orderId) => {
 /**
  * 加载用户地址列表
  */
- const loadUserAddresses = async () => {
+const loadUserAddresses = async () => {
   addressesLoading.value = true
   try {
     await addressStore.fetchAddresses()
     addresses.value = addressStore.addressList
-    
+
     if (!selectedAddress.value && addresses.value.length > 0) {
       selectedAddress.value = addressStore.defaultAddress || addresses.value[0]
     }
@@ -361,7 +380,7 @@ const updateOrderAddress = async () => {
     ElMessage.warning('请选择收货地址')
     return
   }
-  
+
   try {
     const order = orders.value.find(o => o.id === currentOrderId.value)
     if (order) {
@@ -370,7 +389,7 @@ const updateOrderAddress = async () => {
       order.addressPhone = selectedAddress.value.phone
       order.addressDetail = selectedAddress.value.address
     }
-    
+
     ElMessage.success('收货地址已更新')
     addressDialogVisible.value = false
   } catch (error) {
@@ -392,6 +411,7 @@ const tabToStatusMap = {
 // 初始化
 onMounted(async () => {
   const status = parseInt(route.query.status) || 0;
+  const fromUserCenter = route.query.fromUserCenter === 'true';
   const statusToTabMap = {
     0: 'all',
     2: 'paid',
@@ -400,16 +420,27 @@ onMounted(async () => {
     4: 'unreceived',
     5: 'uncommented'
   };
+
+  // 如果URL中有状态参数，则使用它，否则使用store中保存的activeTab
+  if (route.query.status) {
+    const tabName = statusToTabMap[status] || 'all';
+    orderStore.orderListPageState.activeTab = tabName;
+    
+    // 如果是从个人中心点击过来的，重置页码为1
+    if (fromUserCenter) {
+      orderStore.orderListPageState.paginationState[tabName].currentPage = 1;
+    }
+  }
   
-  activeTab.value = statusToTabMap[status] || 'all';
   await loadOrders();
 });
 
 // 监听路由参数变化
 watch(
-  () => route.query.status,
-  (newStatus) => {
-    const status = parseInt(newStatus) || 0;
+  () => route.query,
+  (newQuery) => {
+    const status = parseInt(newQuery.status) || 0;
+    const fromUserCenter = newQuery.fromUserCenter === 'true';
     const statusToTabMap = {
       0: 'all',
       2: 'paid',
@@ -418,10 +449,21 @@ watch(
       4: 'unreceived',
       5: 'uncommented'
     };
-    activeTab.value = statusToTabMap[status] || 'all';
-    // 不重置页码
-    loadOrders();
-  }
+    
+    // 仅当路由状态参数与当前activeTab不一致时更新
+    const newTab = statusToTabMap[status] || 'all';
+    if (newTab !== orderStore.orderListPageState.activeTab || fromUserCenter) {
+      orderStore.orderListPageState.activeTab = newTab;
+      
+      // 如果是从个人中心点击过来的，重置页码为1
+      if (fromUserCenter) {
+        orderStore.orderListPageState.paginationState[newTab].currentPage = 1;
+      }
+      
+      loadOrders();
+    }
+  },
+  { deep: true }
 );
 
 // 组件销毁前清理定时器
@@ -449,54 +491,30 @@ function getDefaultImage(type) {
         <el-button type="text" icon="ArrowLeft" @click="$router.push('/user')">返回个人中心</el-button>
       </div>
       <div class="order-tabs">
-        <div 
-          class="tab-item" 
-          :class="{ active: activeTab === 'all' }"
-          @click="handleTabChange('all')"
-        >
+        <div class="tab-item" :class="{ active: activeTab === 'all' }" @click="handleTabChange('all')">
           全部订单
         </div>
-        <div 
-          class="tab-item" 
-          :class="{ active: activeTab === 'paid' }"
-          @click="handleTabChange('paid')"
-        >
+        <div class="tab-item" :class="{ active: activeTab === 'paid' }" @click="handleTabChange('paid')">
           已支付
         </div>
-        <div 
-          class="tab-item" 
-          :class="{ active: activeTab === 'unpaid' }"
-          @click="handleTabChange('unpaid')"
-        >
+        <div class="tab-item" :class="{ active: activeTab === 'unpaid' }" @click="handleTabChange('unpaid')">
           待付款
         </div>
-        <div 
-          class="tab-item" 
-          :class="{ active: activeTab === 'canceled' }"
-          @click="handleTabChange('canceled')"
-        >
+        <div class="tab-item" :class="{ active: activeTab === 'canceled' }" @click="handleTabChange('canceled')">
           已取消
         </div>
-        <div 
-          class="tab-item" 
-          :class="{ active: activeTab === 'unreceived' }"
-          @click="handleTabChange('unreceived')"
-        >
+        <div class="tab-item" :class="{ active: activeTab === 'unreceived' }" @click="handleTabChange('unreceived')">
           待收货
         </div>
-        <div 
-          class="tab-item" 
-          :class="{ active: activeTab === 'uncommented' }"
-          @click="handleTabChange('uncommented')"
-        >
+        <div class="tab-item" :class="{ active: activeTab === 'uncommented' }" @click="handleTabChange('uncommented')">
           待评价
         </div>
       </div>
-      
+
       <div v-if="orders.length === 0" class="no-orders">
         暂无订单
       </div>
-      
+
       <div v-else class="orders-scroll-container">
         <div v-for="order in orders" :key="order.id" class="order-item">
           <div class="order-header">
@@ -521,7 +539,7 @@ function getDefaultImage(type) {
               </span>
             </div>
           </div>
-          
+
           <div class="order-content">
             <!-- 如果有items数组，则遍历显示所有商品 -->
             <div v-if="order.items && order.items.length" class="order-products">
@@ -551,7 +569,7 @@ function getDefaultImage(type) {
               </div>
               <div class="product-price">¥{{ formatPrice(order.amount) }}</div>
             </div>
-            
+
             <!-- 显示收货地址信息 -->
             <div v-if="order.status === 1" class="order-address">
               <div class="address-header">
@@ -563,12 +581,12 @@ function getDefaultImage(type) {
               </div>
             </div>
           </div>
-          
+
           <div class="order-footer">
             <div class="order-total">
               共{{ order.count }}件商品，总计：<span class="price">¥{{ formatPrice(order.amount) }}</span>
             </div>
-            
+
             <div class="order-actions">
               <!-- 待付款订单 -->
               <template v-if="order.status === 1">
@@ -577,32 +595,28 @@ function getDefaultImage(type) {
                 <button class="action-btn default" @click="cancelOrder(order.id)">取消订单</button>
                 <button class="action-btn info" @click="viewOrderDetail(order.id)">查看详情</button>
               </template>
-              
+
               <!-- 已支付订单 -->
               <template v-else-if="order.status === 2">
                 <button class="action-btn info" @click="viewOrderDetail(order.id)">查看详情</button>
               </template>
-              
+
               <!-- 已取消订单 -->
               <template v-else-if="order.status === 3">
                 <button class="action-btn primary" @click="buyAgain(order)">再次购买</button>
                 <button class="action-btn info" @click="viewOrderDetail(order.id)">查看详情</button>
               </template>
-              
+
               <!-- 待收货订单 -->
               <template v-else-if="order.status === 4">
                 <button class="action-btn primary" @click="confirmOrder(order.id)">确认收货</button>
                 <button class="action-btn default" @click="viewLogistics(order.id)">查看物流</button>
                 <button class="action-btn info" @click="viewOrderDetail(order.id)">查看详情</button>
               </template>
-              
+
               <!-- 已完成订单 -->
               <template v-else-if="order.status === 5">
-                <button 
-                  v-if="!order.commented" 
-                  class="action-btn primary" 
-                  @click="goToComment(order.id)"
-                >
+                <button v-if="!order.commented" class="action-btn primary" @click="goToComment(order.id)">
                   去评价
                 </button>
                 <button v-else class="action-btn disabled" disabled>已评价</button>
@@ -613,35 +627,21 @@ function getDefaultImage(type) {
             </div>
           </div>
         </div>
-        
+
         <!-- 分页组件 -->
         <div class="pagination-container" v-if="total > 0">
-          <el-pagination
-            v-model:current-page="currentPage"
-            :page-size="pageSize"
-            :total="total"
-            layout="prev, pager, next"
-            @current-change="handlePageChange"
-            background
-          />
+          <el-pagination v-model:current-page="currentPage" :page-size="pageSize" :total="total"
+            layout="prev, pager, next" @current-change="handlePageChange" background />
         </div>
       </div>
-      
+
       <!-- 地址选择对话框 -->
-      <el-dialog
-        v-model="addressDialogVisible"
-        title="选择收货地址"
-        width="600px"
-      >
+      <el-dialog v-model="addressDialogVisible" title="选择收货地址" width="600px">
         <div class="address-dialog-content" v-loading="addressesLoading">
           <el-empty v-if="addresses.length === 0" description="暂无收货地址" />
-          <div 
-            v-else
-            v-for="address in addresses" 
-            :key="address.id" 
+          <div v-else v-for="address in addresses" :key="address.id"
             :class="['address-dialog-item', { active: selectedAddress && selectedAddress.id === address.id }]"
-            @click="selectAddress(address)"
-          >
+            @click="selectAddress(address)">
             <div class="address-info">
               <div class="contact">
                 <span class="name">{{ address.name }}</span>
@@ -651,11 +651,7 @@ function getDefaultImage(type) {
               <div class="detail">{{ address.address }}</div>
             </div>
             <div class="address-actions">
-              <el-radio 
-                v-model="selectedAddress.id" 
-                :label="address.id"
-                @change="selectAddress(address)"
-              >选择</el-radio>
+              <el-radio v-model="selectedAddress.id" :label="address.id" @change="selectAddress(address)">选择</el-radio>
             </div>
           </div>
         </div>
@@ -808,7 +804,8 @@ function getDefaultImage(type) {
   gap: 15px;
 }
 
-.order-id, .order-time {
+.order-id,
+.order-time {
   color: #606266;
   font-size: 14px;
 }
@@ -826,11 +823,25 @@ function getDefaultImage(type) {
   color: white;
 }
 
-.status-1 { background-color: #e6a23c; }
-.status-2 { background-color: #409eff; }
-.status-3 { background-color: #909399; }
-.status-4 { background-color: #67c23a; }
-.status-5 { background-color: #e6a23c; }
+.status-1 {
+  background-color: #e6a23c;
+}
+
+.status-2 {
+  background-color: #409eff;
+}
+
+.status-3 {
+  background-color: #909399;
+}
+
+.status-4 {
+  background-color: #67c23a;
+}
+
+.status-5 {
+  background-color: #e6a23c;
+}
 
 .countdown-tag {
   color: #f56c6c;
@@ -941,14 +952,37 @@ function getDefaultImage(type) {
   color: white;
 }
 
-.action-btn.primary { background-color: #409eff; }
-.action-btn.primary:hover { background-color: #66b1ff; }
-.action-btn.secondary { background-color: #67c23a; }
-.action-btn.secondary:hover { background-color: #85ce61; }
-.action-btn.default { background-color: #f56c6c; }
-.action-btn.default:hover { background-color: #f78989; }
-.action-btn.info { background-color: #909399; }
-.action-btn.info:hover { background-color: #a6a9ad; }
+.action-btn.primary {
+  background-color: #409eff;
+}
+
+.action-btn.primary:hover {
+  background-color: #66b1ff;
+}
+
+.action-btn.secondary {
+  background-color: #67c23a;
+}
+
+.action-btn.secondary:hover {
+  background-color: #85ce61;
+}
+
+.action-btn.default {
+  background-color: #f56c6c;
+}
+
+.action-btn.default:hover {
+  background-color: #f78989;
+}
+
+.action-btn.info {
+  background-color: #909399;
+}
+
+.action-btn.info:hover {
+  background-color: #a6a9ad;
+}
 
 .pagination-container {
   display: flex;
@@ -993,6 +1027,7 @@ function getDefaultImage(type) {
   cursor: not-allowed;
   opacity: 0.7;
 }
+
 .action-btn.disabled:hover {
   background-color: #c0c4cc;
 }
@@ -1002,23 +1037,23 @@ function getDefaultImage(type) {
     width: 95%;
     padding: 10px;
   }
-  
+
   .order-header {
     flex-direction: column;
   }
-  
+
   .shop-info-header {
     margin-bottom: 10px;
   }
-  
+
   .order-status {
     align-self: flex-end;
   }
-  
+
   .order-actions {
     flex-wrap: wrap;
   }
-  
+
   .product-name {
     max-width: 150px;
   }
