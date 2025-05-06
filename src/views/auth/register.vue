@@ -85,9 +85,9 @@ const getVerificationCode = async () => {
 
   // 调用获取验证码接口
   try {
-    const res = await userStore.fetchCode(registerForm.phone)
+    const res = await userStore.fetchCode(registerForm.phone, 'register')
     if (res.success) {
-      ElMessage.success('验证码已发送')
+      ElMessage.success('验证码已发送，两分钟内有效')
     } else {
       // 如果手机号已注册，提示用户去登录
       ElMessage.warning(res.errorMsg || '获取验证码失败')
@@ -166,21 +166,6 @@ const goToLogin = () => {
           </el-input>
         </el-form-item>
 
-        <!-- 验证码 -->
-        <el-form-item prop="code" label="验证码">
-          <div class="code-input-group">
-            <el-input v-model="registerForm.code" placeholder="请输入验证码" maxlength="6">
-              <template #prefix>
-                <el-icon>
-                  <Key />
-                </el-icon>
-              </template>
-            </el-input>
-            <el-button type="primary" :disabled="codeButtonStatus.disabled" @click="getVerificationCode">
-              {{ codeButtonStatus.text }}
-            </el-button>
-          </div>
-        </el-form-item>
 
         <!-- 密码 -->
         <el-form-item prop="password" label="密码">
@@ -202,6 +187,22 @@ const goToLogin = () => {
               </el-icon>
             </template>
           </el-input>
+        </el-form-item>
+
+        <!-- 验证码 -->
+        <el-form-item prop="code" label="验证码">
+          <div class="code-input-group">
+            <el-input v-model="registerForm.code" placeholder="请输入验证码" maxlength="6">
+              <template #prefix>
+                <el-icon>
+                  <Key />
+                </el-icon>
+              </template>
+            </el-input>
+            <el-button type="primary" :disabled="codeButtonStatus.disabled" @click="getVerificationCode">
+              {{ codeButtonStatus.text }}
+            </el-button>
+          </div>
         </el-form-item>
 
         <!-- 注册按钮 -->

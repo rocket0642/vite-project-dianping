@@ -75,9 +75,9 @@ const getCode = async () => {
   
   // 调用获取验证码接口
   try {
-    const res = await userStore.fetchCode(loginForm.phone)
+    const res = await userStore.fetchCode(loginForm.phone, 'login')
     if (res.success) {
-      ElMessage.success('验证码已发送')
+      ElMessage.success('验证码已发送，两分钟内有效')
     } else {
       ElMessage.warning(res.errorMsg || '获取验证码失败')
       // 重置按钮状态
@@ -146,6 +146,13 @@ const switchLoginType = (type) => {
  */
 const goToRegister = () => {
   router.push('/register')
+}
+
+/**
+ * 跳转到忘记密码页面
+ */
+const goToForgetPassword = () => {
+  router.push('/forget-password')
 }
 </script>
 
@@ -233,6 +240,9 @@ const goToRegister = () => {
                 <el-icon><Lock /></el-icon>
               </template>
             </el-input>
+            <div class="forget-password">
+              <a @click="goToForgetPassword">忘记密码?</a>
+            </div>
           </el-form-item>
         </template>
         
@@ -349,5 +359,16 @@ const goToRegister = () => {
   top: 16px;
   left: 16px;
   z-index: 10;
+}
+
+.forget-password {
+  text-align: right;
+  margin-top: 5px;
+  font-size: 14px;
+}
+
+.forget-password a {
+  color: #409eff;
+  cursor: pointer;
 }
 </style>

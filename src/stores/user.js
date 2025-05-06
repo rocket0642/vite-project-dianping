@@ -1,6 +1,6 @@
 import { defineStore } from 'pinia'
 import { computed, ref } from 'vue'
-import { getCode, getUserInfo, login, register } from '../api/user'
+import { getCode, getUserInfo, login, register, resetPassword } from '../api/user'
 import { useCartStore } from './cart'
 
 /**
@@ -99,8 +99,8 @@ export const useUserStore = defineStore('user', () => {
    * @param {string} phone - 手机号
    * @returns {Promise} - 获取验证码结果
    */
-  async function fetchCode(phone) {
-    return await getCode(phone)
+  async function fetchCode(phone, type) {
+    return await getCode(phone, type)
   }
   
   /**
@@ -156,6 +156,22 @@ export const useUserStore = defineStore('user', () => {
     return tokenExpireTime.value && Date.now() > tokenExpireTime.value
   }
   
+  /**
+   * 重置密码
+   * @param {string} phone - 手机号
+   * @param {string} code - 验证码
+   * @param {string} password - 新密码
+   * @returns {Promise} - 重置结果
+   */
+  async function resetUserPassword(phone, code, password) {
+    try {
+      const res = await resetPassword(phone, code, password)
+      return res
+    } catch (error) {
+      throw error
+    }
+  }
+  
   // 使用持久化的数据初始化
   if (token.value) {
     // 如果有token，检查是否过期
@@ -184,7 +200,8 @@ export const useUserStore = defineStore('user', () => {
     refreshTokenExpireTime,
     logout,
     isTokenExpired,
-    userRegister
+    userRegister,
+    resetUserPassword
   }
 }, {
   persist: {

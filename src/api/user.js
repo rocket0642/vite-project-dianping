@@ -34,11 +34,11 @@ export function loginByPassword(phone, password) {
  * @param {string} phone - 手机号
  * @returns {Promise} - 获取验证码结果
  */
-export function getCode(phone) {
+export function getCode(phone, type) {
   return request({
     url: '/user/code',
     method: 'post',
-    data: { phone }
+    data: { phone, type }
   })
 }
 
@@ -94,5 +94,20 @@ export function updateUserDetail(data) {
     url: '/user/info',
     method: 'put',
     data
+  })
+}
+
+/**
+ * 重置密码
+ * @param {string} phone - 手机号
+ * @param {string} code - 验证码
+ * @param {string} password - 新密码
+ * @returns {Promise} - 重置结果
+ */
+export function resetPassword(phone, code, password) {
+  return request({
+    url: '/user/reset-password',
+    method: 'post',
+    params: { phone, code, password }
   })
 }

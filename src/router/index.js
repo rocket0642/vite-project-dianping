@@ -22,6 +22,11 @@ const routes = [
     meta: { title: '注册' }
   },
   {
+    path: '/forget-password',
+    component: () => import('../views/auth/forget-password.vue'),
+    meta: { title: '忘记密码' }
+  },
+  {
     path: '/user',
     component: () => import('../views/user/index.vue'),
     meta: { title: '个人中心', requiresAuth: true }
