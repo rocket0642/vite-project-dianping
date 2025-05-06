@@ -317,8 +317,8 @@ onMounted(() => {
                     <div class="goods-sold">已售{{ item.sold }}件</div>
                     <div class="shop-info" @click.stop="goToShopDetail(item.shopId)">
                       <div class="shop-name">{{ item.shopName }}</div>
-                      <div class="shop-rating">评分: {{ item.shopScore }}</div>
-                      <div class="shop-address">{{ item.shopAddress }}</div>
+                      <div class="shop-rating">评分: {{ (item.score / 10).toFixed(1) }}</div>
+                      <div class="shop-address">地址：{{ item.address }}</div>
                     </div>
                   </div>
                 </div>
