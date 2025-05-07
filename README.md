@@ -1,4 +1,208 @@
-## 统一响应格式
+# 电商点评系统
+
+## 项目简介
+
+这是一个基于Vue 3、Vite、Element Plus等现代前端技术栈构建的电商点评系统。该系统实现了用户注册登录、商品浏览与搜索、商铺探索与点评、购物车管理、订单处理等电商平台核心功能，并包含相应的数据可视化和物流规划能力。
+
+## 技术栈
+
+- **核心框架**: Vue 3 (使用Composition API)
+- **构建工具**: Vite
+- **路由管理**: Vue Router 4 (Hash路由模式)
+- **状态管理**: Pinia + 持久化插件 (pinia-plugin-persistedstate)
+- **UI组件库**: Element Plus + Element Plus Icons
+- **HTTP请求**: Axios (封装请求拦截器和响应拦截器)
+- **数据可视化**: ECharts
+- **地图服务**: 高德地图API (@amap/amap-jsapi-loader)
+- **模拟数据**: Mock.js (模拟后端接口)
+- **日期处理**: Day.js
+- **CSS预处理器**: Sass
+
+## 项目结构
+
+```
+├── public                     # 静态资源
+├── src                        # 源代码
+│   ├── api                    # API接口目录
+│   │   ├── user.js            # 用户相关接口(登录、注册、获取用户信息等)
+│   │   ├── shop.js            # 商铺相关接口(商铺列表、详情、热门商铺等)
+│   │   ├── goods.js           # 商品相关接口(商品列表、详情、搜索等)
+│   │   ├── order.js           # 订单相关接口(创建订单、支付、列表查询等)
+│   │   ├── comment.js         # 评论相关接口(添加评论、获取评论列表等)
+│   │   └── address.js         # 地址相关接口(地址管理)
+│   │   
+│   ├── assets                 # 静态资源
+│   │   └── styles             # 样式文件
+│   │
+│   ├── components             # 公共组件
+│   │   ├── AppLayout.vue      # 应用布局组件
+│   │   ├── AppHeader.vue      # 应用头部组件
+│   │   ├── AppFooter.vue      # 应用底部组件
+│   │   ├── SearchBar.vue      # 搜索栏组件
+│   │   ├── ShopCard.vue       # 商铺卡片组件
+│   │   ├── ShopTypeNav.vue    # 商铺类型导航组件
+│   │   ├── SkuSelector.vue    # 商品SKU选择器组件
+│   │   ├── AddressForm.vue    # 地址表单组件
+│   │   └── HelloWorld.vue     # 示例组件
+│   │   
+│   ├── mock                   # Mock数据
+│   │   
+│   ├── router                 # 路由配置
+│   │   └── index.js           # 路由定义、导航守卫配置
+│   │   
+│   ├── stores                 # Pinia状态管理
+│   │   ├── user.js            # 用户状态(登录状态、token管理、用户信息)
+│   │   ├── shop.js            # 商铺状态(商铺列表、收藏、筛选条件)
+│   │   ├── goods.js           # 商品状态(商品列表、搜索条件)
+│   │   ├── cart.js            # 购物车状态(购物车商品、数量管理)
+│   │   ├── order.js           # 订单状态(订单列表、订单详情)
+│   │   ├── comment.js         # 评论状态(评论列表、评论发布)
+│   │   └── address.js         # 地址状态(收货地址管理)
+│   │   
+│   ├── utils                  # 工具函数
+│   │   ├── request.js         # Axios请求封装(统一拦截器、错误处理)
+│   │   ├── auth.js            # 认证相关(token处理)
+│   │   ├── cache.js           # 缓存相关(本地存储封装)
+│   │   └── format.js          # 格式化工具(日期、金额等格式化)
+│   │   
+│   ├── views                  # 页面组件
+│   │   ├── auth               # 认证相关页面
+│   │   │   ├── login.vue      # 登录页面
+│   │   │   ├── register.vue   # 注册页面
+│   │   │   └── forget-password.vue # 忘记密码页面
+│   │   ├── home               # 首页
+│   │   │   └── index.vue      # 首页主页面
+│   │   ├── shop               # 商铺相关页面
+│   │   │   ├── detail.vue     # 商铺详情页
+│   │   │   ├── search.vue     # 商铺搜索页
+│   │   │   └── type.vue       # 商铺分类页
+│   │   ├── product            # 商品相关页面
+│   │   │   └── detail.vue     # 商品详情页
+│   │   ├── cart               # 购物车页面
+│   │   │   └── index.vue      # 购物车主页面
+│   │   ├── order              # 订单相关页面
+│   │   │   ├── create.vue     # 订单创建页
+│   │   │   ├── pay.vue        # 订单支付页
+│   │   │   ├── list.vue       # 订单列表页
+│   │   │   ├── detail.vue     # 订单详情页
+│   │   │   ├── comment.vue    # 订单评价页
+│   │   │   ├── after-sale.vue # 售后服务页
+│   │   │   └── logistics.vue  # 物流跟踪页
+│   │   ├── user               # 用户中心页面
+│   │   │   ├── index.vue      # 用户主页
+│   │   │   └── address.vue    # 用户地址管理页
+│   │   └── 404.vue            # 404页面
+│   │   
+│   ├── App.vue                # 根组件
+│   ├── main.js                # 入口文件
+│   └── style.css              # 全局样式
+│   
+├── vite.config.js             # Vite配置
+└── package.json               # 项目配置
+```
+
+## 功能模块详细介绍
+
+### 1. 用户模块
+
+- **用户注册**：支持通过手机号+验证码进行注册，验证码通过模拟接口获取
+- **用户登录**：支持验证码登录和密码登录两种方式
+- **密码找回**：通过手机验证码重置密码
+- **用户信息管理**：查看和编辑个人信息，包括头像、昵称等
+- **Token管理**：实现Token过期自动登出功能，Token有效期为30分钟，活跃操作自动刷新
+- **会话保持**：使用Pinia持久化存储保持用户登录状态
+
+### 2. 商铺模块
+
+- **商铺列表展示**：分页加载商铺列表，支持筛选和排序
+- **商铺详情展示**：展示商铺的详细信息，包括评分、地址、商品列表等
+- **商铺分类与筛选**：按照商铺类型进行分类浏览
+- **商铺搜索**：根据关键词搜索商铺
+- **商铺点评与评分**：用户可对商铺进行评分和点评
+- **商铺地理位置**：使用高德地图展示商铺位置
+
+### 3. 商品模块
+
+- **商品列表展示**：在商铺内或分类下展示商品列表
+- **商品详情查看**：展示商品的详细信息，包括价格、规格、图片等
+- **商品规格选择**：支持多规格商品选择(SKU选择器)
+- **商品评价查看**：查看商品的用户评价
+- **商品搜索**：支持关键词搜索商品
+- **热门商品推荐**：展示热门商品
+
+### 4. 购物车模块
+
+- **添加商品到购物车**：支持选择规格后添加商品
+- **购物车商品管理**：调整数量、删除商品
+- **购物车商品汇总**：自动计算商品总价
+- **游客购物车**：未登录状态下也可使用购物车
+- **登录状态同步**：登录后自动同步购物车数据
+
+### 5. 订单模块
+
+- **订单创建**：从购物车或直接购买创建订单
+- **订单支付**：模拟支付流程
+- **订单状态跟踪**：包括待付款、待发货、待收货、已完成等状态
+- **订单历史查询**：查看历史订单记录
+- **订单评价**：完成订单后进行评价
+- **售后服务**：申请退款或售后
+- **物流跟踪**：通过高德地图API实现物流路线规划和跟踪
+
+### 6. 评论模块
+
+- **发布商品评论**：对已购买商品进行评论
+- **发布商铺评论**：对商铺进行整体评论
+- **评论点赞**：对他人评论进行点赞
+- **评论列表展示**：分页展示评论内容
+- **评分系统**：支持多维度评分(如口味、服务、环境等)
+
+### 7. 地址管理模块
+
+- **收货地址添加**：添加新的收货地址
+- **收货地址编辑与删除**：管理已有收货地址
+- **设置默认收货地址**：指定默认使用的地址
+- **地址表单验证**：确保地址信息的完整性和有效性
+
+## 组件详细说明
+
+### 布局组件
+
+- **AppLayout**：提供整体页面布局，包含头部、内容区和底部
+- **AppHeader**：顶部导航栏，包含logo、搜索框、用户菜单等
+- **AppFooter**：底部版权和链接区域
+
+### 业务组件
+
+- **SearchBar**：搜索功能组件，支持商品和商铺搜索
+- **ShopCard**：展示单个商铺信息的卡片组件
+- **ShopTypeNav**：商铺分类导航组件
+- **SkuSelector**：商品规格选择器，支持多维度规格选择
+- **AddressForm**：地址表单组件，用于添加和编辑地址
+
+## 路由配置
+
+- 使用**哈希模式**的路由实现，方便部署
+- 实现**路由守卫**，控制需要登录才能访问的页面
+- 支持**路由懒加载**，提高首屏加载速度
+- 设置页面标题，根据路由自动切换
+
+## API请求封装
+
+- 统一响应格式处理，所有接口返回相同结构
+- 请求拦截器添加token，实现用户认证
+- 响应拦截器统一处理错误，包括401未授权自动跳转登录页
+- 集中管理API调用，按模块分组
+
+## 状态管理
+
+- 使用Pinia管理应用状态，按功能模块分组
+- 用户状态管理，包含登录状态、token和用户信息
+- 购物车状态管理，支持添加、删除和更新商品
+- 订单状态管理，处理订单创建和查询
+- 商品和商铺状态管理，处理列表和详情数据
+- 使用持久化插件保存关键状态到本地存储
+
+## API接口详细说明
 
 系统所有接口都使用统一的响应格式：
 
@@ -11,899 +215,206 @@
 }
 ```
 
-## 核心功能模块
+### 用户相关接口
 
-### 1. 用户模块
+- `POST /user/code` - 发送手机验证码
+  - 参数: `phone` (手机号), `type` (验证码类型：login/register/reset-password)
+  - 返回: 发送结果，成功返回 `success: true`
 
-用户注册、登录、信息管理、登出等功能。
+- `POST /user/register` - 用户注册
+  - 参数: `phone` (手机号), `code` (验证码), `password` (密码)
+  - 返回: 注册成功返回JWT令牌，用于登录认证
 
-#### 接口详情
+- `POST /user/login` - 用户登录
+  - 参数: `phone` (手机号), `code` (验证码) 或 `password` (密码)
+  - 返回: 登录成功返回JWT令牌，用于后续请求认证
 
-**1.1 发送手机验证码**  
+- `POST /user/logout` - 用户登出
+  - 参数: `phone` (手机号)
+  - 返回: 登出结果，成功返回 `success: true`
 
-- 请求方式：`POST /user/code`
-- 请求参数：
+- `GET /user/me` - 获取当前用户信息
+  - 参数: 无 (根据请求头中的token识别用户)
+  - 返回: 用户详细信息，包括ID、昵称、头像等基本信息
 
-  ```
-  phone: string  // 手机号码
-  ```
+- `GET /user/info/{id}` - 查询用户详情
+  - 参数: `id` (用户ID)
+  - 返回: 用户详细信息，包括基本信息和扩展信息
 
-- 返回示例：
+- `PUT /user/update` - 更新用户基本信息
+  - 参数: 用户信息对象，包括昵称、头像等
+  - 返回: 更新结果，成功返回 `success: true`
 
-  ```json
-  {
-    "success": true,
-    "data": "验证码发送成功"
-  }
-  ```
+- `PUT /user/info` - 更新用户详细信息
+  - 参数: 用户详细信息对象，包括个人介绍、城市等
+  - 返回: 更新结果，成功返回 `success: true`
 
-- 错误示例：
+- `POST /user/reset-password` - 重置密码
+  - 参数: `phone` (手机号), `code` (验证码), `password` (新密码) 
+  - 返回: 重置结果，成功返回 `success: true`
 
-  ```json
-  {
-    "success": false,
-    "errorMsg": "手机号格式错误！"
-  }
-  ```
+### 商铺相关接口
 
-**1.2 用户注册**
+- `GET /shop/hot` - 获取热门商铺
+  - 参数: 无
+  - 返回: 热门商铺列表，包含商铺基本信息和评分
 
-- 请求方式：`POST /user/register`
-- 请求头：
+- `GET /shop/list` - 获取商铺列表(分页)
+  - 参数: `page` (页码), `size` (每页数量), `typeId` (类型ID, 可选), `sortBy` (排序方式, 可选)
+  - 返回: 商铺列表和总数，每个商铺包含基本信息和评分
 
-  ```
-  Content-Type: application/json
-  ```
+- `GET /shop/{id}` - 获取商铺详情
+  - 参数: `id` (商铺ID)
+  - 返回: 商铺详细信息，包括基本信息、地址、联系方式、评分、商品分类等
 
-- 请求参数：
+- `GET /shop/type` - 获取商铺类型列表
+  - 参数: 无
+  - 返回: 商铺类型列表，包括类型ID、名称和图标
 
-  ```json
-  {
-    "phone": "13800138000",  // 手机号
-    "code": "123456",        // 验证码
-    "password": "your_password" // 密码
-  }
-  ```
+### 商品相关接口
 
-- 返回示例：
+- `GET /goods/list` - 获取商品列表(分页)
+  - 参数: `page` (页码), `size` (每页数量), `shopId` (商铺ID, 可选), `categoryId` (分类ID, 可选)
+  - 返回: 商品列表和总数，每个商品包含基本信息、价格和评分
 
-  ```json
-  {
-    "success": true,
-    "data": "jwt令牌"  // 注册成功后自动登录，返回token
-  }
-  ```
+- `GET /goods/{id}` - 获取商品详情
+  - 参数: `id` (商品ID)
+  - 返回: 商品详细信息，包括基本信息、价格、规格、图片、描述和评价等
 
-- 错误示例：
+- `GET /goods/hot` - 获取热门商品
+  - 参数: 无
+  - 返回: 热门商品列表，包含商品基本信息和评分
 
-  ```json
-  {
-    "success": false,
-    "errorMsg": "验证码错误"
-  }
-  ```
+- `GET /goods/search` - 搜索商品
+  - 参数: `keyword` (关键词), `page` (页码), `size` (每页数量)
+  - 返回: 商品列表和总数，匹配关键词的商品信息
 
-**1.3 用户登录**  
+### 购物车相关接口
 
-- 请求方式：`POST /user/login`
-- 请求头：
+- `POST /cart/add` - 添加商品到购物车
+  - 参数: `goodsId` (商品ID), `count` (数量), `specs` (规格JSON字符串)
+  - 返回: 操作结果，成功返回 `success: true`
 
-  ```
-  Content-Type: application/json
-  ```
+- `GET /cart/list` - 获取购物车列表
+  - 参数: 无 (根据请求头中的token识别用户)
+  - 返回: 购物车商品列表，包含商品信息、数量、规格和总价
 
-- 请求参数：
+- `PUT /cart/update` - 更新购物车商品数量
+  - 参数: `id` (购物车项ID), `count` (新数量)
+  - 返回: 操作结果，成功返回 `success: true`
 
-  ```json
-  {
-    "phone": "13800138000",  // 手机号
-    "code": "123456"         // 验证码登录
-  }
-  ```
+- `DELETE /cart/remove` - 从购物车移除商品
+  - 参数: `id` (购物车项ID)
+  - 返回: 操作结果，成功返回 `success: true`
 
-  或
+### 订单相关接口
 
-  ```json
-  {
-    "phone": "13800138000",     // 手机号
-    "password": "your_password" // 密码登录
-  }
-  ```
+- `POST /order/create` - 创建订单
+  - 参数: `cartIds` (购物车项ID数组), `addressId` (地址ID), `remark` (备注, 可选)
+  - 返回: 订单ID，用于后续支付和查询
 
-- 返回示例：
+- `POST /order/pay` - 支付订单
+  - 参数: `orderId` (订单ID), `payType` (支付方式：1-支付宝，2-微信支付)
+  - 返回: 支付结果，成功返回 `success: true`
 
-  ```json
-  {
-    "success": true,
-    "data": "jwt令牌"
-  }
-  ```
-
-- 错误示例：
-
-  ```json
-  {
-    "success": false,
-    "errorMsg": "用户不存在，请注册"
-  }
-  ```
-
-**1.4 用户登出**
-
-- 请求方式：`POST /user/logout`
-- 请求参数：
-
-  ```
-  phone: string  // 手机号码
-  ```
-
-- 请求头：
-
-  ```
-  Authorization: token值
-  ```
-
-- 返回示例：
-
-  ```json
-  {
-    "success": true,
-    "data": "登出成功"
-  }
-  ```
-
-**1.5 获取当前用户信息**  
-
-- 请求方式：`GET /user/me`
-- 请求头：
-
-  ```
-  Authorization: token值
-  ```
-
-- 返回示例：
-
-  ```json
-  {
-    "success": true,
-    "data": {
-      "id": 1,
-      "nickName": "用户昵称",
-      "icon": "头像地址"
-    }
-  }
-  ```
-
-**1.6 查询用户详情**  
-
-- 请求方式：`GET /user/info/{id}`
-- 路径参数：
-
-  ```
-  id: long  // 用户ID
-  ```
-
-- 请求头：
-
-  ```
-  Authorization: token值
-  ```
-
-- 返回示例：
-
-  ```json
-  {
-    "success": true,
-    "data": {
-      "userId": 1,
-      "city": "杭州",
-      "introduce": "个人介绍",
-      "fans": 10,
-      "followee": 20,
-      "gender": true,  // true-女，false-男
-      "birthday": "2000-01-01",
-      "credits": 100,
-      "level": false   // false-未开通会员，true-已开通
-    }
-  }
-  ```
-
-**1.7 更新用户详细信息**
-
-- 请求方式：`PUT /user/info`
-- 请求头：
-
-  ```
-  Authorization: token值
-  Content-Type: application/json
-  ```
-
-- 请求参数：
-
-  ```json
-  {
-    "userId": 1,
-    "city": "杭州",
-    "introduce": "这是我的新介绍",
-    "gender": true,
-    "birthday": "2000-01-01"
-  }
-  ```
-
-- 返回示例：
-
-  ```json
-  {
-    "success": true,
-    "data": "更新成功"
-  }
-  ```
-
-**1.8 更新用户基本信息**
-
-- 请求方式：`PUT /user/update`
-- 请求头：
-
-  ```
-  Authorization: token值
-  Content-Type: application/json
-  ```
-
-- 请求参数：
-
-  ```json
-  {
-    "id": 1,
-    "nickName": "新昵称",
-    "icon": "新头像地址"
-  }
-  ```
-
-- 返回示例：
-
-  ```json
-  {
-    "success": true,
-    "data": "更新成功"
-  }
-  ```
-
-### 2. 商铺模块
-
-商铺信息管理、商铺类型管理、商铺搜索、地理位置排序等功能。
-
-#### 接口详情
-
-**2.1 查询商铺信息**  
-
-- 请求方式：`GET /shop/{id}`
-- 路径参数：
-
-  ```
-  id: long  // 商铺ID
-  ```
-
-- 返回示例：
-
-  ```json
-  {
-    "success": true,
-    "data": {
-      "id": 1,
-      "name": "商铺名称",
-      "typeId": 1,
-      "images": "图片地址",
-      "area": "地区",
-      "address": "详细地址",
-      "x": 120.123456,
-      "y": 30.123456,
-      "avgPrice": 100,
-      "sold": 200,
-      "comments": 300,
-      "score": 4.5,
-      "openHours": "10:00-22:00",
-      "createTime": "2022-01-01 12:00:00",
-      "updateTime": "2022-01-02 12:00:00"
-    }
-  }
-  ```
-
-**2.2 按类型查询商铺**  
-
-- 请求方式：`GET /shop/of/type`
-- 请求参数：
-
-  ```
-  typeId: int      // 商铺类型ID
-  current: int     // 当前页码，默认1
-  x: double        // 经度，可选
-  y: double        // 纬度，可选
-  ```
-
-- 返回示例：
-
-  ```json
-  {
-    "success": true,
-    "data": [
-      {
-        "id": 1,
-        "name": "商铺名称",
-        "typeId": 1,
-        "images": "图片地址",
-        "area": "地区",
-        "address": "详细地址",
-        "x": 120.123456,
-        "y": 30.123456,
-        "avgPrice": 100,
-        "sold": 200,
-        "comments": 300,
-        "score": 4.5,
-        "openHours": "10:00-22:00",
-        "distance": 1500  // 距离，单位米
-      }
-    ],
-    "total": 20
-  }
-  ```
-
-**2.3 新增商铺**  
-
-- 请求方式：`POST /shop`
-- 请求头：
-
-  ```
-  Authorization: token值
-  Content-Type: application/json
-  ```
-
-- 请求参数：
-
-  ```json
-  {
-    "name": "商铺名称",
-    "typeId": 1,
-    "images": "图片地址",
-    "area": "地区",
-    "address": "详细地址",
-    "x": 120.123456,
-    "y": 30.123456,
-    "avgPrice": 100,
-    "openHours": "10:00-22:00"
-  }
-  ```
-
-- 返回示例：
-
-  ```json
-  {
-    "success": true,
-    "data": 1  // 新增商铺的ID
-  }
-  ```
-
-**2.4 更新商铺**  
-
-- 请求方式：`PUT /shop`
-- 请求头：
-
-  ```
-  Authorization: token值
-  Content-Type: application/json
-  ```
-
-- 请求参数：
-
-  ```json
-  {
-    "id": 1,
-    "name": "商铺名称",
-    "typeId": 1,
-    "images": "图片地址",
-    "area": "地区",
-    "address": "详细地址",
-    "x": 120.123456,
-    "y": 30.123456,
-    "avgPrice": 100,
-    "openHours": "10:00-22:00"
-  }
-  ```
-
-- 返回示例：
-
-  ```json
-  {
-    "success": true,
-    "data": null
-  }
-  ```
-
-**2.5 获取商铺类型列表**  
-
-- 请求方式：`GET /shop-type/list`
-- 返回示例：
-
-  ```json
-  {
-    "success": true,
-    "data": [
-      {
-        "id": 1,
-        "name": "美食",
-        "icon": "图标地址",
-        "sort": 1
-      },
-      {
-        "id": 2,
-        "name": "KTV",
-        "icon": "图标地址",
-        "sort": 2
-      }
-    ]
-  }
-  ```
-
-**2.6 根据关键词搜索商铺**  
-
-- 请求方式：`GET /shop/search`
-- 请求参数：
-
-  ```
-  keyword: string  // 搜索关键词
-  current: int     // 当前页码，默认1
-  x: double        // 经度，可选
-  y: double        // 纬度，可选
-  ```
-
-- 返回示例：
-
-  ```json
-  {
-    "success": true,
-    "data": [
-      {
-        "id": 1,
-        "name": "商铺名称",
-        "typeId": 1,
-        "typeName": "美食",
-        "images": "图片地址",
-        "area": "地区",
-        "address": "详细地址",
-        "x": 120.123456,
-        "y": 30.123456,
-        "avgPrice": 100,
-        "sold": 200,
-        "comments": 300,
-        "score": 4.5,
-        "openHours": "10:00-22:00",
-        "distance": 1500  // 距离，单位米
-      }
-    ],
-    "total": 5
-  }
-  ```
-
-**2.7 根据商铺名称关键词查询商铺**
-
-- 请求方式：`GET /shop/name`
-- 请求参数：
-
-  ```
-  name: string     // 商铺名称关键词
-  current: int     // 当前页码，默认1
-  ```
-
-- 返回示例：
-
-  ```json
-  {
-    "success": true,
-    "data": [
-      {
-        "id": 1,
-        "name": "商铺名称",
-        "typeId": 1,
-        "typeName": "美食",
-        "images": "图片地址",
-        "area": "地区",
-        "address": "详细地址",
-        "avgPrice": 100,
-        "sold": 200,
-        "comments": 300,
-        "score": 4.5
-      }
-    ],
-    "total": 5
-  }
-  ```
-
-### 3. 优惠券模块
-
-普通优惠券、秒杀优惠券、异步下单。
-
-#### 接口详情
-
-**3.1 新增普通优惠券**  
-
-- 请求方式：`POST /voucher`
-- 请求参数：
-
-  ```json
-  {
-    "shopId": 1,           // 商铺ID
-    "title": "100元代金券", // 优惠券标题
-    "subTitle": "周一至周五可用", // 副标题
-    "rules": "使用规则",    // 使用规则
-    "payValue": 8000,      // 支付金额，单位分
-    "actualValue": 10000,  // 实际价值，单位分
-    "type": 0              // 优惠券类型：0-普通券，1-秒杀券
-  }
-  ```
-
-- 返回示例：
-
-  ```json
-  {
-    "success": true,
-    "data": 1  // 新增优惠券的ID
-  }
-  ```
-
-**3.2 新增秒杀优惠券**  
-
-- 请求方式：`POST /voucher/seckill`
-- 请求参数：
-
-  ```json
-  {
-    "shopId": 1,           // 商铺ID
-    "title": "100元代金券", // 优惠券标题
-    "subTitle": "周一至周五可用", // 副标题
-    "rules": "使用规则",    // 使用规则
-    "payValue": 8000,      // 支付金额，单位分
-    "actualValue": 10000,  // 实际价值，单位分
-    "type": 1,             // 优惠券类型：0-普通券，1-秒杀券
-    "stock": 100,          // 库存
-    "beginTime": "2022-01-01T10:00:00", // 开始时间
-    "endTime": "2022-01-01T22:00:00"    // 结束时间
-  }
-  ```
-
-- 返回示例：
-
-  ```json
-  {
-    "success": true,
-    "data": 1  // 新增优惠券的ID
-  }
-  ```
-
-**3.3 查询店铺优惠券**  
-
-- 请求方式：`GET /voucher/list/{shopId}`
-- 路径参数：
-
-  ```
-  shopId: long  // 商铺ID
-  ```
-
-- 返回示例：
-
-  ```json
-  {
-    "success": true,
-    "data": [
-      {
-        "id": 1,
-        "shopId": 1,
-        "title": "100元代金券",
-        "subTitle": "周一至周五可用",
-        "rules": "使用规则",
-        "payValue": 8000,
-        "actualValue": 10000,
-        "type": 1,
-        "stock": 100,
-        "beginTime": "2022-01-01T10:00:00",
-        "endTime": "2022-01-01T22:00:00"
-      }
-    ]
-  }
-  ```
-
-**3.4 秒杀下单**  
-
-- 请求方式：`POST /voucher-order/seckill/{id}`
-- 路径参数：
-
-  ```
-  id: long  // 优惠券ID
-  ```
-
-- 返回示例：
-
-  ```json
-  {
-    "success": true,
-    "data": 123456789  // 订单ID
-  }
-  ```
-
-### 4. 商品模块
-
-商品信息管理与查询。
-
-#### 接口详情
-
-**4.1 查询商品信息**  
-
-- 请求方式：`GET /goods/{id}`
-- 路径参数：
-
-  ```
-  id: long  // 商品ID
-  ```
-
-- 返回示例：
-
-  ```json
-  {
-    "success": true,
-    "data": {
-      "id": 1,
-      "name": "商品名称",
-      "price": 9900,
-      "description": "商品描述",
-      "imageUrl": "图片地址",
-      "stock": 100
-    }
-  }
-  ```
-
-**4.2 添加商品**  
-
-- 请求方式：`POST /goods`
-- 请求参数：
-
-  ```json
-  {
-    "name": "商品名称",
-    "price": 9900,
-    "description": "商品描述",
-    "imageUrl": "图片地址",
-    "stock": 100
-  }
-  ```
-
-- 返回示例：
-
-  ```json
-  {
-    "success": true,
-    "data": 1  // 新增商品的ID
-  }
-  ```
-
-**4.3 更新商品**  
-
-- 请求方式：`PUT /goods`
-- 请求参数：
-
-  ```json
-  {
-    "id": 1,
-    "name": "商品名称",
-    "price": 9900,
-    "description": "商品描述",
-    "imageUrl": "图片地址",
-    "stock": 100
-  }
-  ```
-
-- 返回示例：
-
-  ```json
-  {
-    "success": true,
-    "data": null
-  }
-  ```
-
-### 5. 订单模块
-
-订单创建、支付、查询和管理功能。
-
-#### 接口详情
-
-**5.1 创建订单**  
-
-- 请求方式：`POST /order/create`
-- 请求头：
-
-  ```
-  Authorization: token值
-  Content-Type: application/json
-  ```
-
-- 请求参数：
-
-  ```json
-  {
-    "goodsId": 1,    // 商品ID
-    "count": 2       // 商品数量
-  }
-  ```
-
-- 返回示例：
-
-  ```json
-  {
-    "success": true,
-    "data": 123456789  // 订单ID
-  }
-  ```
-
-- 错误示例：
-
-  ```json
-  {
-    "success": false,
-    "errorMsg": "库存不足"
-  }
-  ```
-
-**5.2 支付订单**  
-
-- 请求方式：`POST /order/pay/{orderId}`
-- 路径参数：
-
-  ```
-  orderId: long  // 订单ID
-  ```
-
-- 请求参数：
-
-  ```
-  payType: int  // 支付方式，1-微信支付，2-支付宝
-  ```
-
-- 请求头：
-
-  ```
-  Authorization: token值
-  ```
-
-- 返回示例：
-
-  ```json
-  {
-    "success": true,
-    "data": null
-  }
-  ```
-
-- 错误示例：
-
-  ```json
-  {
-    "success": false,
-    "errorMsg": "支付失败"
-  }
-  ```
-
-**5.3 查询订单列表**  
-
-- 请求方式：`GET /order/list`
-- 请求头：
-
-  ```
-  Authorization: token值
-  ```
-
-- 请求参数：
-
-  ```
-  status: int   // 订单状态，可选：0-全部，1-未支付，2-已支付，3-已取消
-  current: int  // 当前页码，默认1
-  ```
-
-- 返回示例：
-
-  ```json
-  {
-    "success": true,
-    "data": [
-      {
-        "id": 123456789,
-        "userId": 1,
-        "goodsId": 1,
-        "goodsName": "商品名称",
-        "count": 2,
-        "amount": 19800,
-        "status": 1,       // 订单状态：1-未支付，2-已支付，3-已取消，4-已完成
-        "createTime": "2022-01-01 12:00:00",
-        "payTime": "2022-01-01 12:05:00",
-        "payType": 1       // 支付方式：1-微信支付，2-支付宝
-      }
-    ],
-    "total": 10
-  }
-  ```
-
-**5.4 查询订单详情**  
-
-- 请求方式：`GET /order/status/{orderId}`
-- 路径参数：
-
-  ```
-  orderId: long  // 订单ID
-  ```
-
-- 请求头：
-
-  ```
-  Authorization: token值
-  ```
-
-- 返回示例：
-
-  ```json
-  {
-    "success": true,
-    "data": {
-      "id": 123456789,
-      "userId": 1,
-      "shopId": 10,        // 商铺ID
-      "goodsId": 1,
-      "goodsName": "商品名称",
-      "count": 2,
-      "goodsPrice": 9900,  // 商品单价，单位分
-      "amount": 19800,     // 总金额，单位分
-      "status": 2,         // 订单状态：1-未支付，2-已支付，3-已取消，4-已完成
-      "createTime": "2022-01-01 12:00:00",
-      "payTime": "2022-01-01 12:05:00",
-      "payType": 1         // 支付方式：1-微信支付，2-支付宝
-    }
-  }
-  ```
-
-- 错误示例：
-
-  ```json
-  {
-    "success": false,
-    "errorMsg": "订单不存在"
-  }
-  ```
-
-**5.5 取消订单**
-
-- 请求方式：`POST /order/cancel/{orderId}`
-- 路径参数：
-
-  ```
-  orderId: long  // 订单ID
-  ```
-
-- 请求头：
-
-  ```
-  Authorization: token值
-  ```
-
-- 返回示例：
-
-  ```json
-  {
-    "success": true,
-    "data": null
-  }
-  ```
-
-- 错误示例：
-
-  ```json
-  {
-    "success": false,
-    "errorMsg": "订单已支付，无法取消"
-  }
-  ```
+- `GET /order/list` - 获取订单列表
+  - 参数: `page` (页码), `size` (每页数量), `status` (订单状态, 可选：1-待付款，2-待发货，3-待收货，4-已完成)
+  - 返回: 订单列表和总数，每个订单包含基本信息和状态
+
+- `GET /order/{id}` - 获取订单详情
+  - 参数: `id` (订单ID)
+  - 返回: 订单详细信息，包括订单信息、商品信息、配送信息和支付信息
+
+- `PUT /order/cancel` - 取消订单
+  - 参数: `orderId` (订单ID), `reason` (取消原因, 可选)
+  - 返回: 操作结果，成功返回 `success: true`
+
+- `GET /order/logistics/{id}` - 获取订单物流信息
+  - 参数: `id` (订单ID)
+  - 返回: 物流跟踪信息，包括物流状态和配送路线
+
+- `POST /order/comment/{id}` - 提交订单评价
+  - 参数: `id` (订单ID), `rating` (评分, 1-5), `content` (评价内容)
+  - 返回: 评价结果，成功返回 `success: true`
+
+### 评论相关接口
+
+- `POST /comment/add` - 添加评论
+  - 参数: `targetId` (目标ID), `targetType` (目标类型：1-商品，2-商铺), `content` (评论内容), `rating` (评分, 1-5)
+  - 返回: 评论ID，成功创建的评论标识
+
+- `GET /comment/list` - 获取评论列表
+  - 参数: `targetId` (目标ID), `targetType` (目标类型), `page` (页码), `size` (每页数量)
+  - 返回: 评论列表和总数，每个评论包含内容、评分、用户信息和时间
+
+- `POST /comment/like` - 点赞评论
+  - 参数: `commentId` (评论ID)
+  - 返回: 操作结果，成功返回 `success: true` 和新的点赞数
+
+### 地址相关接口
+
+- `POST /address/add` - 添加收货地址
+  - 参数: `name` (收货人姓名), `phone` (手机号), `province` (省), `city` (市), `district` (区), `detail` (详细地址)
+  - 返回: 地址ID，新创建的地址标识
+
+- `GET /address/list` - 获取收货地址列表
+  - 参数: 无 (根据请求头中的token识别用户)
+  - 返回: 地址列表，包含所有收货地址信息和默认状态
+
+- `PUT /address/update` - 更新收货地址
+  - 参数: `id` (地址ID), 其他同添加
+  - 返回: 操作结果，成功返回 `success: true`
+
+- `DELETE /address/delete` - 删除收货地址
+  - 参数: `id` (地址ID)
+  - 返回: 操作结果，成功返回 `success: true`
+
+- `PUT /address/default` - 设置默认收货地址
+  - 参数: `id` (地址ID)
+  - 返回: 操作结果，成功返回 `success: true`
+
+## 运行项目
+
+```bash
+# 安装依赖
+npm install
+
+# 启动开发服务器
+npm run dev
+
+# 构建生产版本
+npm run build
+
+# 预览生产构建
+npm run preview
+```
+
+## 数据模拟
+
+本项目使用Mock.js模拟后端API数据，各模块API接口的模拟数据是分开管理的：
+
+- 用户模块模拟数据只涉及用户相关功能
+- 商铺和商品模块模拟数据只涉及商品相关功能
+- 购物车模块模拟数据管理用户购物车状态
+- 订单模块模拟数据处理订单创建和状态变化
+- 评论模块模拟数据处理评论的增加和查询
+- 地址模块模拟数据处理收货地址的管理
+
+所有模拟数据通过Axios请求拦截器实现，开发时无需真实后端服务即可完成功能开发和测试。
+
+## 开发工具
+
+- Visual Studio Code
+- Vue.js Devtools
+- Chrome DevTools
+- Postman (测试API)
+
+## 注意事项
+
+- 项目仅限PC端使用，未做移动端适配
+- 开发环境下使用Mock数据，生产环境可配置真实后端API
+- 真实后端使用Springboot项目
+- 目前Token有效期为30分钟，用户活跃时自动刷新
+- 图片资源使用模拟数据，实际项目中应替换为真实图片资源
+- 支付功能仅做模拟，无真实支付功能
+- 物流跟踪功能使用高德地图API，需要配置有效的高德地图Key

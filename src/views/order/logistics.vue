@@ -85,7 +85,7 @@ const updateLogisticsRecords = () => {
   const shopCity = shop.value.address || '上海市'
   const receiverCity = order.value.addressDetail ? order.value.addressDetail.split('市')[0] + '市' : '河南省南阳市'
   // 将时间字符串转换为时间戳
-  const Time = new Date(order.value.deliveryTime).getTime()
+  const Time = new Date(order.value.payTime).getTime()
 
   // 更新物流记录中的地点信息
   logisticsInfo.value.records = [

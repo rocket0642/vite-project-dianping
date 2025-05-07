@@ -30,6 +30,16 @@ export function loginByPassword(phone, password) {
 }
 
 /**
+ * 退出登录
+ * @returns {Promise} - 退出登录结果
+ */
+export function userLogout() {
+  return request({
+    url: '/user/logout',
+    method: 'post'
+  })
+}
+/**
  * 获取验证码
  * @param {string} phone - 手机号
  * @returns {Promise} - 获取验证码结果
@@ -107,7 +117,37 @@ export function updateUserDetail(data) {
 export function resetPassword(phone, code, password) {
   return request({
     url: '/user/reset-password',
-    method: 'post',
-    params: { phone, code, password }
+    method: 'put',
+    data: { phone, code, password }
   })
 }
+
+/**
+ * 上传图片
+ * @param {FormData} formData - 包含文件和其他参数的FormData对象
+ * @returns {Promise} - 上传结果
+ */
+export function uploadImage(formData) {
+  return request({
+    url: '/upload/save',
+    method: 'post',
+    data: formData,
+    headers: {
+      'Content-Type': 'multipart/form-data'
+    }
+  })
+}
+
+/**
+ * 删除图片
+ * @param {string} url - 图片URL
+ * @returns {Promise} - 删除结果
+ */
+export function uploadDelete(url) {
+  return request({
+    url: '/upload/delete',
+    method: 'delete',
+    params: { filename: url }
+  })
+}
+

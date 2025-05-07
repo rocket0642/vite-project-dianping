@@ -1,6 +1,6 @@
 import { defineStore } from 'pinia'
 import { computed, ref } from 'vue'
-import { getCode, getUserInfo, login, register, resetPassword } from '../api/user'
+import { getCode, getUserInfo, login, register, resetPassword, uploadDelete, uploadImage, userLogout } from '../api/user'
 import { useCartStore } from './cart'
 
 /**
@@ -18,19 +18,19 @@ export const useUserStore = defineStore('user', () => {
   const TOKEN_EXPIRE_TIME = 30 * 60 * 1000 // 30分钟
   // 计算属性
   const isLogin = computed(() => !!token.value)
-  
+
   /**
    * 设置Token过期时间（10分钟）
    */
   function setTokenExpireTime() {
     // 设置10分钟后过期
     tokenExpireTime.value = Date.now() + TOKEN_EXPIRE_TIME
-    
+
     // 清除旧定时器
     if (tokenTimer.value) {
       clearTimeout(tokenTimer.value)
     }
-    
+
     // 设置新定时器
     tokenTimer.value = setTimeout(() => {
       // 时间到，自动登出
@@ -40,7 +40,7 @@ export const useUserStore = defineStore('user', () => {
       }
     }, TOKEN_EXPIRE_TIME)
   }
-  
+
   /**
    * 刷新Token过期时间
    */
@@ -49,7 +49,7 @@ export const useUserStore = defineStore('user', () => {
       setTokenExpireTime()
     }
   }
-  
+
   /**
    * 验证码登录
    * @param {string} phone - 手机号
@@ -93,7 +93,7 @@ export const useUserStore = defineStore('user', () => {
       throw error
     }
   }
-  
+
   /**
    * 获取验证码
    * @param {string} phone - 手机号
@@ -102,7 +102,7 @@ export const useUserStore = defineStore('user', () => {
   async function fetchCode(phone, type) {
     return await getCode(phone, type)
   }
-  
+
   /**
    * 获取用户信息
    * @returns {Promise} - 用户信息
@@ -121,33 +121,69 @@ export const useUserStore = defineStore('user', () => {
       throw error
     }
   }
-  
+
   /**
    * 退出登录
    */
-  function logout() {
-    // 清除token和相关数据
-    token.value = ''
-    userInfo.value = {}
-    userPhone.value = null
-    tokenExpireTime.value = null
-    
-    // 清除定时器
-    if (tokenTimer.value) {
-      clearTimeout(tokenTimer.value)
-      tokenTimer.value = null
-    }
-    
-    // 清除user-store
-    sessionStorage.removeItem('user-store')
+  async function logout() {
+    try {
+      const res = await userLogout()
+      if (res.success) {
+        // 清除token和相关数据
+        token.value = ''
+        userInfo.value = {}
+        userPhone.value = null
+        tokenExpireTime.value = null
 
-    // 退出登录后重新加载购物车数据（切换到游客购物车）
-    const cartStore = useCartStore()
-    if (cartStore) {
-      cartStore.switchUserCart(null)
+        // 清除定时器
+        if (tokenTimer.value) {
+          clearTimeout(tokenTimer.value)
+          tokenTimer.value = null
+        }
+
+        // 清除user-store
+        sessionStorage.removeItem('user-store')
+
+        // 退出登录后重新加载购物车数据（切换到游客购物车）
+        const cartStore = useCartStore()
+        if (cartStore) {
+          cartStore.switchUserCart(null)
+        }
+      }
+      return res
+    } catch (error) {
+      throw error
     }
   }
-  
+
+  /**
+   * 上传用户图片
+   * @param {FormData} formData - 包含文件和其他参数的FormData对象
+   * @returns {Promise} - 上传结果
+   */
+  async function uploadUserSave(formData) {
+    try {
+      const res = await uploadImage(formData)
+      return res
+    } catch (error) {
+      throw error
+    }
+  }
+
+  /**
+   * 删除图片
+   * @param {string} url - 图片URL
+   * @returns {Promise} - 删除结果
+   */
+  async function uploadUserDelete(url) {
+    try {
+      const res = await uploadDelete(url)
+      return res
+    } catch (error) {
+      throw error
+    }
+  }
+
   /**
    * 检查Token是否过期
    * @returns {boolean} - 是否过期
@@ -155,7 +191,7 @@ export const useUserStore = defineStore('user', () => {
   function isTokenExpired() {
     return tokenExpireTime.value && Date.now() > tokenExpireTime.value
   }
-  
+
   /**
    * 重置密码
    * @param {string} phone - 手机号
@@ -171,7 +207,7 @@ export const useUserStore = defineStore('user', () => {
       throw error
     }
   }
-  
+
   // 使用持久化的数据初始化
   if (token.value) {
     // 如果有token，检查是否过期
@@ -187,7 +223,7 @@ export const useUserStore = defineStore('user', () => {
       })
     }
   }
-  
+
   return {
     token,
     userInfo,
@@ -201,7 +237,9 @@ export const useUserStore = defineStore('user', () => {
     logout,
     isTokenExpired,
     userRegister,
-    resetUserPassword
+    resetUserPassword,
+    uploadUserSave,
+    uploadUserDelete
   }
 }, {
   persist: {

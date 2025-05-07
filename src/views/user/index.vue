@@ -222,7 +222,7 @@ const initMonthlySpendingChart = () => {
   // 设置图表配置
   const option = {
     title: {
-      text: '近7天消费趋势',
+      text: '近14天消费趋势',
       left: 'center'
     },
     tooltip: {
@@ -314,11 +314,11 @@ const handleAvatarChange = (file) => {
       ElMessage.error('图片大小不能超过2MB！')
       return false
     }
-    
+
     // 创建临时URL预览图片
     editForm.value.icon = URL.createObjectURL(file.raw)
     ElMessage.success('头像已选择')
-    
+
     // 这里可以保存文件对象以便后续处理
     editForm.value.iconFile = file.raw
     return false // 阻止自动上传
@@ -332,17 +332,35 @@ const submitEditForm = async () => {
   try {
     // 如果有新上传的头像文件，处理文件上传
     if (editForm.value.iconFile) {
-      // 在实际应用中，这里会使用FormData上传文件
+      // 1. 如果有原头像，先删除原头像
+      if (userInfo.value.icon && userInfo.value.icon.includes('/imgs/')) {
+        try {
+          // 调用删除图片API
+          const deleteRes = await userStore.uploadUserDelete(userInfo.value.icon)
+          if (deleteRes.success) {
+            console.log('原头像删除成功')
+          } else {
+            console.warn('原头像删除失败:', deleteRes.errorMsg)
+          }
+        } catch (error) {
+          console.error('删除原头像出错:', error)
+        }
+      }
+
+      // 2. 上传新头像
       const formData = new FormData()
       formData.append('file', editForm.value.iconFile)
-      
-      // 模拟上传成功
-      // 在实际项目中，这里应该调用后端API上传文件
-      // const uploadRes = await uploadUserAvatar(formData)
-      // editForm.value.icon = uploadRes.data.url
-      
-      // 暂时直接使用本地预览URL(仅测试用)
-      console.log('文件将被上传:', editForm.value.iconFile.name)
+      formData.append('type', 'icon')
+
+      // 调用API上传头像
+      const uploadRes = await userStore.uploadUserSave(formData)
+      if (uploadRes.success) {
+        // 更新表单中的头像URL为服务器返回的URL
+        editForm.value.icon = uploadRes.data
+      } else {
+        ElMessage.error('头像上传失败')
+        return
+      }
     }
 
     // 更新基本信息
@@ -681,14 +699,8 @@ onUnmounted(() => {
         <!-- 基本信息 -->
         <h4 class="form-section-title">基本信息</h4>
         <el-form-item label="头像">
-          <el-upload
-            class="avatar-uploader"
-            action="#"
-            :auto-upload="false"
-            :show-file-list="false"
-            :on-change="handleAvatarChange"
-            accept="image/jpeg,image/png,image/gif"
-          >
+          <el-upload class="avatar-uploader" action="#" :auto-upload="false" :show-file-list="false"
+            :on-change="handleAvatarChange" accept="image/jpeg,image/png,image/gif">
             <img v-if="editForm.icon" :src="editForm.icon" class="avatar">
             <el-icon v-else class="avatar-uploader-icon">
               <Plus />
