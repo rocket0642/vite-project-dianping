@@ -1,9 +1,9 @@
 <script setup>
-import { ElMessage } from 'element-plus'
-import { reactive, ref, onMounted } from 'vue'
+import { ElMessage, ElPopover } from 'element-plus'
+import { reactive, ref, onMounted, computed } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useUserStore } from '../../stores/user'
-import { getCookie } from '../../utils/cookie'
+import { getCookie, getHistoryAccounts, removeHistoryAccount, saveHistoryAccount } from '../../utils/cookie'
 
 // 获取路由实例和用户状态管理
 const router = useRouter()
@@ -19,6 +19,29 @@ const loginForm = reactive({
   code: '',
   password: ''
 })
+
+// 历史账号
+const historyAccounts = ref([])
+const showHistory = ref(false)
+
+// 获取历史账号
+const fetchHistoryAccounts = () => {
+  historyAccounts.value = getHistoryAccounts()
+}
+
+// 选择历史账号
+const selectAccount = (phone) => {
+  loginForm.phone = phone
+  showHistory.value = false
+}
+
+// 删除历史账号
+const deleteAccount = (e, phone) => {
+  e.stopPropagation() // 阻止事件冒泡
+  removeHistoryAccount(phone)
+  fetchHistoryAccounts()
+  ElMessage.success('已删除该账号记录')
+}
 
 // 表单校验规则
 const rules = {
@@ -128,12 +151,19 @@ const handleLogin = async () => {
     }
 
     if (res && res.success) {
+      // 将成功登录的账号添加到历史记录
+      saveHistoryAccount(loginForm.phone)
+
       ElMessage.success('登录成功')
       // 添加调试代码
       console.log('登录信息已保存到存储中:', localStorage.getItem('user-store-data'))
       // 登录成功后跳转
-      const redirectUrl = route.query.redirect || '/'
-      router.replace(redirectUrl)
+      if (userStore.isAdmin) {
+        router.push('/admin')
+      } else {
+        const redirectUrl = route.query.redirect || '/'
+        router.replace(redirectUrl)
+      }
     } else if (res) {
       ElMessage.error(res.errorMsg || '登录失败')
     }
@@ -170,7 +200,13 @@ const goToForgetPassword = () => {
   router.push('/forget-password')
 }
 
+// 是否有历史账号
+const hasHistoryAccounts = computed(() => historyAccounts.value.length > 0)
+
 onMounted(() => {
+  // 获取历史账号列表
+  fetchHistoryAccounts()
+
   // 自动填充上次使用的手机号
   const lastPhone = getCookie('last_phone')
   if (lastPhone) {
@@ -211,13 +247,35 @@ onMounted(() => {
       <el-form ref="formRef" :model="loginForm" :rules="rules" label-position="top" class="login-form">
         <!-- 手机号输入框 -->
         <el-form-item prop="phone" label="手机号">
-          <el-input v-model="loginForm.phone" placeholder="请输入手机号" maxlength="11">
-            <template #prefix>
-              <el-icon>
-                <Iphone />
-              </el-icon>
-            </template>
-          </el-input>
+          <div class="phone-input-group">
+            <el-input v-model="loginForm.phone" placeholder="请输入手机号" maxlength="11"
+              @focus="showHistory = hasHistoryAccounts">
+              <template #prefix>
+                <el-icon>
+                  <Iphone />
+                </el-icon>
+              </template>
+              <template #suffix v-if="hasHistoryAccounts">
+                <el-icon class="history-icon" @click="showHistory = !showHistory">
+                  <ArrowDown v-if="!showHistory" />
+                  <ArrowUp v-else />
+                </el-icon>
+              </template>
+            </el-input>
+
+            <!-- 历史账号下拉框 -->
+            <div class="history-dropdown" v-if="showHistory && hasHistoryAccounts">
+              <ul class="history-list">
+                <li v-for="account in historyAccounts" :key="account" @click="selectAccount(account)"
+                  class="history-item">
+                  <span>{{ account }}</span>
+                  <el-icon class="delete-icon" @click.stop="deleteAccount($event, account)">
+                    <Delete />
+                  </el-icon>
+                </li>
+              </ul>
+            </div>
+          </div>
         </el-form-item>
 
         <!-- 验证码登录 -->
@@ -385,5 +443,58 @@ onMounted(() => {
 .forget-link {
   color: #409eff;
   cursor: pointer;
+}
+
+/* 历史账号下拉菜单样式 */
+.phone-input-group {
+  position: relative;
+}
+
+.history-icon {
+  cursor: pointer;
+  color: #909399;
+}
+
+.history-dropdown {
+  position: absolute;
+  top: 100%;
+  left: 0;
+  width: 100%;
+  max-height: 200px;
+  overflow-y: auto;
+  background: white;
+  border: 1px solid #e4e7ed;
+  border-radius: 4px;
+  box-shadow: 0 2px 12px 0 rgba(0, 0, 0, 0.1);
+  z-index: 100;
+  margin-top: 5px;
+}
+
+.history-list {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+}
+
+.history-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 8px 16px;
+  cursor: pointer;
+  transition: background-color 0.3s;
+}
+
+.history-item:hover {
+  background-color: #f5f7fa;
+}
+
+.delete-icon {
+  color: #909399;
+  font-size: 16px;
+}
+
+.delete-icon:hover {
+  color: #f56c6c;
 }
 </style>

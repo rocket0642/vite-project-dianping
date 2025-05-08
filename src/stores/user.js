@@ -15,6 +15,7 @@ export const useUserStore = defineStore('user', () => {
   const tokenExpireTime = ref(null) // Token过期时间
   const tokenTimer = ref(null) // 定时器引用
   const rememberMe = ref(false) // 添加记住我状态
+  const isAdmin = ref(false) // 添加管理员状态
   // token时效
   const TOKEN_EXPIRE_TIME = 30 * 60 * 1000 // 30分钟
   // 计算属性
@@ -63,7 +64,8 @@ export const useUserStore = defineStore('user', () => {
     try {
       const res = await login(phone, code, password)
       if (res.success) {
-        token.value = res.data
+        token.value = res.data.token
+        isAdmin.value = res.data.isAdmin
         userPhone.value = phone
         rememberMe.value = remember // 保存记住我状态
         // 设置Token过期时间
@@ -242,6 +244,7 @@ export const useUserStore = defineStore('user', () => {
     userPhone,
     tokenExpireTime,
     isLogin,
+    isAdmin,
     userLogin,
     fetchCode,
     fetchUserInfo,
