@@ -333,7 +333,7 @@ const submitEditForm = async () => {
     // 如果有新上传的头像文件，处理文件上传
     if (editForm.value.iconFile) {
       // 1. 如果有原头像，先删除原头像
-      if (userInfo.value.icon && userInfo.value.icon.includes('/imgs/')) {
+      if (userInfo.value.icon) {
         try {
           // 调用删除图片API
           const deleteRes = await userStore.uploadUserDelete(userInfo.value.icon)
