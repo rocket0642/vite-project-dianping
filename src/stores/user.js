@@ -9,21 +9,22 @@ import { useCartStore } from './cart'
  */
 export const useUserStore = defineStore('user', () => {
   // 状态
-  const token = ref('')
-  const userInfo = ref({})
+  const token = ref(null)
+  const userInfo = ref(null)
   const userPhone = ref(null)
   const tokenExpireTime = ref(null) // Token过期时间
   const tokenTimer = ref(null) // 定时器引用
+  const rememberMe = ref(false) // 添加记住我状态
   // token时效
   const TOKEN_EXPIRE_TIME = 30 * 60 * 1000 // 30分钟
   // 计算属性
   const isLogin = computed(() => !!token.value)
 
   /**
-   * 设置Token过期时间（10分钟）
+   * 设置Token过期时间（30分钟）
    */
   function setTokenExpireTime() {
-    // 设置10分钟后过期
+    // 设置30分钟后过期
     tokenExpireTime.value = Date.now() + TOKEN_EXPIRE_TIME
 
     // 清除旧定时器
@@ -55,14 +56,16 @@ export const useUserStore = defineStore('user', () => {
    * @param {string} phone - 手机号
    * @param {string} code - 验证码
    * @param {string} password - 密码
+   * @param {boolean} remember - 是否记住登录状态
    * @returns {Promise} - 登录结果
    */
-  async function userLogin(phone, code, password) {
+  async function userLogin(phone, code, password, remember = false) {
     try {
       const res = await login(phone, code, password)
       if (res.success) {
         token.value = res.data
         userPhone.value = phone
+        rememberMe.value = remember // 保存记住我状态
         // 设置Token过期时间
         setTokenExpireTime()
         await fetchUserInfo()
@@ -100,7 +103,12 @@ export const useUserStore = defineStore('user', () => {
    * @returns {Promise} - 获取验证码结果
    */
   async function fetchCode(phone, type) {
-    return await getCode(phone, type)
+    try {
+      const res = await getCode(phone, type)
+      return res
+    } catch (error) {
+      throw error
+    }
   }
 
   /**
@@ -109,7 +117,7 @@ export const useUserStore = defineStore('user', () => {
    */
   async function fetchUserInfo() {
     try {
-      if (Object.keys(userInfo.value).length > 0) {
+      if (userInfo.value) {
         return userInfo.value
       }
       const res = await getUserInfo()
@@ -123,35 +131,39 @@ export const useUserStore = defineStore('user', () => {
   }
 
   /**
+   * 清除用户数据但不跳转
+   */
+  function clearUserData() {
+    // 清除token和相关数据
+    token.value = null
+    userInfo.value = null
+    userPhone.value = null
+    tokenExpireTime.value = null
+    rememberMe.value = false
+
+    // 清除定时器
+    if (tokenTimer.value) {
+      clearTimeout(tokenTimer.value)
+      tokenTimer.value = null
+    }
+
+    // 切换到游客购物车
+    const cartStore = useCartStore()
+    if (cartStore) {
+      cartStore.switchUserCart(null)
+    }
+  }
+
+  /**
    * 退出登录
    */
   async function logout() {
     try {
-      const res = await userLogout()
-      if (res.success) {
-        // 清除token和相关数据
-        token.value = ''
-        userInfo.value = {}
-        userPhone.value = null
-        tokenExpireTime.value = null
-
-        // 清除定时器
-        if (tokenTimer.value) {
-          clearTimeout(tokenTimer.value)
-          tokenTimer.value = null
-        }
-
-        // 清除user-store
-        sessionStorage.removeItem('user-store')
-
-        // 退出登录后重新加载购物车数据（切换到游客购物车）
-        const cartStore = useCartStore()
-        if (cartStore) {
-          cartStore.switchUserCart(null)
-        }
-      }
+      const res = await userLogout(userPhone.value)
+      clearUserData()
       return res
     } catch (error) {
+      clearUserData()
       throw error
     }
   }
@@ -239,12 +251,46 @@ export const useUserStore = defineStore('user', () => {
     userRegister,
     resetUserPassword,
     uploadUserSave,
-    uploadUserDelete
+    uploadUserDelete,
+    clearUserData,
+    rememberMe
   }
 }, {
   persist: {
-    key: 'user-store',
-    storage: sessionStorage,
-    paths: ['token', 'userPhone', 'userInfo', 'tokenExpireTime']
+    key: 'user-store-data',
+    // 根据rememberMe决定使用哪种存储方式
+    storage: {
+      getItem: (key) => {
+        // 先从localStorage获取rememberMe状态
+        const storeData = localStorage.getItem(key)
+        if (storeData) {
+          const data = JSON.parse(storeData)
+          // 如果localStorage有数据并且rememberMe为true，使用localStorage
+          if (data?.rememberMe) {
+            return storeData
+          }
+        }
+        // 否则尝试从sessionStorage获取
+        return sessionStorage.getItem(key)
+      },
+      setItem: (key, value) => {
+        const data = JSON.parse(value)
+        // 根据rememberMe决定存储位置
+        if (data?.rememberMe) {
+          localStorage.setItem(key, value)
+        } else {
+          // 未勾选记住我，从localStorage中移除
+          localStorage.removeItem(key)
+          // 存入sessionStorage
+          sessionStorage.setItem(key, value)
+        }
+      },
+      removeItem: (key) => {
+        // 同时清除两处存储
+        localStorage.removeItem(key)
+        sessionStorage.removeItem(key)
+      }
+    },
+    paths: ['token', 'userPhone', 'userInfo', 'tokenExpireTime', 'rememberMe']
   }
 })

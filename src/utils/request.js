@@ -19,26 +19,23 @@ request.interceptors.request.use(
   config => {
     // 从useUserStore获取token
     const userStore = useUserStore()
-    
+
     // 检查token是否存在
     if (userStore.token) {
       // 检查token是否过期
       if (userStore.isTokenExpired()) {
-        router.push({
-          path: '/login',
-          query: { redirect: router.currentRoute.value.fullPath }
-        })
-        ElMessage.error('登录已过期，请重新登录')
+        // 先清除用户数据，不要在这里跳转
+        userStore.clearUserData()
         return Promise.reject(new Error('Token已过期'))
       }
-      
+
       // token有效，添加到请求头
       config.headers['Authorization'] = userStore.token
-      
+
       // 刷新token过期时间
       userStore.refreshTokenExpireTime()
     }
-    
+
     return config
   },
   error => Promise.reject(error)
@@ -51,13 +48,13 @@ request.interceptors.request.use(
 request.interceptors.response.use(
   response => {
     const { data } = response
-    
+
     // 每次成功响应也刷新token过期时间
     const userStore = useUserStore()
     if (userStore.token) {
       userStore.refreshTokenExpireTime()
     }
-    
+
     // 直接返回完整响应数据，包括success和data字段
     // 这样在组件中可以通过res.success判断请求是否成功
     return data
@@ -65,16 +62,11 @@ request.interceptors.response.use(
   error => {
     // 处理401未授权错误
     if (error.response && error.response.status === 401) {
-      // 清除本地token
       const userStore = useUserStore()
-      userStore.logout()
-      
-      // 跳转到登录页
-      router.push({
-        path: '/login',
-        query: { redirect: router.currentRoute.value.fullPath }
-      })
-      ElMessage.error('登录已过期，请重新登录')
+      // 只清除数据，不立即跳转
+      userStore.clearUserData()
+      // 不在拦截器中进行跳转
+      return Promise.reject({ ...error, isAuthError: true })
     } else if (error.response && error.response.data && error.response.data.errorMsg) {
       // 显示后端返回的错误信息
       ElMessage.error(error.response.data.errorMsg)

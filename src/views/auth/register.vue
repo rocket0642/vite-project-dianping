@@ -3,6 +3,7 @@ import { ElMessage } from 'element-plus'
 import { reactive, ref } from 'vue'
 import { useRouter } from 'vue-router'
 import { useUserStore } from '../../stores/user'
+import { setCookie } from '../../utils/cookie'
 
 // 获取路由实例
 const router = useRouter()
@@ -119,8 +120,12 @@ const handleRegister = async () => {
   try {
     // 调用注册接口
     const res = await userStore.userRegister(registerForm)
+    console.log(res)
 
     if (res.success) {
+      // 保存用户偏好
+      saveUserPreferences(registerForm.phone)
+
       ElMessage.success('注册成功，请登录')
       // 注册成功后跳转到登录页
       router.push('/login')
@@ -139,6 +144,17 @@ const handleRegister = async () => {
  */
 const goToLogin = () => {
   router.push('/login')
+}
+
+// 注册成功后保存用户的默认偏好
+const saveUserPreferences = (phone) => {
+  // 保存最近注册的手机号，便于下次登录
+  setCookie('last_phone', phone, 7)
+
+  // 保存其他用户偏好信息，如果有的话
+  // if (otherForm.agreeMarketing) {
+  //   setCookie('marketing_pref', 'true', 365)
+  // }
 }
 </script>
 

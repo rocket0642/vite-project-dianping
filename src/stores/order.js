@@ -14,7 +14,7 @@ export const useOrderStore = defineStore('order', () => {
   const loading = ref(false)
   const total = ref(0)
   const orderTimers = ref({}) // 存储订单倒计时信息
-  
+
   // 订单列表页面状态
   const orderListPageState = ref({
     activeTab: 'all',
@@ -293,11 +293,5 @@ export const useOrderStore = defineStore('order', () => {
     getOrderRemainingTime,
     clearOrderCountdown,
     fetchOrderStatistics,
-  }
-}, {
-  persist: {
-    key: 'order-store',
-    storage: sessionStorage,
-    paths: ['orderListPageState']  // 仅持久化列表页面状态
   }
 })

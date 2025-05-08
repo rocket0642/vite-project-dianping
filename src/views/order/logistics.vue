@@ -104,7 +104,7 @@ const updateLogisticsRecords = () => {
 const loadMapScript = () => {
   return new Promise((resolve, reject) => {
     console.log('开始加载高德地图脚本...')
-    
+
     // 先检查地图是否已加载
     if (window.AMap) {
       console.log('检测到高德地图已加载')
@@ -112,22 +112,22 @@ const loadMapScript = () => {
       resolve(window.AMap)
       return
     }
-    
+
     // 先清除可能存在的脚本，避免多个key冲突
     const existingScript = document.getElementById('amap-script')
     if (existingScript) {
       document.head.removeChild(existingScript)
     }
-    
+
     // 设置全局回调函数
     const callbackName = 'initAMap_' + Date.now()
-    window[callbackName] = function() {
+    window[callbackName] = function () {
       console.log('高德地图脚本加载成功(通过回调)')
       delete window[callbackName]
       AMap.value = window.AMap
       resolve(window.AMap)
     }
-    
+
     // 创建新的脚本元素 - 使用CDN地址和回调
     const script = document.createElement('script')
     script.id = 'amap-script'
@@ -141,7 +141,7 @@ const loadMapScript = () => {
       createFallbackMap()
       reject(new Error('地图脚本加载失败，已使用备用地图'))
     }
-    
+
     // 设置超时处理
     const timeout = setTimeout(() => {
       console.error('地图脚本加载超时')
@@ -149,14 +149,14 @@ const loadMapScript = () => {
       createFallbackMap()
       reject(new Error('地图脚本加载超时，已使用备用地图'))
     }, 10000) // 10秒超时
-    
+
     // 添加成功回调以清除超时计时器
     const originalCallback = window[callbackName]
-    window[callbackName] = function() {
+    window[callbackName] = function () {
       clearTimeout(timeout)
       originalCallback()
     }
-    
+
     document.head.appendChild(script)
     console.log('高德地图脚本已添加到页面')
   })
@@ -168,32 +168,32 @@ const loadMapScript = () => {
 const createFallbackMap = () => {
   console.log('创建备用地图...')
   mapLoading.value = false
-  
+
   // 检查容器是否存在
   if (!mapContainer.value) {
     console.error('地图容器不存在')
     return
   }
-  
+
   // 安全获取地址信息
   let shopCity = '发货地'
   let receiverCity = '收货地'
   let logisticsNumber = 'SF1234567890'
   let logisticsCompany = '顺丰速运'
-  
+
   try {
     // 尝试从order和shop中获取信息
     if (shop.value && shop.value.address) {
       const address = shop.value.address
       shopCity = address.includes('市') ? address.split('市')[0] + '市' : address
     }
-    
+
     if (order.value) {
       if (order.value.addressDetail) {
         const address = order.value.addressDetail
         receiverCity = address.includes('市') ? address.split('市')[0] + '市' : address
       }
-      
+
       // 尝试获取物流信息
       logisticsNumber = order.value.logisticsId || logisticsInfo.value.number || 'SF1234567890'
       logisticsCompany = order.value.logisticsCompany || logisticsInfo.value.company || '顺丰速运'
@@ -201,7 +201,7 @@ const createFallbackMap = () => {
   } catch (error) {
     console.error('获取地址信息失败:', error)
   }
-  
+
   // 创建一个简单的div作为备用地图，包含基本物流路线信息
   const fallbackMapContainer = mapContainer.value
   fallbackMapContainer.innerHTML = `
@@ -268,19 +268,19 @@ const getAddressCoordinates = (address, city) => {
       resolve([116.397428, 39.90923]) // 默认北京坐标
       return
     }
-    
+
     try {
       console.log(`开始地理编码: 地址=${address}, 城市=${city}`)
-      
+
       // 创建地理编码实例
       const geocoder = new AMap.value.Geocoder({
         city: city // 城市，默认"全国"
       })
-      
+
       // 地理编码,返回地理编码结果
       geocoder.getLocation(address, (status, result) => {
         console.log('地理编码结果:', status, result)
-        
+
         if (status === 'complete' && result.info === 'OK') {
           if (result.geocodes.length > 0) {
             const location = result.geocodes[0].location
@@ -326,7 +326,7 @@ const getFallbackCoordinates = (city) => {
     '西安市': [108.9402, 34.3416],
     '河南省南阳市': [112.5283, 32.9908]
   }
-  
+
   // 尝试从城市名中提取主要城市
   let cityName = city
   for (const key in cityCoordinates) {
@@ -335,7 +335,7 @@ const getFallbackCoordinates = (city) => {
       break
     }
   }
-  
+
   // 返回找到的城市坐标或默认坐标（上海）
   return cityCoordinates[cityName] || [121.4737, 31.2304]
 }
@@ -349,38 +349,38 @@ const initMap = async () => {
     console.error('地图容器元素不存在')
     return
   }
-  
+
   try {
     mapLoading.value = true
     console.log('初始化地图...')
-    
+
     // 设置尺寸，确保容器可见
     mapContainer.value.style.height = '300px'
     mapContainer.value.style.width = '100%'
-    
+
     // 加载高德地图脚本
     await loadMapScript()
-    
+
     // 获取物流起点和终点坐标
     // 从订单和店铺信息中获取实际地址
     const shopAddress = shop.value.address || '上海市'
-    const shopCity = shopAddress.includes('市') ? 
+    const shopCity = shopAddress.includes('市') ?
       shopAddress.split('市')[0] + '市' : '上海市'
     const receiverAddress = order.value.addressDetail || '河南省南阳市'
-    const receiverCity = receiverAddress.includes('市') ? 
+    const receiverCity = receiverAddress.includes('市') ?
       receiverAddress.split('市')[0] + '市' : '河南省南阳市'
-    
+
     console.log('发货地址:', shopAddress)
     console.log('收货地址:', receiverAddress)
-    
+
     // 异步获取坐标
     try {
       const startPosition = await getAddressCoordinates(shopAddress, shopCity)
       const endPosition = await getAddressCoordinates(receiverAddress, receiverCity)
-      
+
       console.log('起点坐标:', startPosition)
       console.log('终点坐标:', endPosition)
-      
+
       // 创建地图实例
       console.log('创建地图实例...')
       mapInstance.value = new AMap.value.Map(mapContainer.value, {
@@ -388,7 +388,7 @@ const initMap = async () => {
         center: [(startPosition[0] + endPosition[0]) / 2, (startPosition[1] + endPosition[1]) / 2], // 居中显示
         resizeEnable: true
       })
-      
+
       // 添加地图控件
       try {
         mapInstance.value.addControl(new AMap.value.ToolBar())
@@ -396,21 +396,21 @@ const initMap = async () => {
       } catch (error) {
         console.warn('添加地图控件失败:', error)
       }
-      
+
       // 创建起点标记
       new AMap.value.Marker({
         position: startPosition,
         map: mapInstance.value,
         title: `发货地-${shopCity}`
       })
-      
+
       // 创建终点标记
       new AMap.value.Marker({
         position: endPosition,
         map: mapInstance.value,
         title: `收货地-${receiverCity}`
       })
-      
+
       // 创建路线
       await createRoute(startPosition, endPosition)
       mapLoading.value = false
@@ -420,7 +420,7 @@ const initMap = async () => {
       createFallbackMap()
       mapLoading.value = false
     }
-    
+
   } catch (error) {
     console.error('地图加载失败:', error)
     mapLoading.value = false
@@ -446,7 +446,7 @@ const createRoute = async (start, end) => {
         panel: false, // 不使用路线详情面板
         policy: AMap.value.DrivingPolicy.LEAST_TIME // 最快路线
       })
-      
+
       // 异步路线规划
       await new Promise((resolve, reject) => {
         driving.search(
@@ -470,7 +470,7 @@ const createRoute = async (start, end) => {
       // 使用备用折线
       createBackupRoute(start, end)
     }
-    
+
     // 调整地图视野以包含所有点
     mapInstance.value.setFitView()
   } catch (error) {
@@ -498,7 +498,7 @@ const createBackupRoute = (start, end) => {
       [start[0] + (end[0] - start[0]) * 0.75, start[1] + (end[1] - start[1]) * 0.7],
       end
     ]
-    
+
     // 创建折线
     const polyline = new AMap.value.Polyline({
       path: path,
@@ -509,13 +509,13 @@ const createBackupRoute = (start, end) => {
       lineJoin: 'round',       // 折线拐点连接处样式
       lineCap: 'round'         // 折线两端线帽样式
     })
-    
+
     // 将折线添加到地图
     polyline.setMap(mapInstance.value)
-    
+
     // 添加物流节点标记
     addBackupLogisticsNodes(path)
-    
+
     // 调整地图视野以包含所有点
     mapInstance.value.setFitView()
   } catch (error) {
@@ -571,8 +571,14 @@ onBeforeUnmount(() => {
     if (mapInstance.value) {
       mapInstance.value.destroy()
       mapInstance.value = null
-      console.log('地图实例已销毁')
     }
+
+    // 清除高德地图相关的本地存储
+    Object.keys(localStorage).forEach(key => {
+      if (key.startsWith('_AMap_')) {
+        localStorage.removeItem(key)
+      }
+    })
 
     // 清除全局变量和回调
     if (window.initAMap) {

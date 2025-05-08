@@ -1,16 +1,17 @@
 <script setup>
 import { ElMessage } from 'element-plus'
-import { reactive, ref } from 'vue'
+import { reactive, ref, onMounted } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useUserStore } from '../../stores/user'
+import { getCookie } from '../../utils/cookie'
 
 // 获取路由实例和用户状态管理
 const router = useRouter()
 const route = useRoute()
 const userStore = useUserStore()
 
-// 登录方式切换
-const loginType = ref('code') // 'code'为验证码登录，'password'为密码登录
+// 登录方式切换 - 修改为默认密码登录
+const loginType = ref('password') // 'password'为密码登录，'code'为验证码登录
 
 // 表单数据
 const loginForm = reactive({
@@ -46,6 +47,8 @@ const codeButtonStatus = reactive({
   countdown: 60
 })
 
+const rememberMe = ref(false)
+
 /**
  * 获取验证码
  */
@@ -56,23 +59,23 @@ const getCode = async () => {
   } catch (error) {
     return
   }
-  
+
   // 禁用按钮并开始倒计时
   codeButtonStatus.disabled = true
   codeButtonStatus.countdown = 60
   codeButtonStatus.text = `${codeButtonStatus.countdown}秒后重新获取`
-  
+
   codeButtonStatus.timer = setInterval(() => {
     codeButtonStatus.countdown--
     codeButtonStatus.text = `${codeButtonStatus.countdown}秒后重新获取`
-    
+
     if (codeButtonStatus.countdown <= 0) {
       clearInterval(codeButtonStatus.timer)
       codeButtonStatus.disabled = false
       codeButtonStatus.text = '获取验证码'
     }
   }, 1000)
-  
+
   // 调用获取验证码接口
   try {
     const res = await userStore.fetchCode(loginForm.phone, 'login')
@@ -104,18 +107,30 @@ const handleLogin = async () => {
   } catch (error) {
     return
   }
-  
+
   try {
     let res;
     // 根据登录方式调用不同的登录接口
     if (loginType.value === 'code') {
-      res = await userStore.userLogin(loginForm.phone, loginForm.code, null)
+      res = await userStore.userLogin(
+        loginForm.phone,
+        loginForm.code,
+        null,
+        rememberMe.value
+      )
     } else {
-      res = await userStore.userLogin(loginForm.phone, null, loginForm.password)
+      res = await userStore.userLogin(
+        loginForm.phone,
+        null,
+        loginForm.password,
+        rememberMe.value
+      )
     }
-    
+
     if (res && res.success) {
       ElMessage.success('登录成功')
+      // 添加调试代码
+      console.log('登录信息已保存到存储中:', localStorage.getItem('user-store-data'))
       // 登录成功后跳转
       const redirectUrl = route.query.redirect || '/'
       router.replace(redirectUrl)
@@ -129,7 +144,7 @@ const handleLogin = async () => {
     if (error.errorMsg) {
       ElMessage.error(error.errorMsg)
     } else {
-      ElMessage.error('登录失败，请稍后重试')  
+      ElMessage.error('登录失败，请稍后重试')
     }
   }
 }
@@ -154,6 +169,22 @@ const goToRegister = () => {
 const goToForgetPassword = () => {
   router.push('/forget-password')
 }
+
+onMounted(() => {
+  // 自动填充上次使用的手机号
+  const lastPhone = getCookie('last_phone')
+  if (lastPhone) {
+    loginForm.phone = lastPhone
+  }
+
+  // 仅当记住我状态为true时才执行自动登录
+  if (userStore.isLogin && userStore.rememberMe) {
+    router.push('/')
+  } else if (userStore.isLogin && !userStore.rememberMe) {
+    // 未勾选记住我但token有效，应清除登录状态
+    userStore.clearUserData()
+  }
+})
 </script>
 
 <template>
@@ -163,105 +194,86 @@ const goToForgetPassword = () => {
         <h2>欢迎登录</h2>
         <p>点评电商平台</p>
       </div>
-      
+
       <div class="back-button">
         <el-button icon="ArrowLeft" type="text" @click="$router.push('/')">返回首页</el-button>
       </div>
-      
+
       <div class="login-tabs">
-        <div 
-          :class="['tab-item', { active: loginType === 'code' }]"
-          @click="switchLoginType('code')"
-        >
-          验证码登录
-        </div>
-        <div 
-          :class="['tab-item', { active: loginType === 'password' }]"
-          @click="switchLoginType('password')"
-        >
+        <div :class="['tab-item', { active: loginType === 'password' }]" @click="switchLoginType('password')">
           密码登录
         </div>
+        <div :class="['tab-item', { active: loginType === 'code' }]" @click="switchLoginType('code')">
+          验证码登录
+        </div>
       </div>
-      
-      <el-form 
-        ref="formRef"
-        :model="loginForm"
-        :rules="rules"
-        label-position="top"
-        class="login-form"
-      >
+
+      <el-form ref="formRef" :model="loginForm" :rules="rules" label-position="top" class="login-form">
         <!-- 手机号输入框 -->
         <el-form-item prop="phone" label="手机号">
-          <el-input 
-            v-model="loginForm.phone"
-            placeholder="请输入手机号"
-            maxlength="11"
-          >
+          <el-input v-model="loginForm.phone" placeholder="请输入手机号" maxlength="11">
             <template #prefix>
-              <el-icon><Iphone /></el-icon>
+              <el-icon>
+                <Iphone />
+              </el-icon>
             </template>
           </el-input>
         </el-form-item>
-        
+
         <!-- 验证码登录 -->
         <template v-if="loginType === 'code'">
           <el-form-item prop="code" label="验证码">
             <div class="code-input-group">
-              <el-input 
-                v-model="loginForm.code"
-                placeholder="请输入验证码"
-                maxlength="6"
-              >
+              <el-input v-model="loginForm.code" placeholder="请输入验证码" maxlength="6">
                 <template #prefix>
-                  <el-icon><Key /></el-icon>
+                  <el-icon>
+                    <Key />
+                  </el-icon>
                 </template>
               </el-input>
-              <el-button 
-                type="primary" 
-                :disabled="codeButtonStatus.disabled"
-                @click="getCode"
-              >
+              <el-button type="primary" :disabled="codeButtonStatus.disabled" @click="getCode">
                 {{ codeButtonStatus.text }}
               </el-button>
             </div>
           </el-form-item>
+          <!-- 验证码登录时的记住我也放在左侧 -->
+          <div class="extra-options">
+            <el-checkbox v-model="rememberMe">记住我</el-checkbox>
+            <div></div>
+          </div>
         </template>
-        
+
         <!-- 密码登录 -->
         <template v-else>
           <el-form-item prop="password" label="密码">
-            <el-input 
-              v-model="loginForm.password"
-              type="password"
-              placeholder="请输入密码"
-              show-password
-            >
+            <el-input v-model="loginForm.password" type="password" placeholder="请输入密码" show-password>
               <template #prefix>
-                <el-icon><Lock /></el-icon>
+                <el-icon>
+                  <Lock />
+                </el-icon>
               </template>
             </el-input>
-            <div class="forget-password">
-              <a @click="goToForgetPassword">忘记密码?</a>
-            </div>
           </el-form-item>
+          <!-- 密码登录时记住我和忘记密码放在同一行 -->
+          <div class="extra-options">
+            <el-checkbox v-model="rememberMe">记住我</el-checkbox>
+            <a class="forget-link" @click="goToForgetPassword">忘记密码?</a>
+          </div>
         </template>
-        
+
         <!-- 登录按钮 -->
         <el-form-item>
-          <el-button 
-            type="primary" 
-            class="login-button"
-            @click="handleLogin"
-          >
+          <el-button type="primary" class="login-button" @click="handleLogin">
             登录
           </el-button>
         </el-form-item>
-        
+
         <!-- 注册链接 -->
         <div class="form-footer">
           <span>还没有账号？</span>
           <a @click="goToRegister">立即注册</a>
         </div>
+
       </el-form>
     </div>
   </div>
@@ -361,13 +373,16 @@ const goToForgetPassword = () => {
   z-index: 10;
 }
 
-.forget-password {
-  text-align: right;
-  margin-top: 5px;
+/* 新增样式 */
+.extra-options {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 15px;
   font-size: 14px;
 }
 
-.forget-password a {
+.forget-link {
   color: #409eff;
   cursor: pointer;
 }
