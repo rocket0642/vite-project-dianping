@@ -84,12 +84,12 @@ export const useOrderStore = defineStore('order', () => {
       loading.value = true
       const res = await getUserOrders(params)
       if (res.success) {
-        orderList.value = res.data.list
-        total.value = res.data.total || 0
+        orderList.value = res.data
+        total.value = res.total || 0
       }
       return {
-        list: res.data.list,
-        total: res.data.total
+        list: orderList.value,
+        total: total.value
       }
     } catch (error) {
       console.error('获取订单列表失败:', error)

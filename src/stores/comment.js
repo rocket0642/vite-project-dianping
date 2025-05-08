@@ -105,11 +105,11 @@ export const useCommentStore = defineStore('comment', () => {
         }
 
         // 直接使用服务器返回的评论，避免重复
-        shopComments.value[shopId] = [...res.data.list]
+        shopComments.value[shopId] = [...res.data]
 
         return {
           list: shopComments.value[shopId],
-          total: res.data.total || 0
+          total: res.total || 0
         }
       }
 

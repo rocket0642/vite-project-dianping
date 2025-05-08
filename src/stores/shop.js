@@ -15,7 +15,7 @@ export const useShopStore = defineStore('shop', () => {
   const typeShops = ref([])
   const loading = ref(false)
   const total = ref(0)
-  
+
   /**
    * 获取商铺类型列表
    * @returns {Promise} - 商铺类型列表
@@ -35,7 +35,7 @@ export const useShopStore = defineStore('shop', () => {
       loading.value = false
     }
   }
-  
+
   /**
    * 获取商铺详情
    * @param {number} id - 商铺ID
@@ -56,7 +56,7 @@ export const useShopStore = defineStore('shop', () => {
       loading.value = false
     }
   }
-  
+
   /**
    * 获取推荐商铺列表
    * @param {Object} params - 查询参数
@@ -77,7 +77,7 @@ export const useShopStore = defineStore('shop', () => {
       loading.value = false
     }
   }
-  
+
   /**
    * 按类型获取商铺
    * @param {number} typeId - 商铺类型ID
@@ -88,14 +88,14 @@ export const useShopStore = defineStore('shop', () => {
     try {
       loading.value = true
       // 确保typeId和排序参数都能正确传递
-      const queryParams = { 
-        typeId, 
-        ...params 
+      const queryParams = {
+        typeId,
+        ...params
       }
       const res = await getShopsByType(typeId, queryParams)
       if (res.success) {
-        typeShops.value = res.data.list
-        total.value = res.data.total || 0
+        typeShops.value = res.data
+        total.value = res.total || 0
       }
       return {
         list: typeShops.value,
@@ -108,7 +108,7 @@ export const useShopStore = defineStore('shop', () => {
       loading.value = false
     }
   }
-  
+
   /**
    * 搜索商铺
    * @param {string} keyword - 搜索关键词
@@ -120,8 +120,8 @@ export const useShopStore = defineStore('shop', () => {
       loading.value = true
       const res = await searchShops(keyword, params)
       if (res.success) {
-        searchResults.value = res.data.list
-        total.value = res.data.total || 0
+        searchResults.value = res.data
+        total.value = res.total || 0
       }
       return {
         list: searchResults.value,
@@ -134,7 +134,7 @@ export const useShopStore = defineStore('shop', () => {
       loading.value = false
     }
   }
-  
+
   /**
    * 更新商铺销量
    * @param {number} shopId - 商铺ID
@@ -156,7 +156,7 @@ export const useShopStore = defineStore('shop', () => {
       return false
     }
   }
-  
+
   // 计算属性
   const isLoading = computed(() => loading.value)
   const currentShop = computed(() => shopDetail.value)
@@ -165,7 +165,7 @@ export const useShopStore = defineStore('shop', () => {
   const typeFilteredShops = computed(() => typeShops.value)
   const currentSearchResults = computed(() => searchResults.value)
   const totalCount = computed(() => total.value)
-  
+
   return {
     // 状态
     shopTypes,
@@ -175,7 +175,7 @@ export const useShopStore = defineStore('shop', () => {
     typeShops,
     loading,
     total,
-    
+
     // 计算属性
     isLoading,
     currentShop,
@@ -184,7 +184,7 @@ export const useShopStore = defineStore('shop', () => {
     typeFilteredShops,
     currentSearchResults,
     totalCount,
-    
+
     // 方法
     fetchShopTypes,
     fetchShopDetail,

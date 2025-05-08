@@ -150,8 +150,8 @@ export const useGoodsStore = defineStore('goods', () => {
       loading.value = true
       const res = await searchGoods(keyword, params)
       if (res.success) {
-        searchResults.value = res.data.list
-        total.value = res.data.total || 0
+        searchResults.value = res.data
+        total.value = res.total || 0
       }
       return {
         list: searchResults.value,
