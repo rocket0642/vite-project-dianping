@@ -448,6 +448,11 @@ onMounted(() => {
 /* 历史账号下拉菜单样式 */
 .phone-input-group {
   position: relative;
+  width: 100%;
+}
+
+.phone-input-group .el-input {
+  width: 100%;
 }
 
 .history-icon {
@@ -496,5 +501,31 @@ onMounted(() => {
 
 .delete-icon:hover {
   color: #f56c6c;
+}
+
+/* 确保所有输入框样式一致 */
+.el-form-item {
+  width: 100%;
+}
+
+.el-input {
+  width: 100%;
+}
+
+.code-input-group {
+  display: flex;
+  gap: 10px;
+  width: 100%;
+}
+
+/* 修正验证码输入框组样式 */
+.code-input-group .el-input {
+  flex: 1;
+}
+
+.code-input-group .el-button {
+  flex-shrink: 0;
+  /* 可以固定宽度以保持一致性 */
+  min-width: 110px;
 }
 </style>
