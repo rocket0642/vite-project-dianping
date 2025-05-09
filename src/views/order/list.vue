@@ -48,7 +48,7 @@ const currentPage = computed({
 const total = computed(() => paginationState.value[activeTab.value].total)
 
 /**
- * 修复版loadOrders - 完全解决缓存不一致问题
+ * 修复版await loadOrders - 完全解决缓存不一致问题
  */
 const loadOrders = async () => {
   if (!userStore.isLogin) {
@@ -162,8 +162,10 @@ const updateCountdownDisplay = (orderId, milliseconds) => {
  */
 const cancelExpiredOrder = async (orderId) => {
   try {
+
+    await loadOrders()
     // 如果订单状态不是3（已取消），则先调用取消接口
-    if (orders.value && orders.value.status !== 3) {
+    if (orders.value && orders.value.status !== 3 && orders.value.status !== 2) {
       const res = await orderStore.cancelUserOrder({
         orderId,
         cancelReason: `超时自动取消`
@@ -172,8 +174,10 @@ const cancelExpiredOrder = async (orderId) => {
         ElMessage.error(res.errorMsg || '订单取消失败')
       } else {
         ElMessage.info(`订单 ${orderId} 已超时自动取消`)
-        loadOrders()
+        await loadOrders()
       }
+    } else {
+      ElMessage.info(`订单 ${orderId} 已超时自动取消`)
     }
   } catch (error) {
     console.error('取消过期订单失败:', error)
@@ -199,7 +203,7 @@ const handleTabChange = (tab) => {
   orderStore.orderListPageState.activeTab = tab;
   // 不重置页码，直接使用各自的currentPage
   router.push({ query: { status: tabToStatusMap[tab] } });
-  loadOrders();
+  await loadOrders();
 }
 
 /**
@@ -208,7 +212,7 @@ const handleTabChange = (tab) => {
 const handlePageChange = (page) => {
   // 更新store中的页面状态
   orderStore.orderListPageState.paginationState[activeTab.value].currentPage = page;
-  loadOrders();
+  await loadOrders();
 }
 
 /**
@@ -258,7 +262,7 @@ const cancelOrder = async (orderId) => {
         clearInterval(timers.value[orderId])
         delete timers.value[orderId]
       }
-      loadOrders()
+      await loadOrders()
     } else {
       ElMessage.error(res.errorMsg || '取消订单失败')
     }
@@ -276,7 +280,7 @@ const confirmOrder = async (orderId) => {
     const res = await orderStore.deliveryUserOrder(orderId)
     if (res.success) {
       ElMessage.success('已确认收货')
-      loadOrders()
+      await loadOrders()
     } else {
       ElMessage.error(res.errorMsg || '确认收货失败')
     }
@@ -460,7 +464,7 @@ watch(
         orderStore.orderListPageState.paginationState[newTab].currentPage = 1;
       }
 
-      loadOrders();
+      await loadOrders();
     }
   },
   { deep: true }
