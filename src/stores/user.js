@@ -162,7 +162,7 @@ export const useUserStore = defineStore('user', () => {
    */
   async function logout() {
     try {
-      const res = await userLogout(userPhone.value)
+      const res = await userLogout(token.value)
 
       // 清除用户数据
       clearUserData()
@@ -280,14 +280,10 @@ export const useUserStore = defineStore('user', () => {
         if (data?.rememberMe) {
           localStorage.setItem(key, value)
         } else {
-          // 未勾选记住我，从localStorage中移除
-          localStorage.removeItem(key)
-          // 存入sessionStorage
           sessionStorage.setItem(key, value)
         }
       },
       removeItem: (key) => {
-        // 同时清除两处存储
         localStorage.removeItem(key)
         sessionStorage.removeItem(key)
       }

@@ -155,8 +155,6 @@ const handleLogin = async () => {
       saveHistoryAccount(loginForm.phone)
 
       ElMessage.success('登录成功')
-      // 添加调试代码
-      console.log('登录信息已保存到存储中:', localStorage.getItem('user-store-data'))
       // 登录成功后跳转
       if (userStore.isAdmin) {
         router.push('/admin')
@@ -213,12 +211,15 @@ onMounted(() => {
     loginForm.phone = lastPhone
   }
 
-  // 仅当记住我状态为true时才执行自动登录
-  if (userStore.isLogin && userStore.rememberMe) {
-    router.push('/')
-  } else if (userStore.isLogin && !userStore.rememberMe) {
-    // 未勾选记住我但token有效，应清除登录状态
-    userStore.clearUserData()
+  // 检查登录状态和token有效性
+  if (userStore.isLogin) {
+    if (userStore.isTokenExpired()) {
+      // token已过期，清除数据
+      userStore.clearUserData()
+    } else if (userStore.rememberMe) {
+      // 记住我状态有效且token未过期，自动跳转
+      router.push(route.query.redirect || '/')
+    }
   }
 })
 </script>

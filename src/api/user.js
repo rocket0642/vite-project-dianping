@@ -33,11 +33,11 @@ export function loginByPassword(phone, password) {
  * 退出登录
  * @returns {Promise} - 退出登录结果
  */
-export function userLogout(phone) {
+export function userLogout(token) {
   return request({
     url: '/user/logout',
     method: 'post',
-    params: { phone }
+    params: { token }
   })
 }
 /**
