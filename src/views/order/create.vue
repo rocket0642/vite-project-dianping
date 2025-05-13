@@ -102,7 +102,7 @@ const createOrder = async () => {
           goodsName: item.name,
           count: item.count,
           price: item.price,
-          images: item.images,
+          goodsImage: item.images,
           skuId: item.skuId || null,
           skuName: item.skuName || null,
         })),

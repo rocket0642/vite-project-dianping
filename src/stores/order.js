@@ -87,6 +87,7 @@ export const useOrderStore = defineStore('order', () => {
         orderList.value = res.data
         total.value = res.total || 0
       }
+      console.log(orderList.value)
       return {
         list: orderList.value,
         total: total.value
