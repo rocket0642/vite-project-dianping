@@ -27,7 +27,7 @@ export const useShopStore = defineStore('shop', () => {
       if (res.success) {
         shopTypes.value = res.data
       }
-      return res.data
+      return shopTypes.value
     } catch (error) {
       console.error('获取商铺类型失败:', error)
       throw error
@@ -46,7 +46,10 @@ export const useShopStore = defineStore('shop', () => {
       loading.value = true
       const res = await getShopDetail(id)
       if (res.success) {
-        shopDetail.value = res.data
+        shopDetail.value = {
+          ...res.data,
+          typeName: shopTypes.value.find(i => i.id === res.data.typeId)?.name
+        }
       }
       return shopDetail.value
     } catch (error) {

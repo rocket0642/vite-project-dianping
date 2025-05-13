@@ -7,6 +7,8 @@ import AppLayout from '../../components/AppLayout.vue'
 import { useCommentStore } from '../../stores/comment'
 import { useGoodsStore } from '../../stores/goods'
 import { useShopStore } from '../../stores/shop'
+import { useFravoriteStore } from '../../stores/fravorite'
+import { useUserStore } from '../../stores/user'
 
 // 获取路由参数
 const route = useRoute()
@@ -15,17 +17,19 @@ const shopId = parseInt(route.params.id)
 
 // 商铺状态管理
 const shopStore = useShopStore()
-
+const favoriteStore = useFravoriteStore()
 // 商品状态管理
 const goodsStore = useGoodsStore()
 
 // 商店相关stores
 const commentStore = useCommentStore()
 
+// 获取用户状态
+const userStore = useUserStore()
+
 // 状态
 const loading = ref(true)
 const activeTab = ref('goods')
-const isCollected = ref(false)
 const commentsLoading = ref(false)
 const comments = ref([])
 const commentsTotal = ref(0)
@@ -34,7 +38,7 @@ const commentsPagination = ref({
   pageSize: 5
 })
 
-
+const isCollected = computed(() => favoriteStore.isShopFavorited(shopId))
 const shop = computed(() => shopStore.currentShop)
 const shopGoods = computed(() => goodsStore.currentShopGoods)
 
@@ -56,8 +60,24 @@ const loadShopDetail = async () => {
  * 切换收藏状态
  */
 const toggleCollection = () => {
-  isCollected.value = !isCollected.value
-  // 这里应该调用实际的收藏/取消收藏接口
+  // 检查用户是否已登录
+  if (!userStore.isLogin) {
+    // 未登录，跳转到登录页面，并记录当前页面路径
+    router.push({
+      path: '/login',
+      query: { redirect: router.currentRoute.value.fullPath }
+    })
+    return
+  }
+
+  // 用户已登录，执行收藏/取消收藏操作
+  if (!isCollected.value) {
+    // 收藏
+    favoriteStore.addFavorite(shop.value)
+  } else {
+    // 取消收藏
+    favoriteStore.removeFavorite(shop.value.id)
+  }
 }
 
 /**
@@ -81,7 +101,7 @@ const loadShopComments = async () => {
       current: commentsPagination.value.current,
       pageSize: commentsPagination.value.pageSize
     }
-    
+
     const result = await commentStore.fetchShopComments(shopId, params)
     comments.value = result.list || []
     commentsTotal.value = result.total || 0
@@ -140,6 +160,7 @@ watch(activeTab, (newTab) => {
 onMounted(() => {
   loadShopDetail()
   loadShopGoods()
+  favoriteStore.getFavoriteList()
 })
 
 // 添加手机号码隐藏方法
@@ -173,7 +194,7 @@ const hidePhone = (phone) => {
             </div>
           </div>
         </template>
-        
+
         <!-- 实际内容 -->
         <template #default>
           <div v-if="shop.id" class="shop-detail">
@@ -188,19 +209,14 @@ const hidePhone = (phone) => {
                 </div>
                 <div class="shop-info">
                   <h1 class="shop-name">{{ shop.name }}</h1>
-                  
+
                   <div class="shop-meta">
                     <div class="shop-score">
-                      <el-rate 
-                        :model-value="shop.score / 10" 
-                        disabled 
-                        show-score 
-                        text-color="#ff9900"
-                        score-template="{value}"
-                      />
+                      <el-rate :model-value="shop.score / 10" disabled show-score text-color="#ff9900"
+                        score-template="{value}" />
                       <div>{{ shop.comments }} 条评价</div>
                     </div>
-                    
+
                     <div class="shop-price-type">
                       <div class="shop-price">
                         <span class="label">人均:</span>
@@ -211,45 +227,49 @@ const hidePhone = (phone) => {
                         <span>{{ shop.typeName }}</span>
                       </div>
                     </div>
-                    
+
                     <!-- 店铺信息 -->
                     <div class="shop-detail-info">
                       <div class="info-item">
-                        <el-icon><Location /></el-icon>
+                        <el-icon>
+                          <Location />
+                        </el-icon>
                         <span class="label">地址:</span>
                         <span>{{ shop.area }} {{ shop.address }}</span>
                       </div>
                       <div class="info-item">
-                        <el-icon><Clock /></el-icon>
+                        <el-icon>
+                          <Clock />
+                        </el-icon>
                         <span class="label">营业时间:</span>
                         <span>{{ shop.openHours }}</span>
                       </div>
                       <div class="info-item">
-                        <el-icon><Phone /></el-icon>
+                        <el-icon>
+                          <Phone />
+                        </el-icon>
                         <span class="label">电话:</span>
                         <span>{{ shop.phone || '暂无' }}</span>
                       </div>
                       <div class="info-item">
-                        <el-icon><Star /></el-icon>
+                        <el-icon>
+                          <Star />
+                        </el-icon>
                         <span class="label">销量:</span>
                         <span>{{ shop.sold }}</span>
                       </div>
                     </div>
                   </div>
-                  
+
                   <div class="shop-actions">
-                    <el-button 
-                      :type="isCollected ? 'danger' : 'primary'" 
-                      :icon="Collection"
-                      @click="toggleCollection"
-                    >
+                    <el-button :type="isCollected ? 'danger' : 'primary'" :icon="Collection" @click="toggleCollection">
                       {{ isCollected ? '已收藏' : '收藏' }}
                     </el-button>
                   </div>
                 </div>
               </div>
             </div>
-            
+
             <!-- 商品列表和评价选项卡 -->
             <el-tabs v-model="activeTab" class="shop-tabs">
               <el-tab-pane label="商品列表" name="goods">
@@ -261,7 +281,8 @@ const hidePhone = (phone) => {
                         <h3 class="goods-name">{{ item.name }}</h3>
                         <div class="goods-price">
                           <span class="price">¥{{ (item.price / 100).toFixed(2) }}</span>
-                          <span v-if="item.originalPrice" class="original-price">¥{{ (item.originalPrice / 100).toFixed(2) }}</span>
+                          <span v-if="item.originalPrice" class="original-price">¥{{ (item.originalPrice /
+                            100).toFixed(2) }}</span>
                         </div>
                         <div class="goods-sold">已售 {{ item.sold }}</div>
                       </div>
@@ -285,16 +306,15 @@ const hidePhone = (phone) => {
                         <el-skeleton-item variant="p" style="width: 100%;" />
                       </div>
                     </template>
-                    
+
                     <template #default>
                       <div v-if="comments.length > 0" class="comments-list">
                         <div v-for="comment in comments" :key="comment.id" class="comment-item">
                           <div class="comment-header">
                             <div class="user-avatar">
-                              <el-image 
-                                :src="comment.icon || 'https://cube.elemecdn.com/0/88/03b0d39583f48206768a7534e55bcpng.png'" 
-                                fit="cover" 
-                              />
+                              <el-image
+                                :src="comment.icon || 'https://cube.elemecdn.com/0/88/03b0d39583f48206768a7534e55bcpng.png'"
+                                fit="cover" />
                             </div>
                             <div class="user-info">
                               <div class="user-name">
@@ -306,37 +326,27 @@ const hidePhone = (phone) => {
                               <el-rate v-model="comment.score" disabled />
                             </div>
                           </div>
-                          
+
                           <div class="comment-content">
                             {{ comment.content }}
                           </div>
-                          
+
                           <div v-if="comment.images && comment.images.length > 0" class="comment-images">
-                            <el-image 
-                              v-for="(image, index) in comment.images" 
-                              :key="index" 
-                              :src="image" 
-                              fit="cover"
-                              class="comment-image"
-                              :preview-src-list="comment.images"
-                            />
+                            <el-image v-for="(image, index) in comment.images" :key="index" :src="image" fit="cover"
+                              class="comment-image" :preview-src-list="comment.images" />
                           </div>
-                          
+
                           <div class="comment-good-info">
                             <span class="goods-name">{{ comment.goodsName }}</span>
                           </div>
                         </div>
-                        
+
                         <!-- 分页 -->
                         <div class="comments-pagination">
-                          <el-pagination
-                            v-if="commentsTotal > commentsPagination.pageSize"
-                            :current-page="commentsPagination.current"
-                            :page-size="commentsPagination.pageSize"
-                            :total="commentsTotal"
-                            layout="prev, pager, next"
-                            @current-change="handleCommentsPageChange"
-                          />
+                          <el-pagination v-if="commentsTotal > commentsPagination.pageSize"
+                            :current-page="commentsPagination.current" :page-size="commentsPagination.pageSize"
+                            :total="commentsTotal" layout="prev, pager, next"
+                            @current-change="handleCommentsPageChange" />
                         </div>
                       </div>
                       <el-empty v-else description="暂无评价" />
@@ -346,7 +356,7 @@ const hidePhone = (phone) => {
               </el-tab-pane>
             </el-tabs>
           </div>
-          
+
           <div v-else class="shop-not-found">
             <h2>商铺不存在或已下架</h2>
             <el-button type="primary" @click="$router.push('/')">
@@ -415,7 +425,8 @@ const hidePhone = (phone) => {
   margin-bottom: 15px;
 }
 
-.shop-price, .shop-type {
+.shop-price,
+.shop-type {
   margin-right: 20px;
 }
 
@@ -467,21 +478,22 @@ const hidePhone = (phone) => {
   .shop-header {
     flex-direction: column;
   }
-  
+
   .shop-image {
     width: 100%;
     max-width: none;
   }
-  
+
   .shop-info {
     padding: 15px;
   }
-  
+
   .shop-price-type {
     flex-direction: column;
   }
-  
-  .shop-price, .shop-type {
+
+  .shop-price,
+  .shop-type {
     margin-bottom: 8px;
   }
 }
@@ -587,6 +599,7 @@ const hidePhone = (phone) => {
     opacity: 0;
     transform: translateY(10px);
   }
+
   to {
     opacity: 1;
     transform: translateY(0);

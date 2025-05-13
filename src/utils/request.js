@@ -24,7 +24,6 @@ request.interceptors.request.use(
     if (userStore.token) {
       // 检查token是否过期
       if (userStore.isTokenExpired()) {
-        // 先清除用户数据，不要在这里跳转
         userStore.clearUserData()
         return Promise.reject(new Error('Token已过期'))
       }

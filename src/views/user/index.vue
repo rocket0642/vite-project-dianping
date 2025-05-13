@@ -1,5 +1,5 @@
 <script setup>
-import { Box, ChatDotRound, Document, Edit, Location, Money, Plus, Van } from '@element-plus/icons-vue'
+import { Box, ChatDotRound, Document, Edit, Location, Money, Plus, Van, StarFilled } from '@element-plus/icons-vue'
 import { BarChart, LineChart, PieChart } from 'echarts/charts'
 import { GridComponent, LegendComponent, TitleComponent, TooltipComponent } from 'echarts/components'
 import * as echarts from 'echarts/core'
@@ -22,6 +22,8 @@ import { updateUserDetail, updateUserInfo } from '../../api/user'
 import { useAddressStore } from '../../stores/address'
 import { useOrderStore } from '../../stores/order'
 import { useUserStore } from '../../stores/user'
+import { useFravoriteStore } from '../../stores/fravorite'
+import ShopCard from '../../components/ShopCard.vue'
 
 // 注册 ECharts 需要的组件
 echarts.use([
@@ -44,11 +46,14 @@ const userStore = useUserStore()
 const addressStore = useAddressStore()
 // 添加订单状态
 const orderStore = useOrderStore()
+// 收藏状态
+const favoriteStore = useFravoriteStore()
 
 // 组件状态
 const loading = ref(true)
 const addressLoading = ref(true)
 const statisticsLoading = ref(true)
+const favoritesLoading = ref(true)
 
 // 用户信息
 const userInfo = computed(() => userStore.userInfo)
@@ -79,6 +84,9 @@ const orderStatistics = ref({
   totalOrders: 0,
   totalAmount: 0
 })
+
+// 收藏数据
+const recentFavorites = computed(() => favoriteStore.favoriteList.slice(0, 3))
 
 // 图表实例引用
 const orderStatusChartRef = ref(null)
@@ -428,6 +436,20 @@ const logout = () => {
 }
 
 /**
+ * 加载用户收藏
+ */
+const loadUserFavorites = async () => {
+  try {
+    favoritesLoading.value = true
+    await favoriteStore.getFavoriteList()
+  } catch (error) {
+    console.error('获取收藏列表失败:', error)
+  } finally {
+    favoritesLoading.value = false
+  }
+}
+
+/**
  * 页面加载时执行
  */
 onMounted(async () => {
@@ -447,7 +469,8 @@ onMounted(async () => {
     // 然后并行加载其他数据
     await Promise.all([
       loadUserAddresses(),
-      loadOrderStatistics()
+      loadOrderStatistics(),
+      loadUserFavorites()
     ])
   } catch (error) {
     console.error('加载用户中心数据失败:', error)
@@ -645,6 +668,34 @@ onUnmounted(() => {
             </el-icon>
             <p>您还没有添加收货地址</p>
             <el-button type="primary" size="small" @click="goToAddressManage">添加地址</el-button>
+          </div>
+        </template>
+      </el-skeleton>
+    </div>
+
+    <!-- 我的收藏 -->
+    <div class="section-card">
+      <div class="section-header">
+        <h3 class="section-title">我的收藏</h3>
+        <el-button type="text" @click="$router.push('/user/favorites')">查看全部</el-button>
+      </div>
+
+      <el-skeleton :loading="favoritesLoading" animated :count="3">
+        <template #template>
+          <div class="skeleton-favorites">
+            <el-skeleton-item variant="image" style="width: 100%; height: 120px; margin-bottom: 8px;" />
+            <el-skeleton-item variant="text" style="width: 60%; height: 16px;" />
+          </div>
+        </template>
+
+        <template #default>
+          <div v-if="recentFavorites.length > 0" class="favorites-grid">
+            <shop-card v-for="shop in recentFavorites" :key="shop.id" :shop="shop" />
+          </div>
+          <div v-else class="empty-favorites">
+            <el-icon><star-filled /></el-icon>
+            <p>您还没有收藏任何商铺</p>
+            <el-button type="primary" size="small" @click="$router.push('/')">去浏览商铺</el-button>
           </div>
         </template>
       </el-skeleton>
@@ -1053,5 +1104,47 @@ onUnmounted(() => {
   font-size: 12px;
   color: #909399;
   margin-top: 5px;
+}
+
+/* 收藏列表样式 */
+.favorites-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 15px;
+}
+
+.skeleton-favorites {
+  margin-bottom: 15px;
+}
+
+.empty-favorites {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 30px 0;
+  color: #909399;
+}
+
+.empty-favorites .el-icon {
+  font-size: 32px;
+  margin-bottom: 10px;
+}
+
+.empty-favorites p {
+  margin: 10px 0;
+}
+
+/* 响应式布局 */
+@media (max-width: 768px) {
+  .favorites-grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+
+@media (max-width: 480px) {
+  .favorites-grid {
+    grid-template-columns: 1fr;
+  }
 }
 </style>

@@ -119,6 +119,14 @@ const routes = [
     path: '/order/comment/:id',
     component: () => import('../views/order/comment.vue'),
     meta: { title: '订单评价', requiresAuth: true }
+  },
+  {
+    path: '/user/favorites',
+    component: () => import('../views/user/favorites.vue'),
+    meta: {
+      title: '我的收藏',
+      requiresAuth: true
+    }
   }
 ]
 
@@ -137,17 +145,17 @@ const router = createRouter({
 router.beforeEach((to, from, next) => {
   // 设置页面标题
   document.title = to.meta.title ? `${to.meta.title} - 点评电商` : '点评电商'
-  
+
   // 权限验证
   if (to.meta.requiresAuth) {
     // 使用 Pinia Store 获取用户状态
     const userStore = useUserStore()
-    
+
     if (!userStore.isLogin) {
       // 未登录时重定向到登录页，并携带重定向信息
-      next({ 
-        path: '/login', 
-        query: { redirect: to.fullPath } 
+      next({
+        path: '/login',
+        query: { redirect: to.fullPath }
       })
       return
     }

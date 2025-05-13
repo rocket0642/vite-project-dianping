@@ -203,7 +203,7 @@ const handleTabChange = (tab) => {
   orderStore.orderListPageState.activeTab = tab;
   // 不重置页码，直接使用各自的currentPage
   router.push({ query: { status: tabToStatusMap[tab] } });
-  await loadOrders();
+  loadOrders();
 }
 
 /**
@@ -212,7 +212,7 @@ const handleTabChange = (tab) => {
 const handlePageChange = (page) => {
   // 更新store中的页面状态
   orderStore.orderListPageState.paginationState[activeTab.value].currentPage = page;
-  await loadOrders();
+  loadOrders();
 }
 
 /**
@@ -464,7 +464,7 @@ watch(
         orderStore.orderListPageState.paginationState[newTab].currentPage = 1;
       }
 
-      await loadOrders();
+      loadOrders();
     }
   },
   { deep: true }

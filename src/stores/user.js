@@ -2,6 +2,7 @@ import { defineStore } from 'pinia'
 import { computed, ref } from 'vue'
 import { getCode, getUserInfo, login, register, resetPassword, uploadDelete, uploadImage, userLogout } from '../api/user'
 import { useCartStore } from './cart'
+import { useFravoriteStore } from './fravorite'
 
 /**
  * 用户状态管理
@@ -162,10 +163,22 @@ export const useUserStore = defineStore('user', () => {
   async function logout() {
     try {
       const res = await userLogout(userPhone.value)
+
+      // 清除用户数据
       clearUserData()
+
+      // 清除收藏数据
+      const favoriteStore = useFravoriteStore()
+      favoriteStore.clearFavoriteData()
+
       return res
     } catch (error) {
       clearUserData()
+
+      // 即使出错也清除收藏数据
+      const favoriteStore = useFravoriteStore()
+      favoriteStore.clearFavoriteData()
+
       throw error
     }
   }
@@ -222,22 +235,6 @@ export const useUserStore = defineStore('user', () => {
     }
   }
 
-  // 使用持久化的数据初始化
-  if (token.value) {
-    // 如果有token，检查是否过期
-    if (tokenExpireTime.value && Date.now() > tokenExpireTime.value) {
-      // 已过期，执行登出
-      logout()
-    } else {
-      // 未过期，设置新的过期时间
-      setTokenExpireTime()
-      // 获取最新用户信息
-      fetchUserInfo().catch(() => {
-        logout()
-      })
-    }
-  }
-
   return {
     token,
     userInfo,
@@ -245,6 +242,8 @@ export const useUserStore = defineStore('user', () => {
     tokenExpireTime,
     isLogin,
     isAdmin,
+    rememberMe,
+    // 方法
     userLogin,
     fetchCode,
     fetchUserInfo,
@@ -255,8 +254,7 @@ export const useUserStore = defineStore('user', () => {
     resetUserPassword,
     uploadUserSave,
     uploadUserDelete,
-    clearUserData,
-    rememberMe
+    clearUserData
   }
 }, {
   persist: {
