@@ -167,6 +167,10 @@ export const useUserStore = defineStore('user', () => {
       // 清除用户数据
       clearUserData()
 
+      // 直接清除本地存储
+      localStorage.removeItem('user-store-data')
+      sessionStorage.removeItem('user-store-data')
+
       // 清除收藏数据
       const favoriteStore = useFravoriteStore()
       favoriteStore.clearFavoriteData()
