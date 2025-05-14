@@ -555,6 +555,9 @@ function getDefaultImage(type) {
                   <div class="product-name" @click="goToGoodsDetail(item.goodsId)">
                     {{ item.goodsName }}
                   </div>
+                  <div class="product-skuName">
+                    {{ item.skuName }}
+                  </div>
                   <div class="product-quantity">x{{ item.count }}</div>
                 </div>
                 <div class="product-price">¥{{ formatPrice(item.price * item.count) }}</div>
@@ -1048,5 +1051,15 @@ function getDefaultImage(type) {
   .product-name {
     max-width: 150px;
   }
+}
+
+.product-skuName {
+  color: #909399;
+  font-size: 13px;
+  margin-bottom: 5px;
+  max-width: 300px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 </style>
