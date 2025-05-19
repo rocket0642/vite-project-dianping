@@ -1,6 +1,6 @@
 import { defineStore } from 'pinia'
 import { computed, ref } from 'vue'
-import { getCode, getUserInfo, login, register, resetPassword, uploadDelete, uploadImage, userLogout } from '../api/user'
+import { getCode, getUserInfo, login, register, resetPassword, uploadDelete, uploadImage, userLogout, refreshToken } from '../api/user'
 import { useCartStore } from './cart'
 import { useFravoriteStore } from './fravorite'
 
@@ -13,45 +13,11 @@ export const useUserStore = defineStore('user', () => {
   const token = ref(null)
   const userInfo = ref(null)
   const userPhone = ref(null)
-  const tokenExpireTime = ref(null) // Token过期时间
-  const tokenTimer = ref(null) // 定时器引用
   const rememberMe = ref(false) // 添加记住我状态
   const isAdmin = ref(false) // 添加管理员状态
-  // token时效
-  const TOKEN_EXPIRE_TIME = 30 * 60 * 1000 // 30分钟
   // 计算属性
   const isLogin = computed(() => !!token.value)
 
-  /**
-   * 设置Token过期时间（30分钟）
-   */
-  function setTokenExpireTime() {
-    // 设置30分钟后过期
-    tokenExpireTime.value = Date.now() + TOKEN_EXPIRE_TIME
-
-    // 清除旧定时器
-    if (tokenTimer.value) {
-      clearTimeout(tokenTimer.value)
-    }
-
-    // 设置新定时器
-    tokenTimer.value = setTimeout(() => {
-      // 时间到，自动登出
-      if (token.value) {
-        console.log('Token已过期，自动登出')
-        logout()
-      }
-    }, TOKEN_EXPIRE_TIME)
-  }
-
-  /**
-   * 刷新Token过期时间
-   */
-  function refreshTokenExpireTime() {
-    if (token.value) {
-      setTokenExpireTime()
-    }
-  }
 
   /**
    * 验证码登录
@@ -65,18 +31,33 @@ export const useUserStore = defineStore('user', () => {
     try {
       const res = await login(phone, code, password)
       if (res.success) {
-        token.value = res.data.token
+        console.log(res.data)
+        token.value = res.data.accessToken
         isAdmin.value = res.data.isAdmin
         userPhone.value = phone
         rememberMe.value = remember // 保存记住我状态
-        // 设置Token过期时间
-        setTokenExpireTime()
         await fetchUserInfo()
         // 登录成功后重新加载购物车数据
         const cartStore = useCartStore()
         if (cartStore) {
           cartStore.switchUserCart(userPhone.value)
         }
+      }
+      return res
+    } catch (error) {
+      throw error
+    }
+  }
+
+  /**
+   * 刷新token
+   * @returns {Promise} - 刷新token结果
+   */
+  async function refreshAccessToken() {
+    try {
+      const res = await refreshToken()
+      if (res.success) {
+        token.value = res.data.accessToken
       }
       return res
     } catch (error) {
@@ -141,14 +122,7 @@ export const useUserStore = defineStore('user', () => {
     token.value = null
     userInfo.value = null
     userPhone.value = null
-    tokenExpireTime.value = null
     rememberMe.value = false
-
-    // 清除定时器
-    if (tokenTimer.value) {
-      clearTimeout(tokenTimer.value)
-      tokenTimer.value = null
-    }
 
     // 切换到游客购物车
     const cartStore = useCartStore()
@@ -162,7 +136,7 @@ export const useUserStore = defineStore('user', () => {
    */
   async function logout() {
     try {
-      const res = await userLogout(token.value)
+      const res = await userLogout()
 
       // 清除用户数据
       clearUserData()
@@ -215,13 +189,6 @@ export const useUserStore = defineStore('user', () => {
     }
   }
 
-  /**
-   * 检查Token是否过期
-   * @returns {boolean} - 是否过期
-   */
-  function isTokenExpired() {
-    return tokenExpireTime.value && Date.now() > tokenExpireTime.value
-  }
 
   /**
    * 重置密码
@@ -243,7 +210,6 @@ export const useUserStore = defineStore('user', () => {
     token,
     userInfo,
     userPhone,
-    tokenExpireTime,
     isLogin,
     isAdmin,
     rememberMe,
@@ -251,14 +217,13 @@ export const useUserStore = defineStore('user', () => {
     userLogin,
     fetchCode,
     fetchUserInfo,
-    refreshTokenExpireTime,
     logout,
-    isTokenExpired,
     userRegister,
     resetUserPassword,
     uploadUserSave,
     uploadUserDelete,
-    clearUserData
+    clearUserData,
+    refreshAccessToken
   }
 }, {
   persist: {
@@ -292,6 +257,6 @@ export const useUserStore = defineStore('user', () => {
         sessionStorage.removeItem(key)
       }
     },
-    paths: ['token', 'userPhone', 'userInfo', 'tokenExpireTime', 'rememberMe']
+    paths: ['token', 'userPhone', 'userInfo', 'rememberMe']
   }
 })

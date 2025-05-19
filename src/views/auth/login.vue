@@ -102,6 +102,7 @@ const getCode = async () => {
   // 调用获取验证码接口
   try {
     const res = await userStore.fetchCode(loginForm.phone, 'login')
+    console.log(res)
     if (res.success) {
       ElMessage.success('验证码已发送，两分钟内有效')
     } else {
