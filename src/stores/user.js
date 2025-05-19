@@ -57,7 +57,7 @@ export const useUserStore = defineStore('user', () => {
     try {
       const res = await refreshToken()
       if (res.success) {
-        token.value = res.data.accessToken
+        token.value = res.data
       }
       return res
     } catch (error) {
