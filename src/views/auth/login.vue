@@ -3,7 +3,7 @@ import { ElMessage, ElPopover } from 'element-plus'
 import { reactive, ref, onMounted, computed } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useUserStore } from '../../stores/user'
-import { getCookie, getHistoryAccounts, removeHistoryAccount, saveHistoryAccount } from '../../utils/cookie'
+import { getHistoryAccounts, removeHistoryAccount, saveHistoryAccount, getLastPhone } from '../../utils/storage'
 
 // 获取路由实例和用户状态管理
 const router = useRouter()
@@ -207,20 +207,9 @@ onMounted(() => {
   fetchHistoryAccounts()
 
   // 自动填充上次使用的手机号
-  const lastPhone = getCookie('last_phone')
+  const lastPhone = getLastPhone()
   if (lastPhone) {
     loginForm.phone = lastPhone
-  }
-
-  // 检查登录状态和token有效性
-  if (userStore.isLogin) {
-    if (userStore.isTokenExpired()) {
-      // token已过期，清除数据
-      userStore.clearUserData()
-    } else if (userStore.rememberMe) {
-      // 记住我状态有效且token未过期，自动跳转
-      router.push(route.query.redirect || '/')
-    }
   }
 })
 </script>

@@ -27,20 +27,6 @@ export function refreshToken() {
 }
 
 /**
- * 密码登录
- * @param {string} phone - 手机号
- * @param {string} password - 密码
- * @returns {Promise} - 登录结果
- */
-export function loginByPassword(phone, password) {
-  return request({
-    url: '/user/login/password',
-    method: 'post',
-    data: { phone, password }
-  })
-}
-
-/**
  * 退出登录
  * @returns {Promise} - 退出登录结果
  */
