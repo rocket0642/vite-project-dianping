@@ -51,9 +51,8 @@ request.interceptors.response.use(
   async error => {
     if (error.response?.status === 401) {
       const userStore = useUserStore()
-
-      // 获取原始请求配置
-      const originalRequest = error.config
+      // 保存当前路径用于重定向
+      const currentPath = router.currentRoute.value.fullPath
 
       // 如果当前没有刷新操作
       if (!isRefreshing) {
@@ -72,7 +71,8 @@ request.interceptors.response.use(
 
               userStore.clearUserData()
               ElMessage.error(response.errorMsg || '登录已过期，请重新登录')
-              router.push('/login')
+              // 使用更可靠的导航方式
+              router.replace('/login?redirect=' + encodeURIComponent(currentPath))
               return Promise.reject(new Error('刷新令牌失败'))
             }
           })
@@ -83,7 +83,8 @@ request.interceptors.response.use(
 
             userStore.clearUserData()
             ElMessage.error('登录已过期，请重新登录')
-            router.push('/login')
+            // 使用更可靠的导航方式
+            router.replace('/login?redirect=' + encodeURIComponent(currentPath))
             return Promise.reject(error)
           })
           .finally(() => {
@@ -99,6 +100,7 @@ request.interceptors.response.use(
             reject(error)
           } else {
             // 使用新token重试请求
+            const originalRequest = error.config
             originalRequest.headers['Authorization'] = userStore.token
             resolve(request(originalRequest))
           }
