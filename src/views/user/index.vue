@@ -98,6 +98,9 @@ let monthlySpendingChart = null
  * 加载用户地址
  */
 const loadUserAddresses = async () => {
+  if (!userStore.isLogin) {
+    return
+  }
   try {
     addressLoading.value = true
     // 使用store的方法获取地址
@@ -115,6 +118,10 @@ const loadUserAddresses = async () => {
  * 加载订单统计数据
  */
 const loadOrderStatistics = async () => {
+  if (!userStore.isLogin) {
+    return
+  }
+
   try {
     statisticsLoading.value = true
     const res = await orderStore.fetchOrderStatistics()
@@ -447,10 +454,10 @@ const logout = () => {
  * 加载用户收藏
  */
 const loadUserFavorites = async () => {
+  if (!userStore.isLogin) {
+    return;
+  }
   try {
-    if (!userStore.isLogin) {
-      return;
-    }
     favoritesLoading.value = true;
     await favoriteStore.getFavoriteList();
   } catch (error) {
@@ -472,13 +479,9 @@ onMounted(async () => {
   loading.value = true
 
   try {
-
-    // 然后并行加载其他数据
-    await Promise.all([
-      loadUserAddresses(),
-      loadOrderStatistics(),
-      loadUserFavorites()
-    ])
+    loadUserAddresses()
+    loadOrderStatistics()
+    loadUserFavorites()
   } catch (error) {
     console.error('加载用户中心数据失败:', error)
     ElMessage.error('加载数据失败，请稍后重试')
