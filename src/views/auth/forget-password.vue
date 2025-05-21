@@ -1,13 +1,18 @@
 <script setup>
 import { ElMessage } from 'element-plus'
-import { reactive, ref, onUnmounted } from 'vue'
+import { reactive, ref, onUnmounted, onMounted, computed } from 'vue'
 import { useRouter } from 'vue-router'
 import { useUserStore } from '../../stores/user'
+import { getHistoryAccounts, removeHistoryAccount, getLastPhone } from '../../utils/storage'
 
 // 获取路由实例
 const router = useRouter()
 const userStore = useUserStore()
 const code = ref('')
+
+// 历史账号相关
+const historyAccounts = ref([])
+const showHistory = ref(false)
 
 // 验证码有效期定时器
 const codeValidTimer = ref(null)
@@ -22,6 +27,28 @@ const forgetForm = reactive({
   password: '',
   confirmPassword: ''
 })
+
+// 获取历史账号
+const fetchHistoryAccounts = () => {
+  historyAccounts.value = getHistoryAccounts()
+}
+
+// 选择历史账号
+const selectAccount = (phone) => {
+  forgetForm.phone = phone
+  showHistory.value = false
+}
+
+// 删除历史账号
+const deleteAccount = (e, phone) => {
+  e.stopPropagation() // 阻止事件冒泡
+  removeHistoryAccount(phone)
+  fetchHistoryAccounts()
+  ElMessage.success('已删除该账号记录')
+}
+
+// 是否有历史账号
+const hasHistoryAccounts = computed(() => historyAccounts.value.length > 0)
 
 // 表单校验规则
 const rules = {
@@ -103,7 +130,7 @@ const getVerificationCode = async () => {
       // 验证码已发送
       code.value = res.data
       ElMessage.success('验证码已发送，有效期为两分钟')
-      
+
       // 设置验证码两分钟有效期
       codeValidTimer.value = setTimeout(() => {
         code.value = '' // 清空验证码
@@ -142,16 +169,16 @@ const verifyCode = async () => {
     ElMessage.error('验证码已过期，请重新获取')
     return
   }
-  
+
   if (forgetForm.code !== code.value) {
     ElMessage.error('验证码错误')
     return
   }
-  
+
   ElMessage.success('验证码正确')
   // 进入下一步
   currentStep.value = 2
-  
+
   // 清除验证码有效期定时器，因为验证已通过
   if (codeValidTimer.value) {
     clearTimeout(codeValidTimer.value)
@@ -199,6 +226,18 @@ const goToLogin = () => {
   router.push('/login')
 }
 
+// 组件挂载时获取历史账号列表与上次使用的手机号
+onMounted(() => {
+  // 获取历史账号列表
+  fetchHistoryAccounts()
+
+  // 自动填充上次使用的手机号
+  const lastPhone = getLastPhone()
+  if (lastPhone) {
+    forgetForm.phone = lastPhone
+  }
+})
+
 // 组件卸载时清除所有定时器
 onUnmounted(() => {
   if (codeButtonStatus.timer) {
@@ -232,13 +271,35 @@ onUnmounted(() => {
         <template v-if="currentStep === 1">
           <!-- 手机号输入框 -->
           <el-form-item prop="phone" label="手机号">
-            <el-input v-model="forgetForm.phone" placeholder="请输入手机号" maxlength="11">
-              <template #prefix>
-                <el-icon>
-                  <Iphone />
-                </el-icon>
-              </template>
-            </el-input>
+            <div class="phone-input-group">
+              <el-input v-model="forgetForm.phone" placeholder="请输入手机号" maxlength="11"
+                @focus="showHistory = hasHistoryAccounts">
+                <template #prefix>
+                  <el-icon>
+                    <Iphone />
+                  </el-icon>
+                </template>
+                <template #suffix v-if="hasHistoryAccounts">
+                  <el-icon class="history-icon" @click="showHistory = !showHistory">
+                    <ArrowDown v-if="!showHistory" />
+                    <ArrowUp v-else />
+                  </el-icon>
+                </template>
+              </el-input>
+
+              <!-- 历史账号下拉框 -->
+              <div class="history-dropdown" v-if="showHistory && hasHistoryAccounts">
+                <ul class="history-list">
+                  <li v-for="account in historyAccounts" :key="account" @click="selectAccount(account)"
+                    class="history-item">
+                    <span>{{ account }}</span>
+                    <el-icon class="delete-icon" @click.stop="deleteAccount($event, account)">
+                      <Delete />
+                    </el-icon>
+                  </li>
+                </ul>
+              </div>
+            </div>
           </el-form-item>
 
           <!-- 验证码 -->
@@ -378,5 +439,63 @@ onUnmounted(() => {
   top: 16px;
   left: 16px;
   z-index: 10;
+}
+
+/* 历史账号下拉菜单样式 */
+.phone-input-group {
+  position: relative;
+  width: 100%;
+}
+
+.phone-input-group .el-input {
+  width: 100%;
+}
+
+.history-icon {
+  cursor: pointer;
+  color: #909399;
+}
+
+.history-dropdown {
+  position: absolute;
+  top: 100%;
+  left: 0;
+  width: 100%;
+  max-height: 200px;
+  overflow-y: auto;
+  background: white;
+  border: 1px solid #e4e7ed;
+  border-radius: 4px;
+  box-shadow: 0 2px 12px 0 rgba(0, 0, 0, 0.1);
+  z-index: 100;
+  margin-top: 5px;
+}
+
+.history-list {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+}
+
+.history-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 8px 16px;
+  cursor: pointer;
+  transition: background-color 0.3s;
+}
+
+.history-item:hover {
+  background-color: #f5f7fa;
+}
+
+.delete-icon {
+  color: #909399;
+  font-size: 16px;
+}
+
+.delete-icon:hover {
+  color: #f56c6c;
 }
 </style>

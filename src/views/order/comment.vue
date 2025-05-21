@@ -30,9 +30,8 @@ const commentForm = ref({
 
 // 上传图片相关
 const imageList = ref([])
-const uploadUrl = 'https://mock-api.com/upload' // 模拟上传地址
-
-// Store
+const uploadUrl = '/api/upload/save' // 改为实际上传地址
+const uploadHeaders = ref({})
 const userStore = useUserStore()
 const commentStore = useCommentStore()
 const orderStore = useOrderStore()
@@ -46,21 +45,58 @@ const formatPrice = (price) => {
 }
 
 /**
+ * 上传图片前的处理
+ */
+const beforeUpload = (file) => {
+  // 检查文件类型
+  if (!['image/jpeg', 'image/png', 'image/gif'].includes(file.type)) {
+    ElMessage.error('只能上传JPG/PNG/GIF格式的图片！')
+    return false
+  }
+  // 检查文件大小
+  if (file.size / 1024 / 1024 > 2) {
+    ElMessage.error('图片大小不能超过2MB！')
+    return false
+  }
+  return true
+}
+
+/**
+ * 上传附加参数
+ */
+const getUploadData = () => {
+  return {
+    type: 'comment' // 指定上传类型为评论图片
+  }
+}
+
+/**
  * 上传图片成功回调
  */
 const handleUploadSuccess = (response) => {
-  imageList.value.push(response.url)
-  commentForm.value.images = imageList.value
+  if (response.success) {
+    imageList.value.push(response.data)
+    commentForm.value.images = imageList.value
+    ElMessage.success('图片上传成功')
+  } else {
+    ElMessage.error(response.errorMsg || '图片上传失败')
+  }
 }
 
 /**
  * 删除已上传图片
  */
 const handleRemoveImage = (file) => {
-  const index = imageList.value.indexOf(file.url)
+  const index = imageList.value.indexOf(file.url || file.response.data)
   if (index !== -1) {
-    imageList.value.splice(index, 1)
-    commentForm.value.images = imageList.value
+    // 从服务器删除图片
+    userStore.uploadUserDelete(imageList.value[index]).then(() => {
+      imageList.value.splice(index, 1)
+      commentForm.value.images = imageList.value
+      ElMessage.success('图片已删除')
+    }).catch(() => {
+      ElMessage.error('删除图片失败')
+    })
   }
 }
 
@@ -71,7 +107,7 @@ const checkHasComment = async () => {
   try {
     // 使用store方法替代直接API调用
     alreadyCommented.value = await commentStore.checkIfOrderCommented(orderId);
-    
+
     if (alreadyCommented.value) {
       ElMessage.warning('该订单已评价');
       setTimeout(() => {
@@ -91,7 +127,7 @@ const loadOrderDetail = async () => {
   try {
     await orderStore.fetchOrderDetail(orderId)
     order.value = orderStore.currentOrder
-    
+
     // 填充评价表单
     commentForm.value.shopId = order.value.shopId
   } catch (error) {
@@ -111,7 +147,7 @@ const submitOrderComment = async () => {
     ElMessage.warning('请填写评价内容')
     return
   }
-  
+
   submitting.value = true
   try {
     // 提交前构建评价数据
@@ -122,18 +158,18 @@ const submitOrderComment = async () => {
       score: commentForm.value.score,
       images: commentForm.value.images,
     }
-    
+
     const res = await commentStore.submitUserComment(commentData)
     if (res.success) {
       // 立即刷新订单列表数据
       await orderStore.fetchOrderList()
-      
+
       ElNotification({
         title: '评价成功',
         message: '感谢您的评价！',
         type: 'success'
       })
-      
+
       // 跳转回订单列表页
       setTimeout(() => {
         router.push('/order/list')
@@ -158,6 +194,13 @@ const goBack = () => {
 onMounted(() => {
   checkHasComment()
   loadOrderDetail()
+
+  // 设置上传请求头，包含token
+  if (userStore.token) {
+    uploadHeaders.value = {
+      'Authorization': userStore.token
+    }
+  }
 })
 </script>
 
@@ -168,24 +211,20 @@ onMounted(() => {
         <h1>订单评价</h1>
         <el-button @click="goBack">返回</el-button>
       </div>
-      
+
       <div v-if="loading" class="loading-container">
         <div class="loading-spinner"></div>
         <p>加载中...</p>
       </div>
-      
+
       <div v-else-if="alreadyCommented" class="already-commented">
-        <el-result
-          icon="warning"
-          title="该订单已评价"
-          sub-title="每个订单只能评价一次"
-        >
+        <el-result icon="warning" title="该订单已评价" sub-title="每个订单只能评价一次">
           <template #extra>
             <el-button type="primary" @click="goBack">返回订单列表</el-button>
           </template>
         </el-result>
       </div>
-      
+
       <div v-else class="comment-form">
         <div class="order-info">
           <h2>订单信息</h2>
@@ -202,7 +241,7 @@ onMounted(() => {
             <span class="price">¥{{ formatPrice(order.amount) }}</span>
           </div>
         </div>
-        
+
         <!-- 显示订单中的所有商品 -->
         <div class="goods-list">
           <h3>商品详情</h3>
@@ -220,48 +259,32 @@ onMounted(() => {
             </div>
           </div>
         </div>
-        
+
         <div class="rate-section">
           <span class="rate-label">整体评分:</span>
-          <el-rate
-            v-model="commentForm.score"
-            :colors="['#99A9BF', '#F7BA2A', '#FF9900']"
-            :texts="['失望', '一般', '满意', '很满意', '非常满意']"
-            show-text
-          />
+          <el-rate v-model="commentForm.score" :colors="['#99A9BF', '#F7BA2A', '#FF9900']"
+            :texts="['失望', '一般', '满意', '很满意', '非常满意']" show-text />
         </div>
-        
+
         <div class="content-section">
           <span class="content-label">评价内容:</span>
-          <el-input
-            v-model="commentForm.content"
-            type="textarea"
-            :rows="4"
-            placeholder="请输入您对整个订单的评价内容..."
-            maxlength="200"
-            show-word-limit
-          />
+          <el-input v-model="commentForm.content" type="textarea" :rows="4" placeholder="请输入您对整个订单的评价内容..."
+            maxlength="200" show-word-limit />
         </div>
-        
+
         <div class="upload-section">
           <span class="upload-label">上传图片(可选):</span>
-          <el-upload
-            :action="uploadUrl"
-            list-type="picture-card"
-            :on-success="handleUploadSuccess"
-            :on-remove="handleRemoveImage"
-            :limit="3"
-          >
-            <el-icon><Plus /></el-icon>
+          <el-upload :action="uploadUrl" :headers="uploadHeaders" list-type="picture-card"
+            :on-success="handleUploadSuccess" :on-remove="handleRemoveImage" :before-upload="beforeUpload"
+            :data="getUploadData()" :limit="3">
+            <el-icon>
+              <Plus />
+            </el-icon>
           </el-upload>
         </div>
-        
+
         <div class="submit-section">
-          <el-button
-            type="primary"
-            :loading="submitting"
-            @click="submitOrderComment"
-          >
+          <el-button type="primary" :loading="submitting" @click="submitOrderComment">
             提交评价
           </el-button>
         </div>
@@ -309,8 +332,13 @@ onMounted(() => {
 }
 
 @keyframes spin {
-  0% { transform: rotate(0deg); }
-  100% { transform: rotate(360deg); }
+  0% {
+    transform: rotate(0deg);
+  }
+
+  100% {
+    transform: rotate(360deg);
+  }
 }
 
 .already-commented {

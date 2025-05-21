@@ -16,16 +16,13 @@ export function login(phone, code, password) {
 }
 
 /**
- * 密码登录
- * @param {string} phone - 手机号
- * @param {string} password - 密码
- * @returns {Promise} - 登录结果
+ * 刷新accessToken
+ * @returns {Promise} - 刷新结果
  */
-export function loginByPassword(phone, password) {
+export function refreshToken() {
   return request({
-    url: '/user/login/password',
-    method: 'post',
-    data: { phone, password }
+    url: '/user/refresh-token',
+    method: 'get'
   })
 }
 
@@ -33,11 +30,10 @@ export function loginByPassword(phone, password) {
  * 退出登录
  * @returns {Promise} - 退出登录结果
  */
-export function userLogout(token) {
+export function userLogout() {
   return request({
     url: '/user/logout',
     method: 'post',
-    params: { token }
   })
 }
 /**

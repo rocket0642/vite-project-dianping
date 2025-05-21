@@ -98,6 +98,9 @@ let monthlySpendingChart = null
  * 加载用户地址
  */
 const loadUserAddresses = async () => {
+  if (!userStore.isLogin) {
+    return
+  }
   try {
     addressLoading.value = true
     // 使用store的方法获取地址
@@ -115,6 +118,10 @@ const loadUserAddresses = async () => {
  * 加载订单统计数据
  */
 const loadOrderStatistics = async () => {
+  if (!userStore.isLogin) {
+    return
+  }
+
   try {
     statisticsLoading.value = true
     const res = await orderStore.fetchOrderStatistics()
@@ -429,9 +436,17 @@ const logout = () => {
     cancelButtonText: '取消',
     type: 'warning'
   }).then(async () => {
-    await userStore.logout()
-    router.push('/login')
-    ElMessage.success('退出登录成功')
+    try {
+      await userStore.logout()
+      // 主动登出时直接跳转到登录页，不带重定向参数
+      router.push('/login')
+      ElMessage.success('退出登录成功')
+    } catch (error) {
+      // 即使登出失败也强制清除数据并跳转
+      userStore.clearUserData()
+      router.push('/login')
+      ElMessage.error('登出过程中出错，已强制登出')
+    }
   }).catch(() => { })
 }
 
@@ -439,13 +454,16 @@ const logout = () => {
  * 加载用户收藏
  */
 const loadUserFavorites = async () => {
+  if (!userStore.isLogin) {
+    return;
+  }
   try {
-    favoritesLoading.value = true
-    await favoriteStore.getFavoriteList()
+    favoritesLoading.value = true;
+    await favoriteStore.getFavoriteList();
   } catch (error) {
-    console.error('获取收藏列表失败:', error)
+    console.error('获取收藏列表失败:', error);
   } finally {
-    favoritesLoading.value = false
+    favoritesLoading.value = false;
   }
 }
 
@@ -455,23 +473,15 @@ const loadUserFavorites = async () => {
 onMounted(async () => {
   // 如果未登录，跳转到登录页
   if (!userStore.isLogin) {
-    router.push('/login?redirect=/user')
     return
   }
 
   loading.value = true
 
   try {
-    // 先获取最新用户信息
-    await userStore.fetchUserInfo()
-    console.log('获取到的用户信息:', userStore.userInfo)
-
-    // 然后并行加载其他数据
-    await Promise.all([
-      loadUserAddresses(),
-      loadOrderStatistics(),
-      loadUserFavorites()
-    ])
+    loadUserAddresses()
+    loadOrderStatistics()
+    loadUserFavorites()
   } catch (error) {
     console.error('加载用户中心数据失败:', error)
     ElMessage.error('加载数据失败，请稍后重试')
@@ -479,14 +489,6 @@ onMounted(async () => {
     loading.value = false
   }
 })
-
-// 监听用户变化，重新加载数据
-watch(() => userStore.userPhone, (newUserPhone, oldUserPhone) => {
-  if (newUserPhone && newUserPhone !== oldUserPhone) {
-    loadUserAddresses()
-    loadOrderStatistics()
-  }
-}, { immediate: true })
 
 // 监听对话框显示状态，确保每次打开都重新获取最新用户数据
 watch(() => editDialogVisible.value, (newVal) => {
@@ -519,6 +521,23 @@ onUnmounted(() => {
   // 移除事件监听
   window.removeEventListener('resize', () => { })
 })
+
+/**
+ * 图片上传前的处理
+ */
+const beforeAvatarUpload = (file) => {
+  // 检查文件类型
+  if (!['image/jpeg', 'image/png', 'image/gif'].includes(file.type)) {
+    ElMessage.error('只能上传JPG/PNG/GIF格式的图片！')
+    return false
+  }
+  // 检查文件大小
+  if (file.size / 1024 / 1024 > 2) {
+    ElMessage.error('图片大小不能超过2MB！')
+    return false
+  }
+  return true
+}
 </script>
 
 <template>
@@ -751,7 +770,7 @@ onUnmounted(() => {
         <h4 class="form-section-title">基本信息</h4>
         <el-form-item label="头像">
           <el-upload class="avatar-uploader" action="#" :auto-upload="false" :show-file-list="false"
-            :on-change="handleAvatarChange" accept="image/jpeg,image/png,image/gif">
+            :on-change="handleAvatarChange" :before-upload="beforeAvatarUpload" accept="image/jpeg,image/png,image/gif">
             <img v-if="editForm.icon" :src="editForm.icon" class="avatar">
             <el-icon v-else class="avatar-uploader-icon">
               <Plus />
