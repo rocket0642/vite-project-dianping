@@ -1,5 +1,6 @@
 import { createRouter, createWebHashHistory } from 'vue-router'
 import { useUserStore } from '../stores/user'
+import adminRoutes from './admin'
 
 /**
  * 路由配置
@@ -135,7 +136,7 @@ const routes = [
  */
 const router = createRouter({
   history: createWebHashHistory(),
-  routes
+  routes: [...routes, ...adminRoutes]
 })
 
 /**
@@ -146,8 +147,27 @@ router.beforeEach((to, from, next) => {
   // 设置页面标题
   document.title = to.meta.title ? `${to.meta.title} - 点评电商` : '点评电商'
 
-  // 权限验证
-  if (to.meta.requiresAuth) {
+  // 检查是否需要管理员权限
+  const requiresAdmin = to.matched.some(record => record.meta.requiresAdmin)
+
+  if (requiresAdmin) {
+    const userStore = useUserStore()
+
+    if (!userStore.isLogin) {
+      // 未登录时重定向到登录页
+      next({
+        path: '/login',
+        query: { redirect: to.fullPath }
+      })
+      return
+    } else if (!userStore.isAdmin) {
+      // 已登录但不是管理员
+      next({ path: '/403' })
+      return
+    }
+  }
+  // 普通权限验证
+  else if (to.meta.requiresAuth) {
     // 使用 Pinia Store 获取用户状态
     const userStore = useUserStore()
 

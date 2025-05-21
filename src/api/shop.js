@@ -81,3 +81,14 @@ export function updateShopSalesApi(shopId, count) {
     data: { id: shopId, count }
   })
 }
+
+/**
+ * 获取商铺类型统计
+ * @returns {Promise} - 商铺类型统计
+ */
+export function getShopTypeStats() {
+  return request({
+    url: '/shop/type-stats',
+    method: 'get'
+  })
+}

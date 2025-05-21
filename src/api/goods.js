@@ -120,3 +120,14 @@ export function updateGoodsSoldApi(goodsId, count, skuId) {
     data: { goodsId, count, skuId }
   })
 }
+
+/**
+ * 获取商品总数
+ * @returns {Promise} - 商品总数
+ */
+export function getGoodsCount() {
+  return request({
+    url: '/goods/count',
+    method: 'get'
+  })
+}

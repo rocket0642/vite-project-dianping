@@ -101,3 +101,36 @@ export function deliveryOrder(orderId) {
     method: 'put'
   })
 }
+
+/**
+ * 获取订单总数
+ * @returns {Promise} - 订单总数
+ */
+export function getOrderCount() {
+  return request({
+    url: '/order/count',
+    method: 'get'
+  })
+}
+
+/**
+ * 获取今日销售额
+ * @returns {Promise} - 今日销售额
+ */
+export function getTodaySales() {
+  return request({
+    url: '/order/today-sales',
+    method: 'get'
+  })
+}
+
+/**
+ * 获取最近7天销售趋势
+ * @returns {Promise} - 最近7天销售趋势
+ */
+export function getWeekSales() {
+  return request({
+    url: '/order/week-sales',
+    method: 'get'
+  })
+}

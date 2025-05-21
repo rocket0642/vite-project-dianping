@@ -1,6 +1,6 @@
 import { defineStore } from 'pinia'
 import { computed, ref } from 'vue'
-import { getCode, getUserInfo, login, register, resetPassword, uploadDelete, uploadImage, userLogout } from '../api/user'
+import { getCode, getUserInfo, login, register, resetPassword, uploadDelete, uploadImage, userLogout, getUserCount } from '../api/user'
 import { useCartStore } from './cart'
 import { useFravoriteStore } from './fravorite'
 
@@ -17,6 +17,7 @@ export const useUserStore = defineStore('user', () => {
   const tokenTimer = ref(null) // 定时器引用
   const rememberMe = ref(false) // 添加记住我状态
   const isAdmin = ref(false) // 添加管理员状态
+  const userCount = ref(0)  // 添加用户总数状态
   // token时效
   const TOKEN_EXPIRE_TIME = 30 * 60 * 1000 // 30分钟
   // 计算属性
@@ -239,6 +240,22 @@ export const useUserStore = defineStore('user', () => {
     }
   }
 
+  /**
+   * 获取用户总数
+   * @returns {Promise} - 用户总数
+   */
+  async function fetchUserCount() {
+    try {
+      const res = await getUserCount()
+      if (res.success) {
+        userCount.value = res.data
+      }
+      return userCount.value
+    } catch (error) {
+      throw error
+    }
+  }
+
   return {
     token,
     userInfo,
@@ -247,6 +264,7 @@ export const useUserStore = defineStore('user', () => {
     isLogin,
     isAdmin,
     rememberMe,
+    userCount,
     // 方法
     userLogin,
     fetchCode,
@@ -258,7 +276,8 @@ export const useUserStore = defineStore('user', () => {
     resetUserPassword,
     uploadUserSave,
     uploadUserDelete,
-    clearUserData
+    clearUserData,
+    fetchUserCount,
   }
 }, {
   persist: {
@@ -292,6 +311,6 @@ export const useUserStore = defineStore('user', () => {
         sessionStorage.removeItem(key)
       }
     },
-    paths: ['token', 'userPhone', 'userInfo', 'tokenExpireTime', 'rememberMe']
+    paths: ['token', 'userPhone', 'userInfo', 'tokenExpireTime', 'rememberMe', 'userCount']
   }
 })

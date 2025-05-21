@@ -152,3 +152,14 @@ export function uploadDelete(url) {
   })
 }
 
+/**
+ * 获取用户总数
+ * @returns {Promise} - 用户总数
+ */
+export function getUserCount() {
+  return request({
+    url: '/user/count',
+    method: 'get'
+  })
+}
+

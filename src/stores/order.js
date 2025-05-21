@@ -3,6 +3,8 @@ import { computed, ref } from 'vue'
 import { cancelOrder, confirmOrder, createOrder, deliveryOrder, getOrderDetail, getUserOrders, getUserOrderStatistics, payOrder } from '../api/order'
 import { useGoodsStore } from './goods'
 import { useShopStore } from './shop'
+import { getOrderCount } from '../api/order'
+import { getTodaySales } from '../api/order'
 
 /**
  * 订单状态管理
@@ -14,6 +16,8 @@ export const useOrderStore = defineStore('order', () => {
   const loading = ref(false)
   const total = ref(0)
   const orderTimers = ref({}) // 存储订单倒计时信息
+  const orderCount = ref(0)
+  const todaySales = ref(0)
 
   // 订单列表页面状态
   const orderListPageState = ref({
@@ -268,6 +272,20 @@ export const useOrderStore = defineStore('order', () => {
     }
   }
 
+  async function fetchOrderCount() {
+    const res = await getOrderCount()
+    if (res.success) {
+      orderCount.value = res.data
+    }
+  }
+
+  async function fetchTodaySales() {
+    const res = await getTodaySales()
+    if (res.success) {
+      todaySales.value = res.data
+    }
+  }
+
   return {
     // 状态
     currentOrder,
@@ -276,6 +294,8 @@ export const useOrderStore = defineStore('order', () => {
     total,
     orderTimers,
     orderListPageState,
+    orderCount,
+    todaySales,
 
     // 计算属性
     isLoading,
@@ -294,5 +314,7 @@ export const useOrderStore = defineStore('order', () => {
     getOrderRemainingTime,
     clearOrderCountdown,
     fetchOrderStatistics,
+    fetchOrderCount,
+    fetchTodaySales
   }
 })
