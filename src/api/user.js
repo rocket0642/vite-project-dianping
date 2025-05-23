@@ -82,7 +82,7 @@ export function getUserInfo() {
  * @param {Object} data - 用户信息
  * @returns {Promise} - 更新结果
  */
-export function updateUserInfo(data) {
+export function update(data) {
   return request({
     url: '/user/update',
     method: 'put',
@@ -96,7 +96,7 @@ export function updateUserInfo(data) {
  * @param {Object} data - 用户详细信息
  * @returns {Promise} - 更新结果
  */
-export function updateUserDetail(data) {
+export function updateUserInfo(data) {
   return request({
     url: '/user/info',
     method: 'put',

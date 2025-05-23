@@ -1,6 +1,6 @@
 import { defineStore } from 'pinia'
 import { computed, ref } from 'vue'
-import { getCode, getUserInfo, login, register, resetPassword, uploadDelete, uploadImage, userLogout, refreshToken } from '../api/user'
+import { getCode, getUserInfo, login, register, resetPassword, uploadDelete, uploadImage, userLogout, refreshToken, updateUserInfo, update } from '../api/user'
 import { useCartStore } from './cart'
 import { useFravoriteStore } from './fravorite'
 
@@ -84,6 +84,7 @@ export const useUserStore = defineStore('user', () => {
   /**
    * 获取验证码
    * @param {string} phone - 手机号
+   * @param {string} type - 验证码类型
    * @returns {Promise} - 获取验证码结果
    */
   async function fetchCode(phone, type) {
@@ -101,14 +102,45 @@ export const useUserStore = defineStore('user', () => {
    */
   async function fetchUserInfo() {
     try {
-      if (userInfo.value) {
-        return userInfo.value
-      }
       const res = await getUserInfo()
       if (res.success) {
         userInfo.value = res.data
       }
       return userInfo.value
+    } catch (error) {
+      throw error
+    }
+  }
+
+  /**
+   * 更新用户信息
+   * @param {Object} data - 用户信息
+   * @returns {Promise} - 更新结果
+   */
+  async function updateUser(data) {
+    try {
+      const res = await update(data)
+      if (res.success) {
+        await fetchUserInfo()
+      }
+      return res
+    } catch (error) {
+      throw error
+    }
+  }
+
+  /**
+   * 更新用户详细信息
+   * @param {Object} data - 用户详细信息
+   * @returns {Promise} - 更新结果
+   */
+  async function updateUserDetail(data) {
+    try {
+      const res = await updateUserInfo(data)
+      if (res.success) {
+        await fetchUserInfo()
+      }
+      return res
     } catch (error) {
       throw error
     }
@@ -223,7 +255,9 @@ export const useUserStore = defineStore('user', () => {
     uploadUserSave,
     uploadUserDelete,
     clearUserData,
-    refreshAccessToken
+    refreshAccessToken,
+    updateUser,
+    updateUserDetail
   }
 }, {
   persist: {

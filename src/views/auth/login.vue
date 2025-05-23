@@ -1,5 +1,5 @@
 <script setup>
-import { ElMessage, ElPopover } from 'element-plus'
+import { ElMessage } from 'element-plus'
 import { reactive, ref, onMounted, computed } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useUserStore } from '../../stores/user'

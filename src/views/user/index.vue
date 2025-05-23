@@ -18,7 +18,6 @@ import {
 } from 'element-plus'
 import { computed, onMounted, onUnmounted, ref, watch } from 'vue'
 import { useRouter } from 'vue-router'
-import { updateUserDetail, updateUserInfo } from '../../api/user'
 import { useAddressStore } from '../../stores/address'
 import { useOrderStore } from '../../stores/order'
 import { useUserStore } from '../../stores/user'
@@ -137,6 +136,23 @@ const loadOrderStatistics = async () => {
     console.error('获取订单统计数据失败:', error)
   } finally {
     statisticsLoading.value = false
+  }
+}
+
+/**
+ * 加载用户收藏
+ */
+const loadUserFavorites = async () => {
+  if (!userStore.isLogin) {
+    return;
+  }
+  try {
+    favoritesLoading.value = true;
+    await favoriteStore.getFavoriteList();
+  } catch (error) {
+    console.error('获取收藏列表失败:', error);
+  } finally {
+    favoritesLoading.value = false;
   }
 }
 
@@ -344,29 +360,29 @@ const handleAvatarChange = (file) => {
  * 提交编辑表单
  */
 const submitEditForm = async () => {
-  try {
-    // 如果有新上传的头像文件，处理文件上传
-    if (editForm.value.iconFile) {
-      // 1. 如果有原头像，先删除原头像
-      if (userInfo.value.icon) {
-        try {
-          // 调用删除图片API
-          const deleteRes = await userStore.uploadUserDelete(userInfo.value.icon)
-          if (deleteRes.success) {
-            console.log('原头像删除成功')
-          } else {
-            console.warn('原头像删除失败:', deleteRes.errorMsg)
-          }
-        } catch (error) {
-          console.error('删除原头像出错:', error)
+  // 如果有新上传的头像文件，处理文件上传
+  if (editForm.value.iconFile) {
+    // 1. 如果有原头像，先删除原头像
+    if (userInfo.value.icon) {
+      try {
+        // 调用删除图片API
+        const deleteRes = await userStore.uploadUserDelete(userInfo.value.icon)
+        if (deleteRes.success) {
+          console.log('原头像删除成功')
+        } else {
+          console.warn('原头像删除失败:', deleteRes.errorMsg)
         }
+      } catch (error) {
+        console.error('删除原头像出错:', error)
       }
+    }
 
-      // 2. 上传新头像
-      const formData = new FormData()
-      formData.append('file', editForm.value.iconFile)
-      formData.append('type', 'icon')
+    // 2. 上传新头像
+    const formData = new FormData()
+    formData.append('file', editForm.value.iconFile)
+    formData.append('type', 'icon')
 
+    try {
       // 调用API上传头像
       const uploadRes = await userStore.uploadUserSave(formData)
       if (uploadRes.success) {
@@ -376,40 +392,59 @@ const submitEditForm = async () => {
         ElMessage.error('头像上传失败')
         return
       }
+    } catch (error) {
+      console.error('头像上传失败:', error)
+      return
     }
-
-    // 更新基本信息
-    await updateUserInfo({
-      nickName: editForm.value.nickName,
-      icon: editForm.value.icon
-    })
-
-    // 更新详细信息
-    await updateUserDetail({
-      city: editForm.value.city,
-      introduce: editForm.value.introduce,
-      gender: editForm.value.gender,
-      birthday: editForm.value.birthday,
-      email: editForm.value.email
-    })
-
-    // 直接更新本地计算属性，确保视图立即更新
-    Object.assign(userStore.userInfo, {
-      nickName: editForm.value.nickName,
-      icon: editForm.value.icon,
-      city: editForm.value.city,
-      introduce: editForm.value.introduce,
-      gender: editForm.value.gender,
-      birthday: editForm.value.birthday,
-      email: editForm.value.email
-    })
-
-    ElMessage.success('个人信息更新成功')
-    editDialogVisible.value = false
-  } catch (error) {
-    console.error('更新个人信息失败:', error)
-    ElMessage.error('更新个人信息失败: ' + error.message)
   }
+
+  if (editForm.value.nickName !== userInfo.value.nickName || editForm.value.icon !== userInfo.value.icon) {
+    // 更新基本信息
+    try {
+      const res = await userStore.updateUser({
+        nickName: editForm.value.nickName,
+        icon: editForm.value.icon
+      })
+      if (res.success) {
+        // 刷新token
+        const res = await userStore.refreshAccessToken()
+        if (!res.success) {
+          ElMessage.error('刷新token失败，请重新登录')
+          // 强制登出
+          userStore.clearUserData()
+          router.push('/login?redirect=/user')
+        }
+      } else {
+        ElMessage.error('更新基本信息失败')
+        return
+      }
+    } catch (error) {
+      console.error('更新基本信息失败:', error)
+      return
+    }
+  }
+
+  if (editForm.value.city !== userInfo.value.city || editForm.value.introduce !== userInfo.value.introduce || editForm.value.gender !== userInfo.value.gender || editForm.value.birthday !== userInfo.value.birthday || editForm.value.email !== userInfo.value.email) {
+    // 更新详细信息
+    try {
+      const res = await userStore.updateUserDetail({
+        city: editForm.value.city,
+        introduce: editForm.value.introduce,
+        gender: editForm.value.gender,
+        birthday: editForm.value.birthday,
+        email: editForm.value.email
+      })
+      if (!res.success) {
+        ElMessage.error('更新详细信息失败')
+        return
+      }
+    } catch (error) {
+      console.error('更新详细信息失败:', error)
+      return
+    }
+  }
+  ElMessage.success('个人信息更新成功')
+  editDialogVisible.value = false
 }
 
 /**
@@ -450,22 +485,7 @@ const logout = () => {
   }).catch(() => { })
 }
 
-/**
- * 加载用户收藏
- */
-const loadUserFavorites = async () => {
-  if (!userStore.isLogin) {
-    return;
-  }
-  try {
-    favoritesLoading.value = true;
-    await favoriteStore.getFavoriteList();
-  } catch (error) {
-    console.error('获取收藏列表失败:', error);
-  } finally {
-    favoritesLoading.value = false;
-  }
-}
+
 
 /**
  * 页面加载时执行

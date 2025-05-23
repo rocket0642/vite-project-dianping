@@ -3,6 +3,7 @@ import { ElMessage } from 'element-plus'
 import router from '../router'
 import { useUserStore } from '../stores/user'
 import { nextTick } from 'vue'
+import { getDeviceId } from './deviceFingerprint'
 
 /**
  * 创建axios实例，配置基础URL和超时时间
@@ -30,12 +31,13 @@ request.interceptors.request.use(
     // 从useUserStore获取token
     const userStore = useUserStore()
 
+    // 添加设备指纹信息到请求头
+    config.headers['X-Device-ID'] = getDeviceId()
+
     // 检查token是否存在
     if (userStore.isLogin) {
-
       // token有效，添加到请求头
       config.headers['Authorization'] = userStore.token
-
     }
 
     return config

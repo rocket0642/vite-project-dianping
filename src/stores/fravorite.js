@@ -5,24 +5,22 @@ import { getCollectShopList, collectShop, cancelCollectShop } from '../api/fravo
 export const useFravoriteStore = defineStore('fravorite', () => {
     // 收藏列表数据
     const favoriteList = ref([])
-    // 加载状态标记
-    const isInitialized = ref(false)
 
     // 从后端获取收藏列表并缓存到本地
     const getFavoriteList = async () => {
-        if (isInitialized.value) {
+        if (favoriteList.value.length > 0) {
             return favoriteList.value
         }
         try {
             const res = await getCollectShopList()
-            // 对后端数据进行字段映射
-            favoriteList.value = res.data.map(item => ({
-                id: item.shopId,
-                images: item.shopImages,
-                name: item.shopName,
-                ...item
-            }))
-            isInitialized.value = true
+            if (res.success) {
+                favoriteList.value = res.data.map(item => ({
+                    id: item.shopId,
+                    images: item.shopImages,
+                    name: item.shopName,
+                    ...item
+                }))
+            }
             return favoriteList.value
         } catch (error) {
             console.error('获取收藏列表失败:', error)
@@ -83,7 +81,6 @@ export const useFravoriteStore = defineStore('fravorite', () => {
     // 清除收藏数据
     const clearFavoriteData = () => {
         favoriteList.value = []
-        isInitialized.value = false
     }
 
     return {
@@ -98,6 +95,6 @@ export const useFravoriteStore = defineStore('fravorite', () => {
     persist: {
         key: 'favorite-data',
         storage: localStorage,
-        paths: ['favoriteList', 'isInitialized']
+        paths: ['favoriteList']
     }
 })
