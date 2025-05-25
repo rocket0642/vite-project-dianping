@@ -3,7 +3,7 @@ import { ElMessage } from 'element-plus'
 import { reactive, ref } from 'vue'
 import { useRouter } from 'vue-router'
 import { useUserStore } from '../../stores/user'
-import { setCookie, saveHistoryAccount } from '../../utils/cookie'
+import { saveHistoryAccount } from '../../utils/storage'
 
 // 获取路由实例
 const router = useRouter()
@@ -149,7 +149,7 @@ const goToLogin = () => {
 // 注册成功后保存用户的默认偏好
 const saveUserPreferences = (phone) => {
   // 保存账号到历史记录
-  saveHistoryAccount(phone, 30)
+  saveHistoryAccount(phone)
 
   // 保存其他用户偏好信息，如果有的话
   // if (otherForm.agreeMarketing) {

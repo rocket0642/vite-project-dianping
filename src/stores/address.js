@@ -16,7 +16,7 @@ export const useAddressStore = defineStore('address', () => {
   // 状态
   const addresses = ref([])
   const loading = ref(false)
-  
+
   /**
    * 获取用户地址列表
    * @returns {Promise<Array>} - 地址列表
@@ -36,7 +36,7 @@ export const useAddressStore = defineStore('address', () => {
       loading.value = false
     }
   }
-  
+
   /**
    * 添加地址
    * @param {Object} addressData - 地址数据
@@ -61,7 +61,7 @@ export const useAddressStore = defineStore('address', () => {
       loading.value = false
     }
   }
-  
+
   /**
    * 更新地址
    * @param {Object} addressData - 地址数据
@@ -92,7 +92,7 @@ export const useAddressStore = defineStore('address', () => {
       loading.value = false
     }
   }
-  
+
   /**
    * 删除地址
    * @param {number} id - 地址ID
@@ -118,7 +118,7 @@ export const useAddressStore = defineStore('address', () => {
       loading.value = false
     }
   }
-  
+
   /**
    * 设置默认地址
    * @param {number} id - 地址ID
@@ -147,22 +147,22 @@ export const useAddressStore = defineStore('address', () => {
       loading.value = false
     }
   }
-  
+
   // 计算属性
   const isLoading = computed(() => loading.value)
   const addressList = computed(() => addresses.value)
   const defaultAddress = computed(() => addresses.value.find(addr => addr.isDefault) || addresses.value[0])
-  
+
   return {
     // 状态
     addresses,
     loading,
-    
+
     // 计算属性
     isLoading,
     addressList,
     defaultAddress,
-    
+
     // 方法
     fetchAddresses,
     addAddress,
