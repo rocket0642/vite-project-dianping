@@ -1,6 +1,7 @@
 import { defineStore } from 'pinia'
 import { computed, ref } from 'vue'
 import { getGoodsDetail, getRecommendGoods, getShopGoods, searchGoods, updateGoodsSoldApi, updateGoodsStockApi } from '../api/goods'
+import { getGoodsCount } from '../api/goods'
 
 /**
  * 商品状态管理
@@ -13,6 +14,7 @@ export const useGoodsStore = defineStore('goods', () => {
   const loading = ref(false)
   const searchResults = ref([])
   const total = ref(0)
+  const goodsCount = ref(0)
 
 
   /**
@@ -166,6 +168,16 @@ export const useGoodsStore = defineStore('goods', () => {
   }
 
 
+  /**
+   * 获取商品总数
+   */
+  async function fetchGoodsCount() {
+    const res = await getGoodsCount()
+    if (res.success) {
+      goodsCount.value = res.data
+    }
+  }
+
   // 计算属性
   const isLoading = computed(() => loading.value)
   const currentGoods = computed(() => goodsDetail.value)
@@ -178,6 +190,7 @@ export const useGoodsStore = defineStore('goods', () => {
     shopGoods,
     recommendGoods,
     loading,
+    goodsCount,
 
     // 计算属性
     isLoading,
@@ -191,6 +204,7 @@ export const useGoodsStore = defineStore('goods', () => {
     fetchRecommendGoods,
     updateGoodsStock,
     updateGoodsSold,
-    searchGoodsByKeyword
+    searchGoodsByKeyword,
+    fetchGoodsCount
   }
 })

@@ -148,3 +148,45 @@ export function uploadDelete(url) {
   })
 }
 
+/**
+ * 获取用户总数
+ * @returns {Promise} - 用户总数
+ */
+export function getUserCount() {
+  return request({
+    url: '/user/count',
+    method: 'get'
+  })
+}
+
+export function getUserList(params) {
+  return request({
+    url: '/user/list',
+    method: 'get',
+    params
+  })
+}
+
+export function createUser(data) {
+  return request({
+    url: '/user/create',
+    method: 'post',
+    data
+  })
+}
+
+export function deleteUser(id) {
+  return request({
+    url: `/user/delete/${id}`,
+    method: 'delete'
+  })
+}
+
+// 调用后台管理接口更新用户信息
+export function updateUser(data) {
+  return request({
+    url: '/user/admin/update',
+    method: 'put',
+    data
+  })
+}
