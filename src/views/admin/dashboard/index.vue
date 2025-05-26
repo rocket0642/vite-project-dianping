@@ -7,7 +7,7 @@
         <el-card shadow="hover">
           <template #header>
             <div class="card-header">
-              <div>用户总数：{{ userStore.userCount }}</div>
+              <div>用户总数</div>
             </div>
           </template>
           <div class="card-body">
