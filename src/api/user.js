@@ -5,13 +5,14 @@ import request from '../utils/request'
  * @param {string} phone - 手机号
  * @param {string} code - 验证码
  * @param {string} password - 密码
+ * @param {string} imageCaptcha - 图形验证码
  * @returns {Promise} - 登录结果
  */
-export function login(phone, code, password) {
+export function login(phone, code, password, imageCaptcha) {
   return request({
     url: '/user/login',
     method: 'post',
-    data: { phone, code, password }
+    data: { phone, code, password, imageCaptcha }
   })
 }
 
@@ -188,5 +189,16 @@ export function updateUser(data) {
     url: '/user/admin/update',
     method: 'put',
     data
+  })
+}
+
+/**
+ * 获取图形验证码
+ * @returns {Promise} - 图形验证码数据
+ */
+export function getCaptcha() {
+  return request({
+    url: '/user/captcha',
+    method: 'get'
   })
 }

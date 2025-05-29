@@ -17,7 +17,9 @@ const loginType = ref('password') // 'password'为密码登录，'code'为验证
 const loginForm = reactive({
   phone: '',
   code: '',
-  password: ''
+  password: '',
+  imageCaptcha: '',
+  remember: false
 })
 
 // 历史账号
@@ -56,6 +58,10 @@ const rules = {
   password: [
     { required: true, message: '请输入密码', trigger: 'blur' },
     { min: 6, message: '密码长度不能小于6位', trigger: 'blur' }
+  ],
+  imageCaptcha: [
+    { required: true, message: '请输入图形验证码', trigger: 'blur' },
+    { min: 4, max: 4, message: '验证码必须是4位', trigger: 'blur' }
   ]
 }
 
@@ -71,6 +77,10 @@ const codeButtonStatus = reactive({
 })
 
 const rememberMe = ref(false)
+
+// 图形验证码
+const captchaImage = ref('')
+const loading = ref(false)
 
 /**
  * 获取验证码
@@ -122,6 +132,23 @@ const getCode = async () => {
 }
 
 /**
+ * 刷新验证码
+ */
+const refreshCaptcha = async () => {
+  try {
+    const res = await userStore.fetchCaptcha()
+    if (res.success) {
+      captchaImage.value = res.data.captchaImage
+    } else {
+      ElMessage.error('获取验证码失败')
+    }
+  } catch (error) {
+    console.error('获取验证码失败:', error)
+    ElMessage.error('获取验证码失败')
+  }
+}
+
+/**
  * 登录提交
  */
 const handleLogin = async () => {
@@ -132,7 +159,15 @@ const handleLogin = async () => {
     return
   }
 
+  // 验证图形验证码
+  if (!loginForm.imageCaptcha) {
+    ElMessage.error('请输入图形验证码')
+    return
+  }
+
   try {
+    loading.value = true
+
     let res;
     // 根据登录方式调用不同的登录接口
     if (loginType.value === 'code') {
@@ -140,14 +175,16 @@ const handleLogin = async () => {
         loginForm.phone,
         loginForm.code,
         null,
-        rememberMe.value
+        loginForm.imageCaptcha,
+        loginForm.remember
       )
     } else {
       res = await userStore.userLogin(
         loginForm.phone,
         null,
         loginForm.password,
-        rememberMe.value
+        loginForm.imageCaptcha,
+        loginForm.remember
       )
     }
 
@@ -165,6 +202,10 @@ const handleLogin = async () => {
       }
     } else if (res) {
       ElMessage.error(res.errorMsg || '登录失败')
+      // 如果是验证码错误，刷新验证码
+      if (res.errorMsg?.includes('验证码')) {
+        refreshCaptcha()
+      }
     }
   } catch (error) {
     // 登录失败处理
@@ -175,6 +216,9 @@ const handleLogin = async () => {
     } else {
       ElMessage.error('登录失败，请稍后重试')
     }
+    refreshCaptcha()
+  } finally {
+    loading.value = false
   }
 }
 
@@ -211,6 +255,9 @@ onMounted(() => {
   if (lastPhone) {
     loginForm.phone = lastPhone
   }
+
+  // 加载验证码
+  refreshCaptcha()
 })
 </script>
 
@@ -285,11 +332,6 @@ onMounted(() => {
               </el-button>
             </div>
           </el-form-item>
-          <!-- 验证码登录时的记住我也放在左侧 -->
-          <div class="extra-options">
-            <el-checkbox v-model="rememberMe">记住我</el-checkbox>
-            <div></div>
-          </div>
         </template>
 
         <!-- 密码登录 -->
@@ -303,12 +345,24 @@ onMounted(() => {
               </template>
             </el-input>
           </el-form-item>
-          <!-- 密码登录时记住我和忘记密码放在同一行 -->
-          <div class="extra-options">
-            <el-checkbox v-model="rememberMe">记住我</el-checkbox>
-            <a class="forget-link" @click="goToForgetPassword">忘记密码?</a>
-          </div>
         </template>
+
+        <!-- 图形验证码 -->
+        <el-form-item prop="imageCaptcha" label="图形验证码">
+          <div class="captcha-container">
+            <el-input v-model="loginForm.imageCaptcha" placeholder="请输入图形验证码" :maxlength="4" />
+            <div class="captcha-image" @click="refreshCaptcha">
+              <img v-if="captchaImage" :src="captchaImage" alt="验证码" />
+              <div v-else class="captcha-loading">加载中...</div>
+            </div>
+          </div>
+        </el-form-item>
+
+        <!-- 记住我和忘记密码放在图形验证码下方 -->
+        <div class="extra-options">
+          <el-checkbox v-model="loginForm.remember">记住我</el-checkbox>
+          <a class="forget-link" @click="goToForgetPassword">忘记密码?</a>
+        </div>
 
         <!-- 登录按钮 -->
         <el-form-item>
@@ -427,7 +481,7 @@ onMounted(() => {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  margin-bottom: 15px;
+  margin: 15px 0;
   font-size: 14px;
 }
 
@@ -518,5 +572,34 @@ onMounted(() => {
   flex-shrink: 0;
   /* 可以固定宽度以保持一致性 */
   min-width: 110px;
+}
+
+.captcha-container {
+  display: flex;
+  gap: 10px;
+}
+
+.captcha-image {
+  width: 120px;
+  height: 40px;
+  border: 1px solid #dcdfe6;
+  border-radius: 4px;
+  overflow: hidden;
+  cursor: pointer;
+  flex-shrink: 0;
+}
+
+.captcha-image:hover {
+  opacity: 0.8;
+}
+
+.captcha-loading {
+  width: 120px;
+  height: 40px;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  background-color: #f0f0f0;
+  border-radius: 4px;
 }
 </style>
