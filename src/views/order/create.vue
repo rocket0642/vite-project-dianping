@@ -34,34 +34,16 @@ const addresses = ref([])
 // 选中的地址
 const selectedAddress = ref(null)
 
-// 按店铺分组的购物车选中商品
-const groupedCheckedItems = computed(() => {
-  const items = cartStore.checkedItems
-  const groups = {}
-
-  items.forEach(item => {
-    if (!groups[item.shopId]) {
-      groups[item.shopId] = {
-        shopId: item.shopId,
-        shopName: item.shopName || `店铺${item.shopId}`,
-        shopImage: item.shopImage,
-        items: [],
-        totalAmount: 0
-      }
-    }
-
-    groups[item.shopId].items.push(item)
-    groups[item.shopId].totalAmount += item.price * item.count
-  })
-
-  return Object.values(groups)
-})
-
 // 商品总金额
 const totalAmount = computed(() => cartStore.totalPrice)
 
 // 商品总数量
 const totalCount = computed(() => cartStore.checkedCount)
+
+// 按店铺分组的已选中商品
+const groupedCheckedItems = computed(() => {
+  return cartStore.checkedShops
+})
 
 // 格式化价格
 const formatPrice = (price) => {
@@ -98,11 +80,11 @@ const createOrder = async () => {
         count: group.items.reduce((sum, item) => sum + item.count, 0),
         // 商品信息列表
         items: group.items.map(item => ({
-          goodsId: item.id,
-          goodsName: item.name,
+          goodsId: item.goodsId,
+          goodsName: item.goodsName,
           count: item.count,
           price: item.price,
-          goodsImage: item.images,
+          goodsImage: [item.goodsImages],
           skuId: item.skuId || null,
           skuName: item.skuName || null,
         })),
@@ -270,12 +252,12 @@ onMounted(() => {
           </div>
 
           <div class="goods-list">
-            <div v-for="item in group.items" :key="`${item.id}-${item.skuId || 0}`" class="goods-item">
+            <div v-for="item in group.items" :key="`${item.goodsId}-${item.skuId || 0}`" class="goods-item">
               <div class="goods-image">
-                <img :src="item.images" :alt="item.name">
+                <img :src="item.goodsImages" :alt="item.goodsName">
               </div>
               <div class="goods-info">
-                <div class="goods-name">{{ item.name }}</div>
+                <div class="goods-name">{{ item.goodsName }}</div>
                 <div v-if="item.skuName" class="goods-sku">规格：{{ item.skuName }}</div>
                 <div class="goods-price">¥{{ formatPrice(item.price) }}</div>
               </div>

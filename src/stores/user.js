@@ -31,16 +31,18 @@ export const useUserStore = defineStore('user', () => {
     try {
       const res = await login(phone, code, password)
       if (res.success) {
-        console.log(res.data)
         token.value = res.data.accessToken
         isAdmin.value = res.data.isAdmin
         userPhone.value = phone
         rememberMe.value = remember // 保存记住我状态
+
+        // 先获取用户信息
         await fetchUserInfo()
-        // 登录成功后重新加载购物车数据
+
+        // 再合并游客购物车数据到用户购物车
         const cartStore = useCartStore()
         if (cartStore) {
-          cartStore.switchUserCart(userPhone.value)
+          await cartStore.mergeGuestCart()
         }
       }
       return res

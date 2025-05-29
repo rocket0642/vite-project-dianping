@@ -1,6 +1,6 @@
 import { defineStore } from 'pinia'
 import { computed, ref } from 'vue'
-import { getGoodsDetail, getRecommendGoods, getShopGoods, searchGoods, updateGoodsSoldApi, updateGoodsStockApi } from '../api/goods'
+import { getGoodsDetail, getRecommendGoods, getShopGoods, searchGoods } from '../api/goods'
 
 /**
  * 商品状态管理
@@ -15,64 +15,8 @@ export const useGoodsStore = defineStore('goods', () => {
   const total = ref(0)
 
 
-  /**
-   * 预更新商品库存
-   * @param {number} goodsId - 商品ID
-   * @param {number} count - 变化数量，正数减少库存，负数增加库存
-   * @param {number} skuId - SKU ID，如果有则更新具体SKU的库存
-   */
-  async function updateGoodsStock(goodsId, count, skuId) {
-
-    try {
-      // 先确保获取商品详情
-      if (!goodsDetail.value || goodsDetail.value.id !== goodsId) {
-        await fetchGoodsDetail(goodsId)
-      }
-      const res = await updateGoodsStockApi(goodsId, count, skuId)
-      if (res.success) {
-        // 商品总库存更新
-        goodsDetail.value.stock = res.data.goodStock
-        // 更新sku
-        goodsDetail.value.skus.forEach(sku => {
-          if (sku.id === skuId) {
-            sku.stock = res.data.skuStock
-          }
-        })
-        return true
-      }
-      return false
-    } catch (error) {
-      console.error('更新商品库存失败:', error)
-      return false
-    }
-  }
 
 
-  /**
-   * 预更新商品销量
-   * @param {number} goodsId - 商品ID
-   * @param {number} count - 变化数量，正数增加销量，负数减少销量
-   * @param {number} skuId - SKU ID，如果有则更新具体SKU的销量
-   */
-  async function updateGoodsSold(goodsId, count, skuId) {
-
-    try {
-      // 先确保获取商品详情
-      if (!goodsDetail.value || goodsDetail.value.id !== goodsId) {
-        await fetchGoodsDetail(goodsId)
-      }
-      const res = await updateGoodsSoldApi(goodsId, count, skuId)
-      if (res.success) {
-        // 商品总销量更新
-        goodsDetail.value.sold = res.data
-        return true
-      }
-      return false
-    } catch (error) {
-      console.error('更新商品销量失败:', error)
-      return false
-    }
-  }
 
 
 
@@ -189,8 +133,6 @@ export const useGoodsStore = defineStore('goods', () => {
     fetchGoodsDetail,
     fetchShopGoods,
     fetchRecommendGoods,
-    updateGoodsStock,
-    updateGoodsSold,
     searchGoodsByKeyword
   }
 })

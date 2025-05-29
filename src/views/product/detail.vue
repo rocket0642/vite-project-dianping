@@ -8,6 +8,7 @@ import SkuSelector from '../../components/SkuSelector.vue'
 import { useCartStore } from '../../stores/cart'
 import { useGoodsStore } from '../../stores/goods'
 import { useShopStore } from '../../stores/shop'
+import { debounce } from 'lodash-es'
 
 // 路由
 const route = useRoute()
@@ -68,66 +69,82 @@ const loadGoodsDetail = async () => {
   }
 }
 
-/**
- * 加入购物车
- */
-const addToCart = async () => {
-  if (!currentSku.value) {
+// 防抖处理的加入购物车函数
+const debouncedAddToCart = debounce(async () => {
+  // 1. 参数验证：确认已选择规格
+  if (!selectedSkuId.value && goods.value.skus && goods.value.skus.length > 0) {
     ElMessage({
       message: '请选择商品规格',
       type: 'warning'
     })
-    return
+    return false
   }
 
-  // 检查SKU库存是否足够
-  if (currentSku.value.stock < quantity.value) {
+  // 2. 获取当前SKU信息或商品信息
+  const currentSkuInfo = selectedSkuId.value 
+    ? goods.value.skus.find(sku => sku.id === selectedSkuId.value)
+    : null
+  
+  // 3. 检查库存
+  const stockToCheck = currentSkuInfo ? currentSkuInfo.stock : goods.value.stock
+  if (stockToCheck < quantity.value) {
     ElMessage({
       message: '商品库存不足',
       type: 'warning'
     })
-    return
+    return false
   }
-
-  // 确保有shopName和shopImage
-  const shopName = shopInfo.value?.name || `店铺${goods.value.shopId}`
-  const shopImage = shopInfo.value?.images || null
-
-  const cartItem = {
-    id: goods.value.id,
-    shopId: goods.value.shopId,
-    shopName: shopName,
-    shopImage: shopImage,
-    name: goods.value.name,
-    price: currentSku.value.price,
-    skuId: currentSku.value.id,
-    skuName: currentSku.value.name,
-    images: goods.value.images
-  }
-
+  
   try {
-    // 继续其他操作
-    const res = await cartStore.addToCart(cartItem, quantity.value)
-    if (!res) {
-      ElMessage.warning('库存不足')
-      return
+    // 4. 创建购物车项对象，匹配后端的CartItemDTO结构
+    const cartItem = {
+      goodsId: goods.value.id,  // 商品ID
+      skuId: selectedSkuId.value || null, // 规格ID，如果没有则为null
+      count: quantity.value, // 商品数量
+      checked: true, // 默认选中
+      
+      // 确保goodsImages是字符串类型，如果是数组则取第一个元素或转为字符串
+      goodsName: goods.value.name,
+      goodsImages: Array.isArray(goods.value.images) ? goods.value.images[0] : goods.value.images,
+      price: currentSkuInfo ? currentSkuInfo.price : goods.value.price,
+      skuName: currentSkuInfo ? currentSkuInfo.name : null,
+      
+      // 这些附加字段用于游客购物车
+      shopId: goods.value.shopId,
+      shopName: shopInfo.value?.name || `店铺${goods.value.shopId}`
     }
+    
+    // 5. 调用购物车store的addItemToCart方法
+    const res = await cartStore.addItemToCart(cartItem)
 
-    ElMessage.success('已加入购物车')
+    if (!res || !res.success) {
+      return false
+    }
+    
+    return true
   } catch (error) {
     console.error('加入购物车失败:', error)
-    ElMessage.error('加入购物车失败')
+    ElMessage.error('加入购物车失败，请重试')
+    return false
   }
+}, 300)
+
+// 包装函数，调用防抖函数
+const addToCart = async () => {
+  return await debouncedAddToCart()
 }
 
 /**
  * 立即购买
  */
 const buyNow = async () => {
-  await addToCart()
-
-  // 跳转到购物车页面
-  router.push('/cart')
+  // 先添加到购物车
+  const success = await addToCart()
+  
+  // 如果添加成功，跳转到购物车页面
+  if (success) {
+    router.push('/cart')
+  }
 }
 
 /**
@@ -137,12 +154,10 @@ const handleSkuSelected = (skuId) => {
   selectedSkuId.value = skuId
 }
 
-/**
- * 数量变更处理
- */
-const handleQuantityChange = (value) => {
+// 防抖处理的数量变更函数
+const handleQuantityChange = debounce((value) => {
   quantity.value = value
-}
+}, 300)
 
 // 组件挂载时加载数据
 onMounted(async () => {

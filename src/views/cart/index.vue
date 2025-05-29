@@ -1,11 +1,12 @@
 <script setup>
 import { Delete } from '@element-plus/icons-vue'
 import { ElButton, ElCheckbox, ElEmpty, ElInputNumber, ElMessage, ElMessageBox } from 'element-plus'
-import { computed, ref, watch } from 'vue'
+import { computed, ref, watch, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import AppLayout from '../../components/AppLayout.vue'
 import { useCartStore } from '../../stores/cart'
 import { useUserStore } from '../../stores/user'
+import { debounce } from 'lodash-es'
 
 // 路由实例
 const router = useRouter()
@@ -18,66 +19,101 @@ const userStore = useUserStore()
 const loading = ref(false)
 const shopCheckedMap = ref({}) // 存储每个店铺的选中状态
 
-// 计算分组后的购物车商品
-const groupedItems = computed(() => {
-  const groups = {}
+// 在组件挂载时获取购物车数据并初始化店铺选择状态
+onMounted(async () => {
+  // 如果还未初始化，则加载购物车数据
+  if (!cartStore.isInitialized) {
+    await cartStore.fetchUserCart()
+  }
   
-  cartStore.cartItems.forEach(item => {
-    if (!groups[item.shopId]) {
-      groups[item.shopId] = {
-        shopId: item.shopId,
-        shopName: item.shopName || `店铺${item.shopId}`,
-        items: [],
-        checked: false
-      }
-    }
-    
-    groups[item.shopId].items.push(item)
-  })
-  
-  // 计算每个店铺是否选中
-  Object.keys(groups).forEach(shopId => {
-    const allChecked = groups[shopId].items.length > 0 && 
-                       groups[shopId].items.every(item => item.checked)
-    groups[shopId].checked = allChecked
-  })
-  
-  return Object.values(groups)
+  // 初始化店铺选中状态
+  initShopCheckedMap()
 })
 
+// 初始化店铺选中状态
+const initShopCheckedMap = () => {
+  const map = {}
+  cartStore.shopCarts.forEach(shop => {
+    // 店铺选中状态 = 该店铺下所有商品都被选中
+    map[shop.shopId] = shop.items.length > 0 && shop.items.every(item => item.checked)
+  })
+  shopCheckedMap.value = map
+}
+
+// 监听购物车数据变化，更新选中状态
+watch(() => cartStore.shopCarts, () => {
+  initShopCheckedMap()
+}, { deep: true })
+
 // 选中的商品数量
-const checkedCount = computed(() => cartStore.checkedCount)
+const checkedCount = computed(() => cartStore.selectedCount)
 
 // 总价
 const totalPrice = computed(() => {
-  return (cartStore.totalPrice / 100).toFixed(2)
+  return (cartStore.selectedAmount / 100).toFixed(2)
 })
 
 // 是否所有商品都已选中
-const isAllChecked = computed(() => cartStore.isAllChecked)
+const isAllChecked = computed(() => {
+  return cartStore.totalCount > 0 && cartStore.selectedCount === cartStore.totalCount
+})
 
 // 购物车是否为空
-const isEmpty = computed(() => cartStore.cartItems.length === 0)
+const isEmpty = computed(() => cartStore.shopCarts.length === 0)
 
-// 监听店铺选中状态变化
-watch(shopCheckedMap, (newVal) => {
-  // 更新店铺下所有商品的选中状态
-  Object.keys(newVal).forEach(shopId => {
-    toggleShopItems(parseInt(shopId), newVal[shopId])
+// 是否未登录
+const isGuest = computed(() => !userStore.isLogin)
+
+// 防抖处理购物车商品选中状态变更
+const checkItemWithDebounce = debounce((item, checked) => {
+  cartStore.checkItem({
+    goodsId: item.goodsId,
+    skuId: item.skuId,
+    checked: checked
+  }).then(() => {
+    // 成功后更新shopCheckedMap
+    updateShopCheckedState(item.shopId)
   })
-}, { deep: true })
+}, 200)
 
-/**
- * 更新商品数量
- */
-const updateCount = async (index, count) => {
-  await cartStore.updateItemCount(index, count)
+// 更新指定店铺的选中状态
+const updateShopCheckedState = (shopId) => {
+  const shop = cartStore.shopCarts.find(s => s.shopId === shopId)
+  if (shop) {
+    shopCheckedMap.value[shopId] = shop.items.length > 0 && 
+                                   shop.items.every(item => item.checked)
+  }
+}
+
+// 防抖处理数量更新
+const updateCountWithDebounce = debounce(async (item, count) => {
+  try {
+    loading.value = true
+    const res = await cartStore.updateItemCount({
+      goodsId: item.goodsId,
+      skuId: item.skuId,
+      count: count
+    })
+    
+    if (!res.success && res.errorMsg) {
+      ElMessage.error(res.errorMsg)
+    }
+  } catch (error) {
+    ElMessage.error('更新数量失败，请重试')
+  } finally {
+    loading.value = false
+  }
+}, 500)
+
+// 替换原来的updateCount函数
+const updateCount = (item, count) => {
+  updateCountWithDebounce(item, count)
 }
 
 /**
  * 删除购物车商品
  */
-const removeItem = (index) => {
+const removeItem = (item) => {
   ElMessageBox.confirm(
     '确定要从购物车中删除此商品吗？',
     '删除提示',
@@ -88,7 +124,10 @@ const removeItem = (index) => {
     }
   )
     .then(() => {
-      cartStore.removeFromCart(index)
+      cartStore.removeItem({
+        goodsId: item.goodsId,
+        skuId: item.skuId
+      })
       ElMessage({
         type: 'success',
         message: '商品已从购物车中删除'
@@ -103,14 +142,28 @@ const removeItem = (index) => {
  * 切换店铺选中状态（同时切换该店铺下所有商品的选中状态）
  */
 const toggleShopItems = (shopId, checked) => {
-  cartStore.toggleShopItems(shopId, checked)
+  // 直接调用store方法修改所有商品状态
+  cartStore.checkShopCart({
+    shopId,
+    checked
+  }).then(() => {
+    // 更新店铺选中状态映射
+    shopCheckedMap.value[shopId] = checked
+  })
 }
 
 /**
  * 切换全选状态
  */
 const toggleAllChecked = (checked) => {
-  cartStore.toggleAllCheck(checked)
+  cartStore.checkAll(checked).then(() => {
+    // 更新所有店铺的选中状态
+    const newMap = {...shopCheckedMap.value}
+    cartStore.shopCarts.forEach(shop => {
+      newMap[shop.shopId] = checked
+    })
+    shopCheckedMap.value = newMap
+  })
 }
 
 /**
@@ -124,7 +177,7 @@ const removeChecked = () => {
     })
     return
   }
-  
+
   ElMessageBox.confirm(
     `确定要删除选中的${checkedCount.value}件商品吗？`,
     '批量删除',
@@ -135,7 +188,7 @@ const removeChecked = () => {
     }
   )
     .then(() => {
-      cartStore.removeCheckedItems()
+      cartStore.removeChecked()
       ElMessage({
         type: 'success',
         message: '选中的商品已删除'
@@ -157,7 +210,7 @@ const clearCart = () => {
     })
     return
   }
-  
+
   ElMessageBox.confirm(
     '确定要清空购物车吗？',
     '清空购物车',
@@ -168,7 +221,7 @@ const clearCart = () => {
     }
   )
     .then(() => {
-      cartStore.clearCart()
+      cartStore.clearUserCart()
       ElMessage({
         type: 'success',
         message: '购物车已清空'
@@ -205,7 +258,7 @@ const checkout = () => {
     router.push('/login?redirect=/cart')
     return
   }
-  
+
   if (checkedCount.value === 0) {
     ElMessage({
       type: 'warning',
@@ -213,7 +266,7 @@ const checkout = () => {
     })
     return
   }
-  
+
   // 跳转到创建订单页面
   router.push('/order/create')
 }
@@ -224,6 +277,22 @@ const checkout = () => {
 const continueShopping = () => {
   router.push('/')
 }
+
+// 检查商品选择状态变化
+const checkItem = (item, checked) => {
+  // 使用防抖处理
+  checkItemWithDebounce(item, checked)
+}
+
+// 添加刷新购物车方法
+const refreshCart = async () => {
+  try {
+    await cartStore.fetchUserCart()
+    initShopCheckedMap()
+  } catch (error) {
+    console.error('刷新购物车失败:', error)
+  }
+}
 </script>
 
 <template>
@@ -233,74 +302,80 @@ const continueShopping = () => {
         <el-button type="text" icon="ArrowLeft" @click="$router.go(-1)">返回</el-button>
         <h2 class="cart-title">我的购物车</h2>
         <div class="cart-actions">
-          <el-button 
-            type="danger" 
-            plain 
-            size="small" 
-            :icon="Delete" 
-            @click="removeChecked"
-          >
+          <el-button type="primary" plain size="small" icon="Refresh" @click="refreshCart">
+            刷新
+          </el-button>
+          <el-button type="danger" plain size="small" :icon="Delete" @click="removeChecked">
             删除选中
           </el-button>
-          <el-button 
-            type="info" 
-            plain 
-            size="small"
-            @click="clearCart"
-          >
+          <el-button type="info" plain size="small" @click="clearCart">
             清空购物车
           </el-button>
         </div>
       </div>
-      
+
+      <!-- 未登录提示 -->
+      <div v-if="isGuest" class="guest-alert">
+        <el-alert
+          title="您当前未登录，购物车数据将保存在本地，登录后可以同步到您的账户"
+          type="info"
+          description="注意：本地购物车数据仅在当前浏览器保存，清除浏览器缓存可能导致数据丢失"
+          show-icon
+          :closable="false"
+        />
+        <div class="guest-action">
+          <el-button type="primary" @click="router.push('/login?redirect=/cart')">
+            立即登录
+          </el-button>
+        </div>
+      </div>
+
       <!-- 空购物车提示 -->
-      <el-empty 
-        v-if="isEmpty" 
-        description="购物车还是空的"
-      >
+      <el-empty v-if="isEmpty" description="购物车还是空的">
         <el-button type="primary" @click="continueShopping">
           去购物
         </el-button>
       </el-empty>
-      
+
       <!-- 购物车内容 -->
       <div v-else class="cart-content">
         <!-- 按商铺分组显示 -->
-        <div 
-          v-for="(group, groupIndex) in groupedItems" 
-          :key="group.shopId" 
-          class="shop-group"
-        >
+        <div v-for="(group, groupIndex) in cartStore.shopCarts" :key="group.shopId" class="shop-group">
           <!-- 商铺标题和选择框 -->
           <div class="shop-header">
             <div class="shop-title">
-              <el-checkbox 
-                v-model="group.checked"
-                @change="(val) => toggleShopItems(group.shopId, val)"
+              <el-checkbox
+                :model-value="shopCheckedMap[group.shopId]"
+                :indeterminate="group.items.some(item => item.checked) && !group.items.every(item => item.checked)"
+                @change="toggleShopItems(group.shopId, $event)"
+                class="shop-checkbox"
               />
               <div class="shop-name" @click="goToShop(group.shopId)">
-                {{ group.shopName }}
+                <i class="el-icon-shop"></i> {{ group.shopName }}
               </div>
             </div>
           </div>
-          
+
           <!-- 商铺商品列表 -->
           <div class="shop-items">
-            <div 
-              v-for="(item, itemIndex) in group.items" 
-              :key="`${item.id}-${item.skuId || 0}`"
-              class="cart-item"
-              :class="{ 'item-checked': item.checked }"
-            >
+            <div v-for="(item, itemIndex) in group.items" :key="`${item.goodsId}-${item.skuId || 0}`" class="cart-item"
+              :class="{ 'item-checked': item.checked }">
+              <!-- 商品选择框 -->
+              <el-checkbox 
+                :model-value="item.checked" 
+                @change="(val) => checkItem(item, val)"
+                class="item-checkbox"
+              />
+
               <!-- 商品图片 -->
-              <div class="item-image" @click="goToGoods(item.id)">
-                <img :src="item.images" :alt="item.name">
+              <div class="item-image" @click="goToGoods(item.goodsId)">
+                <img :src="item.goodsImages" :alt="item.goodsName">
               </div>
-              
+
               <!-- 商品信息 -->
               <div class="item-info">
-                <div class="item-name" @click="goToGoods(item.id)">
-                  {{ item.name }}
+                <div class="item-name" @click="goToGoods(item.goodsId)">
+                  {{ item.goodsName }}
                 </div>
                 <div v-if="item.skuName" class="item-sku">
                   规格：{{ item.skuName }}
@@ -309,50 +384,39 @@ const continueShopping = () => {
                   ¥{{ (item.price / 100).toFixed(2) }}
                 </div>
               </div>
-              
+
               <!-- 商品数量 -->
               <div class="item-quantity">
-                <el-input-number 
-                  :model-value="item.count" 
-                  :min="1" 
-                  :max="99"
-                  size="small"
-                  @change="(val) => updateCount(cartStore.cartItems.indexOf(item), val)"
-                />
+                <el-input-number :model-value="item.count" :min="1" :max="99" size="small"
+                  @change="(val) => updateCount(item, val)" />
               </div>
-              
+
               <!-- 商品小计 -->
               <div class="item-subtotal">
                 ¥{{ ((item.price * item.count) / 100).toFixed(2) }}
               </div>
-              
+
               <!-- 操作 -->
               <div class="item-actions">
-                <el-button 
-                  type="danger" 
-                  plain 
-                  circle 
-                  size="small" 
-                  :icon="Delete"
-                  @click="removeItem(cartStore.cartItems.indexOf(item))"
-                />
+                <el-button type="danger" plain circle size="small" :icon="Delete" @click="removeItem(item)" />
               </div>
             </div>
           </div>
         </div>
       </div>
-      
+
       <!-- 结算栏 -->
       <div class="cart-footer">
         <div class="select-all">
           <el-checkbox 
-            v-model="isAllChecked"
+            :model-value="isAllChecked" 
+            :indeterminate="cartStore.selectedCount > 0 && !isAllChecked"
             @change="toggleAllChecked"
           >
             全选
           </el-checkbox>
         </div>
-        
+
         <div class="cart-total">
           <div class="total-price">
             合计：<span class="price">¥{{ totalPrice }}</span>
@@ -361,14 +425,9 @@ const continueShopping = () => {
             已选择{{ checkedCount }}件商品
           </div>
         </div>
-        
+
         <div class="checkout-btn">
-          <el-button 
-            type="danger" 
-            size="large" 
-            :disabled="checkedCount === 0"
-            @click="checkout"
-          >
+          <el-button type="danger" size="large" :disabled="checkedCount === 0" @click="checkout">
             去结算
           </el-button>
         </div>
@@ -547,35 +606,36 @@ const continueShopping = () => {
   .cart-item {
     flex-wrap: wrap;
   }
-  
+
   .item-info {
     width: calc(100% - 120px);
     margin-bottom: 10px;
   }
-  
-  .item-quantity, .item-subtotal {
+
+  .item-quantity,
+  .item-subtotal {
     margin-top: 10px;
   }
-  
+
   .cart-footer {
     flex-direction: column;
     gap: 15px;
   }
-  
+
   .select-all {
     width: 100%;
   }
-  
+
   .cart-total {
     width: 100%;
     flex-direction: row;
     justify-content: space-between;
   }
-  
+
   .checkout-btn {
     width: 100%;
   }
-  
+
   .checkout-btn .el-button {
     width: 100%;
   }
@@ -585,5 +645,45 @@ const continueShopping = () => {
   flex: 1;
   text-align: center;
   margin: 0;
+}
+
+.guest-alert {
+  margin-bottom: 20px;
+}
+
+.guest-action {
+  display: flex;
+  justify-content: center;
+  margin-top: 10px;
+}
+
+.shop-checkbox {
+  margin-right: 12px;
+}
+
+.shop-checkbox .el-checkbox__inner {
+  border-radius: 2px;
+}
+
+.item-checkbox {
+  margin-right: 15px;
+}
+
+.item-checkbox .el-checkbox__inner {
+  border-color: #dcdfe6;
+}
+
+.item-checkbox .el-checkbox__input.is-checked .el-checkbox__inner {
+  background-color: #409EFF;
+  border-color: #409EFF;
+}
+
+.select-all-checkbox {
+  font-size: 16px;
+  font-weight: 500;
+}
+
+.select-all-checkbox .el-checkbox__label {
+  font-size: 16px;
 }
 </style>

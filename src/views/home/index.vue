@@ -7,6 +7,7 @@ import ShopCard from '../../components/ShopCard.vue'
 import ShopTypeNav from '../../components/ShopTypeNav.vue'
 import { useGoodsStore } from '../../stores/goods'
 import { useShopStore } from '../../stores/shop'
+import { useCartStore } from '../../stores/cart'
 
 // 路由实例
 const router = useRouter()
@@ -16,6 +17,9 @@ const goodsStore = useGoodsStore()
 
 // 商铺状态管理
 const shopStore = useShopStore()
+
+// 购物车状态管理
+const cartStore = useCartStore()
 
 // 轮播图数据
 const banners = ref([])
@@ -68,8 +72,11 @@ const loadRecommendShops = async () => {
 /**
  * 页面加载时执行
  */
-onMounted(() => {
-  // 加载数据
+onMounted(async () => {
+  // 初始化加载购物车数据
+  await cartStore.fetchUserCart()
+  
+  // 加载其他数据
   loadBanners()
   loadRecommendShops()
   console.log('首页加载完成')

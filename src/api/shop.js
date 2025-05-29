@@ -67,17 +67,3 @@ export function searchShops(keyword, params = {}) {
     params: { ...params, name: keyword }
   })
 }
-
-/**
- * 更新商铺销量
- * @param {number} shopId - 商铺ID
- * @param {number} count - 变化数量，正数增加销量，负数减少销量
- * @returns {Promise} - 更新结果
- */
-export function updateShopSalesApi(shopId, count) {
-  return request({
-    url: '/shop/sold',
-    method: 'put',
-    data: { id: shopId, count }
-  })
-}
