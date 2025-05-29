@@ -1,6 +1,6 @@
 import { defineStore } from 'pinia'
 import { computed, ref } from 'vue'
-import { getCode, getUserInfo, login, register, resetPassword, uploadDelete, uploadImage, userLogout, refreshToken, updateUserInfo, update, getUserCount } from '../api/user'
+import { getCode, getUserInfo, login, register, resetPassword, uploadDelete, uploadImage, userLogout, refreshToken, updateUserInfo, update, getUserCount, getCaptcha } from '../api/user'
 import { useCartStore } from './cart'
 import { useFravoriteStore } from './fravorite'
 
@@ -21,16 +21,30 @@ export const useUserStore = defineStore('user', () => {
 
 
   /**
+   * 获取图形验证码
+   * @returns {Promise} - 图形验证码数据
+   */
+  async function fetchCaptcha() {
+    try {
+      const res = await getCaptcha()
+      return res
+    } catch (error) {
+      throw error
+    }
+  }
+
+  /**
    * 验证码登录
    * @param {string} phone - 手机号
    * @param {string} code - 验证码
    * @param {string} password - 密码
+   * @param {string} imageCaptcha - 图形验证码
    * @param {boolean} remember - 是否记住登录状态
    * @returns {Promise} - 登录结果
    */
-  async function userLogin(phone, code, password, remember = false) {
+  async function userLogin(phone, code, password, imageCaptcha, remember = false) {
     try {
-      const res = await login(phone, code, password)
+      const res = await login(phone, code, password, imageCaptcha)
       if (res.success) {
         token.value = res.data.accessToken
         isAdmin.value = res.data.isAdmin
@@ -266,6 +280,7 @@ export const useUserStore = defineStore('user', () => {
     rememberMe,
     userCount,
     // 方法
+    fetchCaptcha,
     userLogin,
     fetchCode,
     fetchUserInfo,
