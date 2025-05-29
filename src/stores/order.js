@@ -32,10 +32,6 @@ export const useOrderStore = defineStore('order', () => {
     }
   })
 
-  // 引入商品和商铺store
-  const goodsStore = useGoodsStore()
-  const shopStore = useShopStore()
-
   /**
    * 创建订单
    * @param {Object} orderData - 订单数据
