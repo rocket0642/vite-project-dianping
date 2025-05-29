@@ -1,5 +1,5 @@
 import { defineStore } from 'pinia'
-import { computed, ref } from 'vue'
+import { computed, ref, watch } from 'vue'
 import {
   getUserCart,
   addToCart,
@@ -21,6 +21,7 @@ export const useCartStore = defineStore('cart', () => {
   // 状态
   const cartList = ref([]) // 按商铺分组的购物车列表
   const loading = ref(false)
+  const isInitialized = ref(false)
 
   // 获取用户状态
   const userStore = useUserStore()
@@ -40,14 +41,15 @@ export const useCartStore = defineStore('cart', () => {
           cartList.value = res.data || []
           if (res.message) {
             ElMessage.info(res.message)
-
           }
         }
       } else {
         // 未登录用户从本地存储获取购物车
         loadGuestCart()
       }
-
+      
+      // 标记已初始化
+      isInitialized.value = true
       return cartList.value
     } catch (error) {
       console.error('获取购物车失败:', error)
@@ -240,6 +242,7 @@ export const useCartStore = defineStore('cart', () => {
       shopCart = {
         shopId,
         shopName,
+        shopImage: item.shopImage || [],
         items: []
       }
       cartList.value.push(shopCart)
@@ -261,14 +264,17 @@ export const useCartStore = defineStore('cart', () => {
       shopCart.items.push({
         goodsId: item.goodsId,
         skuId: item.skuId,
-        goodsName: item.goodsName,
-        goodsImages: item.goodsImages,
-        price: item.price,
-        count: item.count,
-        checked: item.checked,
-        skuName: item.skuName
+        goodsName: item.goodsName || '未知商品',
+        goodsImages: item.goodsImages || '',
+        price: item.price || 0,
+        count: item.count || 1,
+        checked: item.checked === undefined ? true : item.checked,
+        skuName: item.skuName || ''
       })
     }
+    
+    // 保存到本地存储
+    saveGuestCart()
   }
 
   /**
@@ -689,10 +695,22 @@ export const useCartStore = defineStore('cart', () => {
     }
   }
 
+  // 监听用户状态变化
+  watch(() => userStore.isLogin, (newValue, oldValue) => {
+    // 当用户从未登录变为已登录状态时
+    if (newValue && !oldValue) {
+      // 合并游客购物车到用户购物车
+      mergeGuestCart().catch(error => {
+        console.error('自动合并购物车失败:', error)
+      })
+    }
+  }, { immediate: true })
+
   return {
     // 状态
     cartList,
     loading,
+    isInitialized,
 
     // 计算属性
     isLoading,

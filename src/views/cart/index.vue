@@ -25,7 +25,7 @@ onMounted(async () => {
   if (!cartStore.isInitialized) {
     await cartStore.fetchUserCart()
   }
-  
+
   // 初始化店铺选中状态
   initShopCheckedMap()
 })
@@ -80,8 +80,8 @@ const checkItemWithDebounce = debounce((item, checked) => {
 const updateShopCheckedState = (shopId) => {
   const shop = cartStore.shopCarts.find(s => s.shopId === shopId)
   if (shop) {
-    shopCheckedMap.value[shopId] = shop.items.length > 0 && 
-                                   shop.items.every(item => item.checked)
+    shopCheckedMap.value[shopId] = shop.items.length > 0 &&
+      shop.items.every(item => item.checked)
   }
 }
 
@@ -94,7 +94,7 @@ const updateCountWithDebounce = debounce(async (item, count) => {
       skuId: item.skuId,
       count: count
     })
-    
+
     if (!res.success && res.errorMsg) {
       ElMessage.error(res.errorMsg)
     }
@@ -158,7 +158,7 @@ const toggleShopItems = (shopId, checked) => {
 const toggleAllChecked = (checked) => {
   cartStore.checkAll(checked).then(() => {
     // 更新所有店铺的选中状态
-    const newMap = {...shopCheckedMap.value}
+    const newMap = { ...shopCheckedMap.value }
     cartStore.shopCarts.forEach(shop => {
       newMap[shop.shopId] = checked
     })
@@ -316,18 +316,8 @@ const refreshCart = async () => {
 
       <!-- 未登录提示 -->
       <div v-if="isGuest" class="guest-alert">
-        <el-alert
-          title="您当前未登录，购物车数据将保存在本地，登录后可以同步到您的账户"
-          type="info"
-          description="注意：本地购物车数据仅在当前浏览器保存，清除浏览器缓存可能导致数据丢失"
-          show-icon
-          :closable="false"
-        />
-        <div class="guest-action">
-          <el-button type="primary" @click="router.push('/login?redirect=/cart')">
-            立即登录
-          </el-button>
-        </div>
+        <el-alert title="您当前未登录，购物车数据将保存在本地，登录后可以同步到您的账户" type="info" description="注意：本地购物车数据仅在当前浏览器保存，清除浏览器缓存可能导致数据丢失"
+          show-icon :closable="false" />
       </div>
 
       <!-- 空购物车提示 -->
@@ -344,12 +334,9 @@ const refreshCart = async () => {
           <!-- 商铺标题和选择框 -->
           <div class="shop-header">
             <div class="shop-title">
-              <el-checkbox
-                :model-value="shopCheckedMap[group.shopId]"
+              <el-checkbox :model-value="shopCheckedMap[group.shopId]"
                 :indeterminate="group.items.some(item => item.checked) && !group.items.every(item => item.checked)"
-                @change="toggleShopItems(group.shopId, $event)"
-                class="shop-checkbox"
-              />
+                @change="toggleShopItems(group.shopId, $event)" class="shop-checkbox" />
               <div class="shop-name" @click="goToShop(group.shopId)">
                 <i class="el-icon-shop"></i> {{ group.shopName }}
               </div>
@@ -361,11 +348,7 @@ const refreshCart = async () => {
             <div v-for="(item, itemIndex) in group.items" :key="`${item.goodsId}-${item.skuId || 0}`" class="cart-item"
               :class="{ 'item-checked': item.checked }">
               <!-- 商品选择框 -->
-              <el-checkbox 
-                :model-value="item.checked" 
-                @change="(val) => checkItem(item, val)"
-                class="item-checkbox"
-              />
+              <el-checkbox :model-value="item.checked" @change="(val) => checkItem(item, val)" class="item-checkbox" />
 
               <!-- 商品图片 -->
               <div class="item-image" @click="goToGoods(item.goodsId)">
@@ -408,11 +391,8 @@ const refreshCart = async () => {
       <!-- 结算栏 -->
       <div class="cart-footer">
         <div class="select-all">
-          <el-checkbox 
-            :model-value="isAllChecked" 
-            :indeterminate="cartStore.selectedCount > 0 && !isAllChecked"
-            @change="toggleAllChecked"
-          >
+          <el-checkbox :model-value="isAllChecked" :indeterminate="cartStore.selectedCount > 0 && !isAllChecked"
+            @change="toggleAllChecked">
             全选
           </el-checkbox>
         </div>
