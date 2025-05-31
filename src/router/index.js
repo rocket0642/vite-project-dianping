@@ -129,6 +129,15 @@ const routes = [
       title: '我的收藏',
       requiresAuth: true
     }
+  },
+  {
+    path: '/order/result',
+    name: 'PayResult',
+    component: () => import('../views/order/result.vue'),
+    meta: {
+      title: '支付结果',
+      requiresAuth: true
+    }
   }
 ]
 
@@ -147,12 +156,12 @@ const router = createRouter({
 router.beforeEach(async (to, from, next) => {
   // 设置页面标题
   document.title = to.meta.title ? `${to.meta.title} - 点评电商` : '点评电商'
-  
+
   // 检查是否从登录页面跳转过来，需要合并购物车
   if (from.path === '/login' && to.path !== '/login') {
     const userStore = useUserStore()
     const cartStore = useCartStore()
-    
+
     // 判断用户是否已登录，且是否需要合并购物车
     if (userStore.isLogin && localStorage.getItem('guest-cart')) {
       try {
@@ -163,7 +172,7 @@ router.beforeEach(async (to, from, next) => {
       }
     }
   }
-  
+
   // 检查是否需要管理员权限
   const requiresAdmin = to.matched.some(record => record.meta.requiresAdmin)
 

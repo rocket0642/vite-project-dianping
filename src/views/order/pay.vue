@@ -1,6 +1,6 @@
 <script setup>
 import { ElButton, ElDialog, ElEmpty, ElMessage, ElMessageBox, ElRadio } from 'element-plus'
-import { computed, onBeforeUnmount, onMounted, ref } from 'vue'
+import { computed, onBeforeUnmount, onMounted, ref, nextTick } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import AppLayout from '../../components/AppLayout.vue'
 import { useAddressStore } from '../../stores/address'
@@ -18,7 +18,7 @@ const loading = ref(true)
 const paying = ref(false)
 const order = ref({})
 const orderId = parseInt(route.params.id)
-const payType = ref(1) // 默认微信支付
+const payType = ref(2) // 默认支付宝支付
 const countdown = ref(1800) // 默认30分钟倒计时（秒）
 const timer = ref(null)
 
@@ -27,6 +27,11 @@ const addressDialogVisible = ref(false)
 const addresses = ref([])
 const addressesLoading = ref(false)
 const selectedAddress = ref(null)
+
+// 新增响应式变量
+const showAlipayForm = ref(false)
+const alipayIframe = ref(null)
+const alipayFormHtml = ref('')
 
 // 计算属性
 const formatAmount = computed(() => {
@@ -142,10 +147,10 @@ const handleExpiredOrder = async () => {
         ElMessage.error(res.errorMsg || '订单取消失败')
       }
     }
-    
+
     // 清除倒计时
     clearInterval(timer.value)
-    
+
     // 显示提示框
     ElMessageBox.alert(
       '订单已超时自动取消',
@@ -174,24 +179,33 @@ const payOrder = async () => {
     const res = await orderStore.payUserOrder(orderId, payType.value)
 
     if (res && res.success) {
-      ElMessage.success('支付成功')
-      // 清除倒计时
-      clearInterval(timer.value)
+      if (payType.value === 2) { // 支付宝支付
+        // 保存支付表单HTML
+        alipayFormHtml.value = res.data
 
-      // 添加通知 - 5秒后系统将自动发货
-      ElMessage.info('系统将在5秒后自动发货')
+        // 显示支付表单
+        showAlipayForm.value = true
 
-      // 延时5秒后跳转到订单详情页
-      setTimeout(async () => {
-        // 发货
-        const res = await orderStore.confirmUserOrder(orderId)
-        if (res.success) {
-          // 跳转到订单详情页
-          router.push(`/order/detail/${orderId}`)
-        } else {
-          ElMessage.error(res?.errorMsg || '发货失败，请稍后重试')
-        }
-      }, 5000)
+        // 等待DOM更新后加载表单
+        nextTick(() => {
+          const iframe = alipayIframe.value
+          if (iframe) {
+            const iframeDoc = iframe.contentDocument || iframe.contentWindow.document
+            iframeDoc.open()
+            iframeDoc.write(alipayFormHtml.value)
+            iframeDoc.close()
+
+            // 自动提交表单
+            const form = iframeDoc.querySelector('form')
+            if (form) {
+              form.removeAttribute('target')
+              form.submit()
+            }
+          }
+        })
+      } else { // 微信支付
+        window.location.href = res.data
+      }
     } else {
       ElMessage.error(res?.errorMsg || '支付失败，请稍后重试')
     }
@@ -201,6 +215,13 @@ const payOrder = async () => {
   } finally {
     paying.value = false
   }
+}
+
+/**
+ * 关闭支付宝表单
+ */
+const closeAlipayForm = () => {
+  showAlipayForm.value = false
 }
 
 /**
@@ -455,21 +476,20 @@ onBeforeUnmount(() => {
       </div>
 
       <div class="payment-methods">
-        <h3>支付方式</h3>
-
-        <div class="method-list">
+        <h3>请选择支付方式</h3>
+        <div class="method-options">
           <div class="method-item" :class="{ active: payType === 1 }" @click="selectPayType(1)">
-            <span class="method-icon wechat-icon">
+            <div class="method-icon wechat-icon">
               <i class="el-icon-wechat"></i>
-            </span>
-            <span class="method-name">微信支付</span>
+            </div>
+            <div class="method-name">微信支付</div>
           </div>
 
           <div class="method-item" :class="{ active: payType === 2 }" @click="selectPayType(2)">
-            <span class="method-icon alipay-icon">
+            <div class="method-icon alipay-icon">
               <i class="el-icon-alipay"></i>
-            </span>
-            <span class="method-name">支付宝</span>
+            </div>
+            <div class="method-name">支付宝支付</div>
           </div>
         </div>
       </div>
@@ -480,6 +500,14 @@ onBeforeUnmount(() => {
         </button>
         <button class="cancel-btn" @click="cancelOrder">取消订单</button>
         <button class="skip-btn" @click="skipPayment">暂不支付</button>
+      </div>
+
+      <!-- 支付宝支付表单容器 -->
+      <div v-if="showAlipayForm" class="alipay-container">
+        <div class="alipay-wrapper">
+          <button class="close-btn" @click="closeAlipayForm">关闭</button>
+          <iframe ref="alipayIframe" class="alipay-iframe" frameborder="0"></iframe>
+        </div>
       </div>
 
       <!-- 地址选择对话框 -->
@@ -735,30 +763,35 @@ onBeforeUnmount(() => {
   margin-bottom: 30px;
 }
 
-.method-list {
+.method-options {
   display: flex;
   gap: 20px;
-  margin-top: 15px;
+  margin-top: 20px;
 }
 
 .method-item {
-  display: flex;
-  align-items: center;
-  padding: 15px;
+  padding: 15px 25px;
   border: 1px solid #dcdfe6;
-  border-radius: 4px;
+  border-radius: 8px;
   cursor: pointer;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
   transition: all 0.3s;
 }
 
+.method-item:hover {
+  border-color: #409EFF;
+}
+
 .method-item.active {
-  border-color: #409eff;
-  background-color: #f0f9ff;
+  border-color: #409EFF;
+  background-color: #ecf5ff;
 }
 
 .method-icon {
-  font-size: 24px;
-  margin-right: 10px;
+  font-size: 32px;
+  margin-bottom: 10px;
 }
 
 .wechat-icon {
@@ -766,7 +799,7 @@ onBeforeUnmount(() => {
 }
 
 .alipay-icon {
-  color: #1677ff;
+  color: #1677FF;
 }
 
 .actions {
@@ -820,5 +853,46 @@ onBeforeUnmount(() => {
 
 .page-header {
   margin-bottom: 15px;
+}
+
+.alipay-container {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background-color: rgba(0, 0, 0, 0.5);
+  z-index: 9999;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+}
+
+.alipay-wrapper {
+  width: 90%;
+  height: 90%;
+  background-color: white;
+  border-radius: 8px;
+  position: relative;
+  overflow: hidden;
+}
+
+.close-btn {
+  position: absolute;
+  top: 10px;
+  right: 10px;
+  z-index: 10;
+  padding: 5px 10px;
+  background-color: #f56c6c;
+  color: white;
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+}
+
+.alipay-iframe {
+  width: 100%;
+  height: 100%;
+  border: none;
 }
 </style>

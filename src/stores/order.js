@@ -1,10 +1,8 @@
 import { defineStore } from 'pinia'
 import { computed, ref } from 'vue'
-import { cancelOrder, confirmOrder, createOrder, deliveryOrder, getOrderDetail, getUserOrders, getUserOrderStatistics, payOrder } from '../api/order'
-import { useGoodsStore } from './goods'
-import { useShopStore } from './shop'
-import { getOrderCount } from '../api/order'
-import { getTodaySales } from '../api/order'
+import { cancelOrder, confirmOrder, createOrder, deliveryOrder, getOrderCount, getOrderDetail, getTodaySales, getUserOrders, getUserOrderStatistics } from '../api/order'
+import { createPayment, queryPayStatus } from '../api/pay'
+import { ElMessage } from 'element-plus'
 
 /**
  * 订单状态管理
@@ -82,19 +80,36 @@ export const useOrderStore = defineStore('order', () => {
   async function fetchOrderList(params = {}) {
     try {
       loading.value = true
+      console.log('请求订单列表，参数:', params)
+
       const res = await getUserOrders(params)
+      console.log('收到订单列表响应:', res)
+
       if (res.success) {
-        orderList.value = res.data
+        orderList.value = res.data || []
         total.value = res.total || 0
+        console.log('更新订单列表数据，条数:', orderList.value.length)
+      } else {
+        console.warn('获取订单列表失败:', res.errorMsg)
+        ElMessage.error(res.errorMsg || '获取订单列表失败')
+        orderList.value = []
+        total.value = 0
       }
-      console.log(orderList.value)
+
       return {
         list: orderList.value,
         total: total.value
       }
     } catch (error) {
-      console.error('获取订单列表失败:', error)
-      throw error
+      console.error('获取订单列表出错:', error)
+      ElMessage.error('获取订单列表失败，请稍后重试')
+      orderList.value = []
+      total.value = 0
+
+      return {
+        list: [],
+        total: 0
+      }
     } finally {
       loading.value = false
     }
@@ -110,15 +125,26 @@ export const useOrderStore = defineStore('order', () => {
     try {
       loading.value = true
       // 确保orderId是数字
-      const id = parseInt(orderId);
-      const res = await payOrder(id, payType)
+      const id = parseInt(orderId)
 
-      // 支付成功后刷新订单详情
+      // 调用支付创建API
+      const res = await createPayment(id, payType)
+
       if (res.success) {
-        await fetchOrderDetail(id)
-      }
+        // 保存支付类型到本地存储
+        localStorage.setItem(`order_payment_type_${id}`, payType.toString())
 
-      return res
+        if (payType === 2) {
+          // 支付宝返回HTML表单，需要在新窗口中展示
+          handleAlipayResponse(res.data)
+        } else {
+          // 微信支付跳转到支付链接
+          window.open(res.data, '_blank')
+        }
+        return res
+      } else {
+        return res
+      }
     } catch (error) {
       console.error('支付订单失败:', error)
       return {
@@ -127,6 +153,94 @@ export const useOrderStore = defineStore('order', () => {
       }
     } finally {
       loading.value = false
+    }
+  }
+
+  // 处理支付宝响应
+  function handleAlipayResponse(htmlContent) {
+    // 创建支付表单容器
+    const payContainer = document.createElement('div');
+    payContainer.id = 'alipay-form-container';
+    payContainer.style.position = 'fixed';
+    payContainer.style.top = '0';
+    payContainer.style.left = '0';
+    payContainer.style.width = '100%';
+    payContainer.style.height = '100%';
+    payContainer.style.backgroundColor = 'rgba(0, 0, 0, 0.5)';
+    payContainer.style.zIndex = '9999';
+    payContainer.style.display = 'flex';
+    payContainer.style.justifyContent = 'center';
+    payContainer.style.alignItems = 'center';
+    document.body.appendChild(payContainer);
+
+    // 创建iframe容器
+    const iframeWrapper = document.createElement('div');
+    iframeWrapper.style.width = '90%';
+    iframeWrapper.style.height = '90%';
+    iframeWrapper.style.backgroundColor = 'white';
+    iframeWrapper.style.borderRadius = '8px';
+    iframeWrapper.style.overflow = 'hidden';
+    iframeWrapper.style.position = 'relative';
+    payContainer.appendChild(iframeWrapper);
+
+    // 添加关闭按钮
+    const closeButton = document.createElement('button');
+    closeButton.textContent = '关闭';
+    closeButton.style.position = 'absolute';
+    closeButton.style.top = '10px';
+    closeButton.style.right = '10px';
+    closeButton.style.zIndex = '10';
+    closeButton.style.padding = '5px 10px';
+    closeButton.style.backgroundColor = '#f56c6c';
+    closeButton.style.color = 'white';
+    closeButton.style.border = 'none';
+    closeButton.style.borderRadius = '4px';
+    closeButton.style.cursor = 'pointer';
+    closeButton.onclick = () => {
+      document.body.removeChild(payContainer);
+    };
+    iframeWrapper.appendChild(closeButton);
+
+    // 创建iframe
+    const iframe = document.createElement('iframe');
+    iframe.style.width = '100%';
+    iframe.style.height = '100%';
+    iframe.style.border = 'none';
+    iframeWrapper.appendChild(iframe);
+
+    // 写入HTML内容并提交表单
+    const iframeDoc = iframe.contentDocument || iframe.contentWindow.document;
+    iframeDoc.open();
+    iframeDoc.write(htmlContent);
+    iframeDoc.close();
+
+    // 自动提交表单
+    const form = iframeDoc.querySelector('form');
+    if (form) {
+      form.removeAttribute('target');
+      form.submit();
+    }
+  }
+
+  // 查询支付状态
+  async function checkPaymentStatus(orderId) {
+    try {
+      // 获取支付类型
+      const payType = localStorage.getItem(`order_payment_type_${orderId}`) || '1'
+
+      // 查询支付状态
+      const res = await queryPayStatus(orderId, parseInt(payType))
+
+      if (res.success && res.data === true) {
+        // 支付成功，刷新订单详情
+        await fetchOrderDetail(orderId)
+        return true
+      }
+
+      return false
+    } catch (error) {
+      console.error('查询支付状态失败:', error)
+      return false
     }
   }
 
@@ -311,6 +425,8 @@ export const useOrderStore = defineStore('order', () => {
     clearOrderCountdown,
     fetchOrderStatistics,
     fetchOrderCount,
-    fetchTodaySales
+    fetchTodaySales,
+    checkPaymentStatus,
+    handleAlipayResponse
   }
 })

@@ -52,20 +52,6 @@ export function getUserOrderStatistics() {
 }
 
 /**
- * 支付订单
- * @param {number} orderId - 订单ID
- * @param {number} payType - 支付方式: 1-微信支付，2-支付宝
- * @returns {Promise} - 支付结果
- */
-export function payOrder(orderId, payType = 1) {
-  return request({
-    url: `/order/pay/${orderId}`,
-    method: 'put',
-    params: { payType }
-  })
-}
-
-/**
  * 取消订单
  * @param {Object} data - 取消原因等数据
  * @returns {Promise} - 取消结果

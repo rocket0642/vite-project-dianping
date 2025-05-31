@@ -19,7 +19,7 @@ let refreshPromise = null
 // 存储401请求队列
 let pendingRequests = []
 
-// 在文件顶部添加
+// 避免重复重定向
 let isRedirecting = false;
 
 /**
@@ -51,79 +51,97 @@ request.interceptors.request.use(
  */
 request.interceptors.response.use(
   response => {
-    // 检查这里是否正确处理了response.data
     return response.data
   },
   async error => {
+    // 处理401错误(未授权/token过期)
     if (error.response?.status === 401) {
       const userStore = useUserStore()
-      // 保存当前路径用于重定向
       const currentPath = router.currentRoute.value.fullPath
+
+      console.log('收到401错误，准备刷新token')
 
       // 避免重复重定向
       if (isRedirecting) {
-        return Promise.reject(error);
+        return Promise.reject(error)
       }
+
+      // 保存原始请求的配置
+      const originalRequest = error.config
 
       // 如果当前没有刷新操作
       if (!isRefreshing) {
         isRefreshing = true
-        refreshPromise = userStore.refreshAccessToken()
-          .then(response => {
-            if (response.success) {
-              // 刷新成功，遍历队列重新发起请求
-              pendingRequests.forEach(cb => cb())
-              pendingRequests = []
-              return userStore.token
-            } else {
-              // 刷新失败，拒绝所有队列请求
-              pendingRequests.forEach(cb => cb(new Error('刷新令牌失败')))
-              pendingRequests = []
+        console.log('开始刷新token...')
 
-              userStore.clearUserData()
-              isRedirecting = true
-              ElMessage.error(response.errorMsg || '登录已过期，请重新登录')
-              // 使用nextTick确保状态更新后再跳转
-              nextTick(() => {
-                router.replace('/login?redirect=' + encodeURIComponent(currentPath))
-              })
-              return Promise.reject(new Error('刷新令牌失败'))
-            }
-          })
-          .catch(error => {
-            // 刷新出错，拒绝所有队列请求
-            pendingRequests.forEach(cb => cb(error))
+        try {
+          const response = await userStore.refreshAccessToken()
+          console.log('刷新token结果:', response)
+
+          if (response.success) {
+            console.log('刷新token成功，重新发送队列中的请求')
+
+            // 复制并清空队列
+            const requests = [...pendingRequests]
             pendingRequests = []
 
+            // 执行所有等待的请求
+            requests.forEach(cb => cb())
+
+            // 重新发送当前失败的请求
+            console.log('重新发送当前请求:', originalRequest.url)
+            originalRequest.headers['Authorization'] = userStore.token
+            return axios(originalRequest).then(res => res.data)
+          } else {
+            console.log('刷新token失败，清除用户数据并跳转登录页')
+            pendingRequests = []
             userStore.clearUserData()
             isRedirecting = true
-            ElMessage.error('登录已过期，请重新登录')
-            // 使用nextTick确保状态更新后再跳转
+            ElMessage.error(response.errorMsg || '登录已过期，请重新登录')
+
             nextTick(() => {
               router.replace('/login?redirect=' + encodeURIComponent(currentPath))
+              isRedirecting = false
             })
-            return Promise.reject(error)
+
+            return Promise.reject(new Error('刷新令牌失败'))
+          }
+        } catch (refreshError) {
+          console.error('刷新token过程出错:', refreshError)
+          pendingRequests = []
+          userStore.clearUserData()
+          isRedirecting = true
+          ElMessage.error('登录已过期，请重新登录')
+
+          nextTick(() => {
+            router.replace('/login?redirect=' + encodeURIComponent(currentPath))
+            isRedirecting = false
           })
-          .finally(() => {
-            isRefreshing = false
-            refreshPromise = null
-          })
+
+          return Promise.reject(refreshError)
+        } finally {
+          console.log('刷新token流程结束')
+          isRefreshing = false
+        }
       }
 
       // 将当前请求加入队列
       return new Promise((resolve, reject) => {
-        const originalRequest = error.config  // 保存原始请求配置
+        console.log('将失败的请求加入队列，等待token刷新后重试')
         pendingRequests.push(() => {
-          // 在回调中使用保存的originalRequest
+          console.log('使用新token重新发送请求:', originalRequest.url)
           originalRequest.headers['Authorization'] = userStore.token
-          resolve(request(originalRequest))
-        })
 
-        // 等待刷新token结果
-        refreshPromise.catch(reject)
+          // 使用axios重新请求，并直接返回data部分
+          axios(originalRequest)
+            .then(res => resolve(res.data))
+            .catch(err => reject(err))
+        })
       })
     }
 
+    // 处理其他错误
+    ElMessage.error(error.response?.data?.errorMsg || '请求失败，请稍后重试')
     return Promise.reject(error)
   }
 )

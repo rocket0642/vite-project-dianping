@@ -1,92 +1,270 @@
 <template>
-  <div class="order-result">
+  <div class="result-container">
     <div class="result-card">
-      <el-result
-        :icon="status === 'success' ? 'success' : 'error'"
-        :title="status === 'success' ? '支付成功' : '支付失败'"
-        :sub-title="subTitle"
-      >
-        <template #extra>
-          <div class="btn-group">
-            <el-button type="primary" @click="$router.push('/order/list')">查看订单</el-button>
-            <el-button @click="$router.push('/')">返回首页</el-button>
-          </div>
-        </template>
-      </el-result>
-      <div v-if="status === 'success'" class="order-info">
-        <p>订单号: {{ orderId }}</p>
-        <p>支付金额: ¥{{ amount }}</p>
-        <p>支付方式: {{ paymentMethod }}</p>
+      <div class="result-icon" :class="{ success: paymentSuccess, pending: !paymentSuccess }">
+        <i v-if="paymentSuccess" class="el-icon-success"></i>
+        <i v-else class="el-icon-time"></i>
+      </div>
+
+      <h1 class="result-title">{{ paymentSuccess ? '支付成功' : '等待支付' }}</h1>
+
+      <div class="result-message">
+        {{ paymentSuccess ? '您的订单已支付成功，感谢您的惠顾！' : '您的订单正在处理中，请稍候...' }}
+      </div>
+
+      <div class="order-info">
+        <div class="info-item">
+          <span class="label">订单编号</span>
+          <span class="value">{{ orderId }}</span>
+        </div>
+        <div class="info-item">
+          <span class="label">支付方式</span>
+          <span class="value">{{ payTypeName }}</span>
+        </div>
+        <div class="info-item" v-if="paymentSuccess && !isDelivered">
+          <span class="label">发货倒计时</span>
+          <span class="value countdown">{{ countdown }}秒</span>
+        </div>
+        <div class="info-item" v-if="isDelivered">
+          <span class="label">订单状态</span>
+          <span class="value success-text">已发货</span>
+        </div>
+      </div>
+
+      <div class="progress-bar" v-if="paymentSuccess && !isDelivered">
+        <div class="progress-inner" :style="{ width: `${(5 - countdown) / 5 * 100}%` }"></div>
+      </div>
+
+      <div class="action-buttons">
+        <el-button type="primary" @click="goToOrderDetail">查看订单详情</el-button>
+        <el-button @click="goToHome">返回首页</el-button>
       </div>
     </div>
   </div>
 </template>
 
 <script setup>
-import { onMounted, ref } from 'vue'
-import { useRoute } from 'vue-router'
+import { ref, onMounted, onUnmounted } from 'vue'
+import { useRoute, useRouter } from 'vue-router'
+import { useOrderStore } from '../../stores/order'
+import { ElMessage } from 'element-plus'
 
 const route = useRoute()
-const status = ref('success')
-const subTitle = ref('您的订单已支付成功，感谢您的购买！')
-const orderId = ref('')
-const amount = ref(0)
-const paymentMethod = ref('支付宝')
+const router = useRouter()
+const orderStore = useOrderStore()
+
+const orderId = ref(route.query.orderId)
+const paymentSuccess = ref(route.query.payResult === 'success')
+const payType = ref(localStorage.getItem(`order_payment_type_${orderId.value}`) || '2')
+const payTypeName = ref(payType.value === '1' ? '微信支付' : '支付宝支付')
+const countdown = ref(5)
+const isDelivered = ref(false)
+
+let statusCheckInterval = null
+let countdownTimer = null
 
 onMounted(() => {
-  // 从路由参数获取支付结果信息
-  if (route.query.status) {
-    status.value = route.query.status
-    if (status.value === 'success') {
-      subTitle.value = '您的订单已支付成功，感谢您的购买！'
-    } else {
-      subTitle.value = '支付失败，请重新尝试或联系客服。'
-    }
-  }
-  
-  if (route.query.orderId) {
-    orderId.value = route.query.orderId
-  }
-  
-  if (route.query.amount) {
-    amount.value = route.query.amount
-  }
-  
-  if (route.query.paymentMethod) {
-    paymentMethod.value = route.query.paymentMethod
+  if (!paymentSuccess.value) {
+    // 每3秒查询一次支付状态
+    statusCheckInterval = setInterval(checkPayStatus, 3000)
+    // 立即查询一次
+    checkPayStatus()
+  } else {
+    // 支付成功，开始5秒倒计时自动发货
+    startDeliveryCountdown()
+    // 显示成功通知
+    ElMessage.success('支付成功！系统将在5秒后自动发货')
   }
 })
+
+onUnmounted(() => {
+  if (statusCheckInterval) {
+    clearInterval(statusCheckInterval)
+  }
+  if (countdownTimer) {
+    clearInterval(countdownTimer)
+  }
+})
+
+async function checkPayStatus() {
+  try {
+    const result = await orderStore.checkPaymentStatus(orderId.value)
+    if (result) {
+      paymentSuccess.value = true
+      clearInterval(statusCheckInterval)
+      // 支付成功，开始5秒倒计时自动发货
+      startDeliveryCountdown()
+      // 显示成功通知
+      ElMessage.success('支付成功！系统将在5秒后自动发货')
+    }
+  } catch (error) {
+    console.error('查询支付状态失败:', error)
+  }
+}
+
+function startDeliveryCountdown() {
+  countdownTimer = setInterval(() => {
+    countdown.value--
+    if (countdown.value <= 0) {
+      clearInterval(countdownTimer)
+      // 发货
+      deliverOrder()
+    }
+  }, 1000)
+}
+
+async function deliverOrder() {
+  if (!isDelivered.value) {
+    isDelivered.value = true
+    try {
+      const res = await orderStore.confirmUserOrder(orderId.value)
+      if (res.success) {
+        ElMessage.success('订单已发货')
+      } else {
+        ElMessage.error(res.errorMsg || '发货失败，请稍后重试')
+      }
+    } catch (error) {
+      console.error('发货失败:', error)
+      ElMessage.error('发货失败，请稍后重试')
+    }
+  }
+}
+
+function goToOrderDetail() {
+  router.push(`/order/detail/${orderId.value}`)
+}
+
+function goToHome() {
+  router.push('/')
+}
 </script>
 
-<style scoped lang="scss">
-.order-result {
-  padding: 30px 0;
-  
+<style scoped>
+.result-container {
+  min-height: 100vh;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  padding: 20px;
+  background-color: #f5f7fa;
+}
+
+.result-card {
+  width: 100%;
+  max-width: 600px;
+  background-color: white;
+  border-radius: 12px;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.08);
+  padding: 40px;
+  text-align: center;
+  transition: all 0.3s ease;
+}
+
+.result-card:hover {
+  transform: translateY(-5px);
+  box-shadow: 0 12px 30px rgba(0, 0, 0, 0.12);
+}
+
+.result-icon {
+  display: inline-flex;
+  justify-content: center;
+  align-items: center;
+  width: 80px;
+  height: 80px;
+  border-radius: 50%;
+  margin-bottom: 24px;
+  font-size: 40px;
+}
+
+.result-icon.success {
+  background-color: rgba(103, 194, 58, 0.1);
+  color: #67c23a;
+}
+
+.result-icon.pending {
+  background-color: rgba(230, 162, 60, 0.1);
+  color: #e6a23c;
+}
+
+.result-title {
+  font-size: 28px;
+  margin-bottom: 16px;
+  color: #303133;
+}
+
+.result-message {
+  color: #606266;
+  font-size: 16px;
+  margin-bottom: 32px;
+}
+
+.order-info {
+  background-color: #f8f9fa;
+  border-radius: 8px;
+  padding: 20px;
+  margin-bottom: 24px;
+  text-align: left;
+}
+
+.info-item {
+  display: flex;
+  justify-content: space-between;
+  margin-bottom: 12px;
+}
+
+.info-item:last-child {
+  margin-bottom: 0;
+}
+
+.label {
+  color: #909399;
+  font-size: 14px;
+}
+
+.value {
+  color: #303133;
+  font-weight: 500;
+}
+
+.countdown {
+  color: #f56c6c;
+  font-weight: bold;
+}
+
+.success-text {
+  color: #67c23a;
+  font-weight: bold;
+}
+
+.progress-bar {
+  height: 6px;
+  background-color: #ebeef5;
+  border-radius: 3px;
+  margin-bottom: 24px;
+  overflow: hidden;
+}
+
+.progress-inner {
+  height: 100%;
+  background-color: #67c23a;
+  border-radius: 3px;
+  transition: width 1s linear;
+}
+
+.action-buttons {
+  display: flex;
+  justify-content: center;
+  gap: 20px;
+}
+
+@media (max-width: 768px) {
   .result-card {
-    background: #fff;
-    border-radius: 8px;
-    padding: 20px;
-    max-width: 800px;
-    margin: 0 auto;
-    box-shadow: 0 2px 12px rgba(0, 0, 0, 0.1);
+    padding: 30px 20px;
   }
-  
-  .btn-group {
-    display: flex;
-    justify-content: center;
-    gap: 15px;
-    margin-top: 20px;
-  }
-  
-  .order-info {
-    border-top: 1px solid #eee;
-    margin-top: 20px;
-    padding-top: 20px;
-    
-    p {
-      line-height: 2;
-      color: #666;
-    }
+
+  .action-buttons {
+    flex-direction: column;
+    gap: 10px;
   }
 }
 </style>
