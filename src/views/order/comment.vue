@@ -11,7 +11,7 @@ import { useUserStore } from '../../stores/user'
 // 获取路由参数
 const route = useRoute()
 const router = useRouter()
-const orderId = parseInt(route.params.id)
+const orderId = route.params.id
 
 // 状态
 const loading = ref(false)

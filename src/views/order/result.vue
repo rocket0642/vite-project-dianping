@@ -36,8 +36,8 @@
       </div>
 
       <div class="action-buttons">
-        <el-button type="primary" @click="goToOrderDetail">查看订单详情</el-button>
-        <el-button @click="goToHome">返回首页</el-button>
+        <el-button type="primary" @click="goToOrderDetail">订单详情</el-button>
+        <el-button @click="goToOrderList">订单列表</el-button>
       </div>
     </div>
   </div>
@@ -134,8 +134,8 @@ function goToOrderDetail() {
   router.push(`/order/detail/${orderId.value}`)
 }
 
-function goToHome() {
-  router.push('/')
+function goToOrderList() {
+  router.push('/order/list')
 }
 </script>
 

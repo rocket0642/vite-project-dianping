@@ -244,7 +244,7 @@ const goToPay = (orderId) => {
     ElMessage.error('订单ID无效')
     return
   }
-  router.push(`/order/pay/${parseInt(orderId)}`)
+  router.push(`/order/pay/${orderId}`)
 }
 
 /**

@@ -2,7 +2,7 @@ import request from '../utils/request'
 
 /**
  * 创建支付订单
- * @param {number} orderId - 订单ID
+ * @param {String} orderId - 订单ID
  * @param {number} payType - 支付方式: 1-微信支付，2-支付宝
  * @returns {Promise} - 支付链接或表单
  */
@@ -17,7 +17,7 @@ export function createPayment(orderId, payType = 2) {
 
 /**
  * 查询支付状态
- * @param {number} orderId - 订单ID
+ * @param {String} orderId - 订单ID
  * @param {number} payType - 支付方式: 1-微信支付，2-支付宝
  * @returns {Promise} - 支付结果
  */

@@ -64,7 +64,7 @@ export const useCommentStore = defineStore('comment', () => {
 
   /**
    * 检查订单是否已评价
-   * @param {number} orderId - 订单ID
+   * @param {String} orderId - 订单ID
    * @returns {Promise<boolean>} - 是否已评价
    */
   async function checkIfOrderCommented(orderId) {
@@ -89,7 +89,7 @@ export const useCommentStore = defineStore('comment', () => {
 
   /**
    * 加载店铺评价列表
-   * @param {number} shopId - 店铺ID
+   * @param {String} shopId - 店铺ID
    * @param {Object} params - 查询参数
    * @returns {Promise<Object>} - 评价列表数据
    */

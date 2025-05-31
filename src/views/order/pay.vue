@@ -17,7 +17,7 @@ const addressStore = useAddressStore()
 const loading = ref(true)
 const paying = ref(false)
 const order = ref({})
-const orderId = parseInt(route.params.id)
+const orderId = route.params.id
 const payType = ref(2) // 默认支付宝支付
 const countdown = ref(1800) // 默认30分钟倒计时（秒）
 const timer = ref(null)
@@ -383,17 +383,6 @@ const handleAddressSuccess = (address) => {
 }
 
 /**
- * 返回订单详情或列表
- */
-const goBack = () => {
-  if (orderId) {
-    router.push(`/order/detail/${orderId}`)
-  } else {
-    router.push('/order/list')
-  }
-}
-
-/**
  * 页面挂载时加载数据
  */
 onMounted(() => {
@@ -412,7 +401,7 @@ onBeforeUnmount(() => {
   <AppLayout>
     <div class="order-pay-container" v-loading="loading">
       <div class="page-header">
-        <el-button type="text" icon="ArrowLeft" @click="goBack">返回</el-button>
+        <el-button type="text" icon="ArrowLeft" @click="router.back()">返回</el-button>
       </div>
 
       <div class="pay-header">

@@ -18,7 +18,7 @@ const userStore = useUserStore()
 const loading = ref(false)
 const submitting = ref(false)
 const order = ref({})
-const orderId = parseInt(route.params.id)
+const orderId = route.params.id
 
 // 售后申请表单
 const refundForm = ref({

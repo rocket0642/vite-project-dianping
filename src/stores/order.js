@@ -53,13 +53,13 @@ export const useOrderStore = defineStore('order', () => {
 
   /**
    * 获取订单详情
-   * @param {number} id - 订单ID
+   * @param {String} orderId - 订单ID
    * @returns {Promise} - 订单详情
    */
-  async function fetchOrderDetail(id) {
+  async function fetchOrderDetail(orderId) {
     try {
       loading.value = true
-      const res = await getOrderDetail(id)
+      const res = await getOrderDetail(orderId)
       if (res.success) {
         currentOrder.value = res.data
       }
@@ -117,22 +117,20 @@ export const useOrderStore = defineStore('order', () => {
 
   /**
    * 支付订单
-   * @param {number} orderId - 订单ID
+   * @param {String} orderId - 订单ID
    * @param {number} payType - 支付方式: 1-微信支付，2-支付宝
    * @returns {Promise} - 支付结果
    */
-  async function payUserOrder(orderId, payType = 1) {
+  async function payUserOrder(orderId, payType = 2) {
     try {
       loading.value = true
-      // 确保orderId是数字
-      const id = parseInt(orderId)
 
       // 调用支付创建API
-      const res = await createPayment(id, payType)
+      const res = await createPayment(orderId, payType)
 
       if (res.success) {
         // 保存支付类型到本地存储
-        localStorage.setItem(`order_payment_type_${id}`, payType.toString())
+        localStorage.setItem(`order_payment_type_${orderId}`, payType.toString())
 
         if (payType === 2) {
           // 支付宝返回HTML表单，需要在新窗口中展示
@@ -264,7 +262,7 @@ export const useOrderStore = defineStore('order', () => {
 
   /**
    * 发货
-   * @param {number} orderId - 订单ID
+   * @param {String} orderId - 订单ID
    * @returns {Promise} - 发货结果
    */
   async function confirmUserOrder(orderId) {
@@ -282,7 +280,7 @@ export const useOrderStore = defineStore('order', () => {
 
   /**
    * 确认收货
-   * @param {number} orderId - 订单ID
+   * @param {String} orderId - 订单ID
    * @returns {Promise} - 确认收货结果  
    */
   async function deliveryUserOrder(orderId) {
@@ -300,7 +298,7 @@ export const useOrderStore = defineStore('order', () => {
 
   /**
    * 开始订单倒计时 - 第一次点击支付才开始
-   * @param {number} orderId - 订单ID
+   * @param {String} orderId - 订单ID
    */
   function startOrderCountdown(orderId) {
     // 检查是否已经存在倒计时，如果不存在才设置
@@ -316,7 +314,7 @@ export const useOrderStore = defineStore('order', () => {
 
   /**
    * 获取订单剩余时间（秒）
-   * @param {number} orderId - 订单ID
+   * @param {String} orderId - 订单ID
    * @returns {number} - 剩余时间（秒）
    */
   function getOrderRemainingTime(orderId) {
@@ -335,7 +333,7 @@ export const useOrderStore = defineStore('order', () => {
 
   /**
    * 清除订单倒计时
-   * @param {number} orderId - 订单ID
+   * @param {String} orderId - 订单ID
    */
   function clearOrderCountdown(orderId) {
     delete orderTimers.value[orderId];

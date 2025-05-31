@@ -15,12 +15,12 @@ export function createOrder(data) {
 
 /**
  * 获取订单详情
- * @param {number} id - 订单ID
+ * @param {String} id - 订单ID
  * @returns {Promise} - 订单详情
  */
 export function getOrderDetail(id) {
   return request({
-    url: `/order/status/${id}`,
+    url: `/order/detail/${id}`,
     method: 'get'
   })
 }
@@ -66,7 +66,7 @@ export function cancelOrder(data) {
 
 /**
  * 发货
- * @param {number} orderId - 订单ID
+ * @param {String} orderId - 订单ID
  * @returns {Promise} - 发货结果
  */
 export function confirmOrder(orderId) {
@@ -78,7 +78,7 @@ export function confirmOrder(orderId) {
 
 /**
  * 确认收货
- * @param {number} orderId - 订单ID
+ * @param {String} orderId - 订单ID
  * @returns {Promise} - 确认收货结果
  */
 export function deliveryOrder(orderId) {

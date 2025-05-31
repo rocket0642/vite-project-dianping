@@ -23,7 +23,6 @@ const loading = ref(false)
 const addressesLoading = ref(false)
 const orderForm = ref({
   address: '',
-  payType: 1,
   remark: '',
   items: []
 })
@@ -96,7 +95,6 @@ const createOrder = async () => {
         addressPhone: selectedAddress.value.phone,
         addressDetail: selectedAddress.value.address,
         // 其他信息
-        payType: orderForm.value.payType,
         remark: orderForm.value.remark
       }
 
@@ -274,14 +272,6 @@ onMounted(() => {
         </div>
       </div>
 
-      <!-- 支付方式 -->
-      <div class="section payment-section">
-        <h2 class="section-title">支付方式</h2>
-        <el-radio-group v-model="orderForm.payType">
-          <el-radio :label="1">微信支付</el-radio>
-          <el-radio :label="2">支付宝</el-radio>
-        </el-radio-group>
-      </div>
 
       <!-- 订单备注 -->
       <div class="section remark-section">
@@ -497,10 +487,6 @@ onMounted(() => {
   color: #f60;
   width: 100px;
   text-align: right;
-}
-
-.payment-section {
-  margin-top: 30px;
 }
 
 .summary-section {
