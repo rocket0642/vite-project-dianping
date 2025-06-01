@@ -67,6 +67,15 @@ const adminRoutes = [
                     icon: 'service'
                 }
             }
+            // {
+            //     path: 'settings',
+            //     name: 'SystemSettings',
+            //     component: () => import('../views/admin/settings/index.vue'),
+            //     meta: {
+            //         title: '系统设置',
+            //         icon: 'setting'
+            //     }
+            // }
         ]
     },
     // {

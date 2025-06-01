@@ -1,12 +1,12 @@
 import { defineStore } from 'pinia'
 import { computed, ref } from 'vue'
-import { cancelOrder, confirmOrder, createOrder, deliveryOrder, getOrderDetail, getUserOrders, getUserOrderStatistics, payOrder as payOrderApi, shipOrder, updateOrderStatus } from '../api/order'
 import { useGoodsStore } from './goods'
 import { useShopStore } from './shop'
-import { getOrderCount } from '../api/order'
-import { getTodaySales } from '../api/order'
 import request from '../utils/request'
 import { submitAfterSale, handleAfterSale } from '../api/afterSale'
+import { cancelOrder, confirmOrder, createOrder, deliveryOrder, getOrderCount, getOrderDetail, getTodaySales, getUserOrders, getUserOrderStatistics } from '../api/order'
+import { createPayment, queryPayStatus } from '../api/pay'
+import { ElMessage } from 'element-plus'
 
 /**
  * 订单状态管理
@@ -35,16 +35,6 @@ export const useOrderStore = defineStore('order', () => {
     }
   })
 
-  // 引入商品和商铺store
-  const goodsStore = useGoodsStore()
-  const shopStore = useShopStore()
-
-  // 1. 添加新的状态常量
-  const ORDER_STATUS = {
-    AFTER_SALE: 6,
-    AFTER_SALE_COMPLETE: 7
-  }
-
   /**
    * 创建订单
    * @param {Object} orderData - 订单数据
@@ -68,13 +58,13 @@ export const useOrderStore = defineStore('order', () => {
 
   /**
    * 获取订单详情
-   * @param {number} id - 订单ID
+   * @param {String} orderId - 订单ID
    * @returns {Promise} - 订单详情
    */
-  async function fetchOrderDetail(id) {
+  async function fetchOrderDetail(orderId) {
     try {
       loading.value = true
-      const res = await getOrderDetail(id)
+      const res = await getOrderDetail(orderId)
       if (res.success) {
         currentOrder.value = res.data
       }
@@ -95,18 +85,14 @@ export const useOrderStore = defineStore('order', () => {
   async function fetchOrderList(params = {}) {
     try {
       loading.value = true
+      console.log('请求订单列表，参数:', params)
+
       const res = await getUserOrders(params)
+      console.log('收到订单列表响应:', res)
+
       if (res.success) {
         orderList.value = res.data || []
         total.value = res.total || 0
-
-        // 更新分页状态
-        if (params.status === 6) {
-          orderListPageState.value.paginationState.afterSale = {
-            currentPage: params.current || 1,
-            total: res.total || 0
-          }
-        }
 
         return {
           success: true,
@@ -114,45 +100,151 @@ export const useOrderStore = defineStore('order', () => {
           total: total.value
         }
       }
+        console.log('更新订单列表数据，条数:', orderList.value.length)
+      } else {
+        console.warn('获取订单列表失败:', res.errorMsg)
+        ElMessage.error(res.errorMsg || '获取订单列表失败')
+        orderList.value = []
+        total.value = 0
+      }
+
       return {
         success: false,
         data: [],
         total: 0
       }
     } catch (error) {
-      console.error('获取订单列表失败:', error)
-      throw error
+      console.error('获取订单列表出错:', error)
+      ElMessage.error('获取订单列表失败，请稍后重试')
+      orderList.value = []
+      total.value = 0
+
+      return {
+        list: [],
+        total: 0
+      }
     } finally {
       loading.value = false
     }
   }
-
-  /**
-   * 支付订单
-   * @param {number} orderId - 订单ID
-   * @returns {Promise} 支付结果
+                                         
+   * @param {String} orderId - 订单ID
+   * @param {number} payType - 支付方式: 1-微信支付，2-支付宝
+   * @returns {Promise} - 支付结果
    */
-  async function payOrder(orderId) {
+  async function payUserOrder(orderId, payType = 2) {
     try {
-      const res = await payOrderApi(orderId)
-      if (res.success) {
-        // 支付成功后更新订单状态为已支付(2)
-        if (currentOrder.value && currentOrder.value.id === orderId) {
-          currentOrder.value.status = 2
-          currentOrder.value.payTime = new Date().toISOString()
-        }
+      loading.value = true
 
-        // 更新订单列表中的订单状态
-        const order = orderList.value.find(o => o.id === orderId)
-        if (order) {
-          order.status = 2
-          order.payTime = new Date().toISOString()
+      // 调用支付创建API
+      const res = await createPayment(orderId, payType)
+
+      if (res.success) {
+        // 保存支付类型到本地存储
+        localStorage.setItem(`order_payment_type_${orderId}`, payType.toString())
+
+        if (payType === 2) {
+          // 支付宝返回HTML表单，需要在新窗口中展示
+          handleAlipayResponse(res.data)
+        } else {
+          // 微信支付跳转到支付链接
+          window.open(res.data, '_blank')
         }
+        return res
+      } else {
+        return res
       }
-      return res
     } catch (error) {
       console.error('支付订单失败:', error)
       throw error
+    }
+  }
+
+  // 处理支付宝响应
+  function handleAlipayResponse(htmlContent) {
+    // 创建支付表单容器
+    const payContainer = document.createElement('div');
+    payContainer.id = 'alipay-form-container';
+    payContainer.style.position = 'fixed';
+    payContainer.style.top = '0';
+    payContainer.style.left = '0';
+    payContainer.style.width = '100%';
+    payContainer.style.height = '100%';
+    payContainer.style.backgroundColor = 'rgba(0, 0, 0, 0.5)';
+    payContainer.style.zIndex = '9999';
+    payContainer.style.display = 'flex';
+    payContainer.style.justifyContent = 'center';
+    payContainer.style.alignItems = 'center';
+    document.body.appendChild(payContainer);
+
+    // 创建iframe容器
+    const iframeWrapper = document.createElement('div');
+    iframeWrapper.style.width = '90%';
+    iframeWrapper.style.height = '90%';
+    iframeWrapper.style.backgroundColor = 'white';
+    iframeWrapper.style.borderRadius = '8px';
+    iframeWrapper.style.overflow = 'hidden';
+    iframeWrapper.style.position = 'relative';
+    payContainer.appendChild(iframeWrapper);
+
+    // 添加关闭按钮
+    const closeButton = document.createElement('button');
+    closeButton.textContent = '关闭';
+    closeButton.style.position = 'absolute';
+    closeButton.style.top = '10px';
+    closeButton.style.right = '10px';
+    closeButton.style.zIndex = '10';
+    closeButton.style.padding = '5px 10px';
+    closeButton.style.backgroundColor = '#f56c6c';
+    closeButton.style.color = 'white';
+    closeButton.style.border = 'none';
+    closeButton.style.borderRadius = '4px';
+    closeButton.style.cursor = 'pointer';
+    closeButton.onclick = () => {
+      document.body.removeChild(payContainer);
+    };
+    iframeWrapper.appendChild(closeButton);
+
+    // 创建iframe
+    const iframe = document.createElement('iframe');
+    iframe.style.width = '100%';
+    iframe.style.height = '100%';
+    iframe.style.border = 'none';
+    iframeWrapper.appendChild(iframe);
+
+    // 写入HTML内容并提交表单
+    const iframeDoc = iframe.contentDocument || iframe.contentWindow.document;
+    iframeDoc.open();
+    iframeDoc.write(htmlContent);
+    iframeDoc.close();
+
+    // 自动提交表单
+    const form = iframeDoc.querySelector('form');
+    if (form) {
+      form.removeAttribute('target');
+      form.submit();
+    }
+  }
+
+  // 查询支付状态
+  async function checkPaymentStatus(orderId) {
+    try {
+      // 获取支付类型
+      const payType = localStorage.getItem(`order_payment_type_${orderId}`) || '1'
+
+      // 查询支付状态
+      const res = await queryPayStatus(orderId, parseInt(payType))
+
+      if (res.success && res.data === true) {
+        // 支付成功，刷新订单详情
+        await fetchOrderDetail(orderId)
+        return true
+      }
+
+      return false
+    } catch (error) {
+      console.error('查询支付状态失败:', error)
+      return false
     }
   }
 
@@ -176,7 +268,7 @@ export const useOrderStore = defineStore('order', () => {
 
   /**
    * 发货
-   * @param {number} orderId - 订单ID
+   * @param {String} orderId - 订单ID
    * @returns {Promise} - 发货结果
    */
   async function confirmUserOrder(orderId) {
@@ -194,7 +286,8 @@ export const useOrderStore = defineStore('order', () => {
 
   /**
    * 确认收货
-   * @param {number} orderId - 订单ID
+   * @param {String} orderId - 订单ID
+   * @returns {Promise} - 确认收货结果  
    */
   async function deliveryUserOrder(orderId) {
     if (!orderId) {
@@ -224,7 +317,7 @@ export const useOrderStore = defineStore('order', () => {
 
   /**
    * 开始订单倒计时 - 第一次点击支付才开始
-   * @param {number} orderId - 订单ID
+   * @param {String} orderId - 订单ID
    */
   function startOrderCountdown(orderId) {
     // 检查是否已经存在倒计时，如果不存在才设置
@@ -240,7 +333,7 @@ export const useOrderStore = defineStore('order', () => {
 
   /**
    * 获取订单剩余时间（秒）
-   * @param {number} orderId - 订单ID
+   * @param {String} orderId - 订单ID
    * @returns {number} - 剩余时间（秒）
    */
   function getOrderRemainingTime(orderId) {
@@ -259,7 +352,7 @@ export const useOrderStore = defineStore('order', () => {
 
   /**
    * 清除订单倒计时
-   * @param {number} orderId - 订单ID
+   * @param {String} orderId - 订单ID
    */
   function clearOrderCountdown(orderId) {
     delete orderTimers.value[orderId];
@@ -322,155 +415,6 @@ export const useOrderStore = defineStore('order', () => {
     }
   }
 
-  /**
-   * 商家发货
-   * @param {number} orderId - 订单ID
-   * @returns {Promise} - 发货结果
-   */
-  async function shipUserOrder(orderId) {
-    if (!orderId) {
-      throw new Error('订单ID不能为空')
-    }
-
-    try {
-      loading.value = true
-      const res = await shipOrder(orderId)
-      if (res.success) {
-        // 更新当前订单状态
-        if (currentOrder.value && currentOrder.value.id === orderId) {
-          currentOrder.value.status = 4  // 更新为已发货状态
-          currentOrder.value.deliveryTime = new Date().toISOString()
-        }
-
-        // 更新订单列表中的状态
-        const order = orderList.value.find(o => o.id === orderId)
-        if (order) {
-          order.status = 4
-          order.deliveryTime = new Date().toISOString()
-        }
-      }
-      return res
-    } catch (error) {
-      console.error('商家发货失败:', error)
-      throw error
-    } finally {
-      loading.value = false
-    }
-  }
-
-  /**
-   * 获取售后订单列表
-   * @param {Object} params - 查询参数
-   * @returns {Promise} - 售后订单列表
-   */
-  async function fetchAfterSaleOrders(params = {}) {
-    try {
-      loading.value = true
-      // 添加售后状态过滤
-      const afterSaleParams = {
-        ...params,
-        status: [6, 7]  // 售后处理中和售后完成的状态
-      }
-      const res = await getUserOrders(afterSaleParams)
-      if (res.success) {
-        orderList.value = res.data
-        total.value = res.total || 0
-      }
-      return {
-        list: orderList.value,
-        total: total.value
-      }
-    } catch (error) {
-      console.error('获取售后订单列表失败:', error)
-      throw error
-    } finally {
-      loading.value = false
-    }
-  }
-
-  // 修改提交售后申请的方法
-  async function submitAfterSaleApplication(data) {
-    try {
-      // 处理图片数组
-      const afterSaleData = {
-        ...data,
-        images: Array.isArray(data.images) ? data.images :
-          typeof data.images === 'string' ? [data.images] : []
-      }
-
-      // 1. 提交售后申请
-      const res = await submitAfterSale(afterSaleData)
-
-      if (res.success) {
-        // 2. 更新订单状态为售后中(6)
-        const updateRes = await handleAfterSale({
-          id: data.orderId,
-          status: ORDER_STATUS.AFTER_SALE
-        })
-
-        if (updateRes.success) {
-          // 3. 更新本地订单状态
-          const order = orderList.value.find(o => o.id === data.orderId)
-          if (order) {
-            order.status = ORDER_STATUS.AFTER_SALE
-            order.afterSaleTime = new Date().toISOString()
-          }
-
-          // 4. 重新获取售后列表
-          await fetchOrderList({
-            current: 1,
-            pageSize: 5,
-            status: ORDER_STATUS.AFTER_SALE
-          })
-
-          return true
-        }
-      }
-      throw new Error(res.errorMsg || '提交售后申请失败')
-    } catch (error) {
-      console.error('提交售后申请失败:', error)
-      throw error
-    }
-  }
-
-  // 更新订单状态
-  async function updateOrderStatus(data) {
-    try {
-      // 使用正确的售后处理API
-      const res = await handleAfterSale({
-        id: data.id,
-        status: data.status
-      })
-
-      if (res.success) {
-        // 更新本地订单状态
-        const order = orderList.value.find(o => o.id === data.id)
-        if (order) {
-          order.status = data.status
-          if (data.status === 6) {
-            order.afterSaleTime = new Date().toISOString()
-          }
-        }
-
-        // 如果是更新为售后状态，重新获取售后列表
-        if (data.status === 6) {
-          await fetchOrderList({
-            current: 1,
-            pageSize: 5,
-            status: 6
-          })
-        }
-      }
-      return res
-    } catch (error) {
-      console.error('更新订单状态失败:', error)
-      return {
-        success: false,
-        errorMsg: error.message || '更新订单状态失败'
-      }
-    }
-  }
-
   return {
     // 状态
     currentOrder,
@@ -501,9 +445,8 @@ export const useOrderStore = defineStore('order', () => {
     fetchOrderStatistics,
     fetchOrderCount,
     fetchTodaySales,
-    shipUserOrder,
-    fetchAfterSaleOrders,
-    submitAfterSaleApplication,
-    updateOrderStatus
+    checkPaymentStatus,
+    handleAlipayResponse
+
   }
 })

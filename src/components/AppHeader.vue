@@ -65,7 +65,7 @@ const goToCart = () => {
             购物车
           </el-button>
         </el-badge>
-        
+
         <div class="user-avatar-container">
           <div v-if="userStore.isLogin" class="avatar-wrapper" @click="goToUserCenter">
             <el-avatar :size="32" :src="userStore.userInfo.icon || defaultAvatar"></el-avatar>
@@ -160,16 +160,16 @@ const goToCart = () => {
     justify-content: center;
     padding: 10px;
   }
-  
+
   .logo {
     margin-bottom: 10px;
     margin-right: 10px;
   }
-  
+
   .nav-links {
     margin-bottom: 10px;
   }
-  
+
   .cart-badge {
     margin-right: 10px;
   }

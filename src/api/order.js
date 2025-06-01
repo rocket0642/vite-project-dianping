@@ -15,12 +15,12 @@ export function createOrder(data) {
 
 /**
  * 获取订单详情
- * @param {number} id - 订单ID
+ * @param {String} id - 订单ID
  * @returns {Promise} - 订单详情
  */
 export function getOrderDetail(id) {
   return request({
-    url: `/order/status/${id}`,
+    url: `/order/detail/${id}`,
     method: 'get'
   })
 }
@@ -52,20 +52,6 @@ export function getUserOrderStatistics() {
 }
 
 /**
- * 支付订单
- * @param {number} orderId - 订单ID
- * @param {number} payType - 支付方式: 1-微信支付，2-支付宝
- * @returns {Promise} - 支付结果
- */
-export function payOrder(orderId, payType = 1) {
-  return request({
-    url: `/order/pay/${orderId}`,
-    method: 'put',
-    params: { payType }
-  })
-}
-
-/**
  * 取消订单
  * @param {Object} data - 取消原因等数据
  * @returns {Promise} - 取消结果
@@ -80,19 +66,19 @@ export function cancelOrder(data) {
 
 /**
  * 发货
- * @param {number} orderId - 订单ID
+ * @param {String} orderId - 订单ID
  * @returns {Promise} - 发货结果
  */
 export function confirmOrder(orderId) {
   return request({
-    url: `/order/pay/${orderId}`,
+    url: `/order/${orderId}`,
     method: 'put'
   })
 }
 
 /**
  * 确认收货
- * @param {number} orderId - 订单ID
+ * @param {String} orderId - 订单ID
  * @returns {Promise} - 确认收货结果
  */
 export function deliveryOrder(orderId) {
@@ -152,31 +138,3 @@ export function getOrderPage(params) {
   })
 }
 
-/**
- * 商家发货
- * @param {number} orderId - 订单ID
- * @returns {Promise} - 发货结果
- */
-export function shipOrder(orderId) {
-  if (!orderId) {
-    return Promise.reject(new Error('订单ID不能为空'))
-  }
-
-  return request({
-    url: `/order/ship/${orderId}`,
-    method: 'put'
-  })
-}
-
-/**
- * 更新订单状态
- * @param {Object} data - 更新数据
- * @returns {Promise} - 更新结果
- */
-export function updateOrderStatus(data) {
-  return request({
-    url: '/order/status',
-    method: 'put',
-    data
-  })
-}

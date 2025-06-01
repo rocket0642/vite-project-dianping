@@ -19,7 +19,7 @@ const commentStore = useCommentStore()
 // 状态
 const loading = ref(true)
 const order = ref({})
-const orderId = parseInt(route.params.id)
+const orderId = route.params.id
 const isCommented = ref(false)
 
 // 订单状态步骤
@@ -30,7 +30,7 @@ const orderSteps = computed(() => {
     { title: '商家发货', description: order.value.deliveryTime || '商家已发货' },
     { title: '确认收货', description: order.value.status === 5 ? '已完成' : '待收货' }
   ]
-  
+
   return steps
 })
 
@@ -48,19 +48,6 @@ const activeStep = computed(() => {
 
 // 通用的价格格式化方法
 const formatPrice = (price) => (price / 100).toFixed(2);
-
-// 通用的日期格式化方法
-const formatDate = (dateString) => {
-  if (!dateString) return '';
-  const date = new Date(dateString.replace(/-/g, '/'));
-  return date.toLocaleString('zh-CN', {
-    year: 'numeric',
-    month: '2-digit',
-    day: '2-digit',
-    hour: '2-digit',
-    minute: '2-digit'
-  });
-}
 
 /**
  * 获取订单状态文本
@@ -91,19 +78,6 @@ const getStatusType = (status) => {
     case 4: return 'primary'
     case 5: return 'success'
     default: return 'info'
-  }
-}
-
-/**
- * 获取支付方式文本
- * @param {number} payType - 支付方式
- * @returns {string} - 支付方式文本
- */
-const getPayTypeText = (payType) => {
-  switch (payType) {
-    case 1: return '微信支付'
-    case 2: return '支付宝'
-    default: return '未支付'
   }
 }
 
@@ -230,10 +204,10 @@ const goToComment = () => {
 onMounted(() => {
   if (!userStore.isLogin) {
     ElMessage.warning('请先登录')
-    router.push('/login?redirect=/order/' + orderId)
+    router.push('/login?redirect=/order/detail/' + orderId)
     return
   }
-  
+
   loadOrderDetail()
 })
 </script>
@@ -244,86 +218,58 @@ onMounted(() => {
       <div class="page-header">
         <el-button type="text" icon="ArrowLeft" @click="goToOrderList">返回订单列表</el-button>
       </div>
-      
+
       <div v-if="loading" class="loading-container">
         <div class="loading-spinner"></div>
         <p>正在加载订单详情...</p>
       </div>
-      
+
       <template v-else>
         <div class="page-header">
           <h1>订单详情</h1>
         </div>
-        
+
         <!-- 订单状态 -->
         <div class="order-status-section">
           <div class="status-info">
             <div class="status-title">
-              订单状态: 
+              订单状态:
               <el-tag :type="getStatusType(order.status)">
                 {{ getStatusText(order.status) }}
               </el-tag>
             </div>
             <div class="status-actions">
-              <el-button 
-                v-if="order.status === 1" 
-                type="primary" 
-                size="small" 
-                @click="goToPay"
-              >
+              <el-button v-if="order.status === 1" type="primary" size="small" @click="goToPay">
                 去支付
               </el-button>
-              <el-button 
-                v-if="order.status === 1" 
-                type="default" 
-                size="small" 
-                @click="cancelOrder"
-              >
+              <el-button v-if="order.status === 1" type="default" size="small" @click="cancelOrder">
                 取消订单
               </el-button>
-              <el-button 
-                v-if="order.status === 4" 
-                type="primary" 
-                size="small" 
-                @click="confirmReceipt"
-              >
+              <el-button v-if="order.status === 4" type="primary" size="small" @click="confirmReceipt">
                 确认收货
               </el-button>
-              <el-button 
-                v-if="order.status === 4" 
-                type="default" 
-                size="small" 
-                @click="viewLogistics"
-              >
+              <el-button v-if="order.status === 4" type="default" size="small" @click="viewLogistics">
                 查看物流
               </el-button>
-              <el-button 
-                v-if="order.status === 5 && !isCommented" 
-                type="warning" 
-                size="small" 
-                @click="goToComment"
-              >
+              <el-button v-if="order.status === 5 && !isCommented" type="warning" size="small" @click="goToComment">
                 评价订单
               </el-button>
-              <el-button 
-                v-if="order.status === 4 || order.status === 5" 
-                type="default" 
-                size="small" 
-                @click="applyRefund"
-              >
+              <el-button v-if="order.status === 4 || order.status === 5" type="default" size="small"
+                @click="applyRefund">
                 申请售后
               </el-button>
             </div>
           </div>
         </div>
-        
+
         <!-- 订单步骤 -->
         <div class="order-steps-section">
           <el-steps :active="activeStep" direction="vertical" finish-status="success">
-            <el-step v-for="(step, index) in orderSteps" :key="index" :title="step.title" :description="step.description"></el-step>
+            <el-step v-for="(step, index) in orderSteps" :key="index" :title="step.title"
+              :description="step.description"></el-step>
           </el-steps>
         </div>
-        
+
         <!-- 订单内容 -->
         <div class="order-content-section">
           <div v-if="order.items && order.items.length" class="order-products">
@@ -333,7 +279,7 @@ onMounted(() => {
               <div class="goods-price">¥{{ formatPrice(item.price) }}</div>
             </div>
           </div>
-          
+
           <div class="order-amount">
             <div class="amount-text">订单金额</div>
             <div class="amount-value">¥{{ formatPrice(order.amount) }}</div>
@@ -379,8 +325,13 @@ onMounted(() => {
 }
 
 @keyframes spin {
-  0% { transform: rotate(0deg); }
-  100% { transform: rotate(360deg); }
+  0% {
+    transform: rotate(0deg);
+  }
+
+  100% {
+    transform: rotate(360deg);
+  }
 }
 
 .order-status-section {

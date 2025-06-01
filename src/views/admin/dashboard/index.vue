@@ -130,6 +130,7 @@ function renderSalesChart() {
   if (!salesChartRef.value) return
   const chart = echarts.init(salesChartRef.value)
   const option = {
+
     tooltip: {
       trigger: 'axis',
       formatter: params => {

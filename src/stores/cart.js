@@ -1,427 +1,746 @@
-import { ElMessage } from 'element-plus'
 import { defineStore } from 'pinia'
 import { computed, ref, watch } from 'vue'
-import { useGoodsStore } from './goods'
-import { useShopStore } from './shop'
+import {
+  getUserCart,
+  addToCart,
+  updateCartItemCount,
+  removeFromCart,
+  clearCart,
+  checkCartItem,
+  checkAllItems,
+  checkShopItems,
+  removeCheckedItems
+} from '../api/cart'
+import { ElMessage } from 'element-plus'
 import { useUserStore } from './user'
 
 /**
  * 购物车状态管理
- * 使用Pinia管理购物车数据
  */
 export const useCartStore = defineStore('cart', () => {
-  // 引入用户store
+  // 状态
+  const cartList = ref([]) // 按商铺分组的购物车列表
+  const loading = ref(false)
+  const isInitialized = ref(false)
+
+  // 获取用户状态
   const userStore = useUserStore()
-  const goodsStore = useGoodsStore()
-  const shopStore = useShopStore()
-
-  // 购物车商品列表
-  const cartItems = ref([])
 
   /**
-   * 计算总价
-   * @returns {number} - 选中商品的总价（单位：分）
+   * 获取用户购物车
    */
-  const totalPrice = computed(() => {
-    return cartItems.value.reduce((sum, item) => {
-      if (item.checked) {
-        return sum + item.price * item.count
+  async function fetchUserCart() {
+    try {
+      loading.value = true
+
+      // 判断用户是否登录
+      if (userStore.isLogin) {
+        // 已登录用户从服务器获取购物车
+        const res = await getUserCart()
+        if (res.success) {
+          cartList.value = res.data || []
+          if (res.message) {
+            ElMessage.info(res.message)
+          }
+        }
+      } else {
+        // 未登录用户从本地存储获取购物车
+        loadGuestCart()
       }
-      return sum
-    }, 0)
-  })
+      
+      // 标记已初始化
+      isInitialized.value = true
+      return cartList.value
+    } catch (error) {
+      console.error('获取购物车失败:', error)
+      return []
+    } finally {
+      loading.value = false
+    }
+  }
 
   /**
-   * 计算已选商品数量
-   * @returns {number} - 选中商品的总数量
+   * 从本地存储加载游客购物车
    */
-  const checkedCount = computed(() => {
-    return cartItems.value.reduce((count, item) => {
-      if (item.checked) {
-        return count + item.count
+  function loadGuestCart() {
+    try {
+      const guestCartJson = localStorage.getItem('guest-cart')
+      if (guestCartJson) {
+        cartList.value = JSON.parse(guestCartJson) || []
+      } else {
+        cartList.value = []
       }
-      return count
-    }, 0)
-  })
+    } catch (error) {
+      console.error('加载游客购物车失败:', error)
+      cartList.value = []
+    }
+  }
 
   /**
-   * 计算商品总数
-   * @returns {number} - 购物车商品总数量
+   * 保存游客购物车到本地存储
    */
-  const totalCount = computed(() => {
-    return cartItems.value.reduce((count, item) => {
-      return count + item.count
-    }, 0)
-  })
+  function saveGuestCart() {
+    try {
+      localStorage.setItem('guest-cart', JSON.stringify(cartList.value))
+    } catch (error) {
+      console.error('保存游客购物车失败:', error)
+    }
+  }
 
   /**
-   * 是否全选
-   * @returns {boolean} - 是否所有商品都被选中
+   * 清除游客购物车
    */
-  const isAllChecked = computed(() => {
-    return cartItems.value.length > 0 && cartItems.value.every(item => item.checked)
-  })
+  function clearGuestCart() {
+    localStorage.removeItem('guest-cart')
+    if (!userStore.isLogin) {
+      cartList.value = []
+    }
+  }
 
   /**
-   * 已选商品列表
-   * @returns {Array} - 所有选中的商品
+   * 切换用户购物车（登录/登出时使用）
+   * @param {string} userPhone 用户手机号，如果为null表示退出登录
    */
-  const checkedItems = computed(() => {
-    return cartItems.value.filter(item => item.checked)
-  })
+  async function switchUserCart(userPhone) {
+    if (userPhone) {
+      // 登录操作，从服务器获取购物车
+      await fetchUserCart()
+    } else {
+      // 登出操作，加载游客购物车
+      loadGuestCart()
+    }
+  }
 
   /**
-   * 按商铺分组的购物车商品
-   * @returns {Object} - 按商铺ID分组的商品
+   * 合并游客购物车到用户购物车
    */
-  const groupedItems = computed(() => {
-    const groups = {}
+  async function mergeGuestCart() {
+    try {
+      loading.value = true
+      const guestCartJson = localStorage.getItem('guest-cart')
 
-    cartItems.value.forEach(item => {
-      if (!groups[item.shopId]) {
-        groups[item.shopId] = {
-          shopId: item.shopId,
-          shopName: item.shopName,
-          items: []
+      if (!guestCartJson || guestCartJson === '[]') {
+        // 如果游客购物车为空，直接获取用户购物车
+        await fetchUserCart()
+        return { success: true }
+      }
+
+      // 获取游客购物车数据
+      const guestCart = JSON.parse(guestCartJson)
+      let mergedCount = 0
+      let errorCount = 0
+
+      // 遍历游客购物车中的每个店铺
+      for (const shop of guestCart) {
+        // 遍历店铺中的每个商品
+        for (const item of shop.items) {
+          try {
+            // 将每个商品添加到用户购物车
+            const res = await addToCart({
+              goodsId: item.goodsId,
+              skuId: item.skuId,
+              count: item.count,
+              checked: item.checked
+            })
+
+            if (res.success) {
+              mergedCount++
+            } else {
+              errorCount++
+              console.error('合并购物车商品失败:', res.errorMsg)
+            }
+          } catch (error) {
+            errorCount++
+            console.error('合并购物车商品失败:', error)
+          }
         }
       }
 
-      groups[item.shopId].items.push(item)
-    })
+      // 合并完成后清除游客购物车
+      clearGuestCart()
 
-    return Object.values(groups)
-  })
+      // 重新获取用户购物车
+      await fetchUserCart()
+
+      if (errorCount > 0) {
+        ElMessage.warning(`购物车已同步，${mergedCount}件商品同步成功，${errorCount}件同步失败`)
+      } else {
+        ElMessage.success(`购物车已同步，共${mergedCount}件商品`)
+      }
+
+      return { success: true, mergedCount, errorCount }
+    } catch (error) {
+      console.error('合并购物车失败:', error)
+      ElMessage.error('购物车同步失败')
+      return { success: false, message: '合并购物车失败' }
+    } finally {
+      loading.value = false
+    }
+  }
 
   /**
    * 添加商品到购物车
-   * @param {Object} product - 商品信息
-   * @param {number} count - 商品数量
-   * @param {boolean} checked - 是否选中
+   * @param {Object} cartItem - 购物车项
+   * @param {number} cartItem.goodsId - 商品ID
+   * @param {number} cartItem.skuId - 商品SKU ID (可以为null)
+   * @param {number} cartItem.count - 商品数量
+   * @param {boolean} [cartItem.checked=true] - 是否选中
    */
-  async function addToCart(product, count, checked = true) {
+  async function addItemToCart(cartItem) {
     try {
-      // 先执行库存更新，并等待完成
-      const stockUpdated = await goodsStore.updateGoodsStock(product.id, count, product.skuId)
-      if (!stockUpdated) {
-        return false
+      loading.value = true
+      // 确保有skuId参数，即使是null
+      const item = {
+        ...cartItem,
+        skuId: cartItem.skuId || null,
+        checked: cartItem.checked ?? true
       }
 
-      // 等待销量更新
-      await goodsStore.updateGoodsSold(product.id, count, product.skuId)
-
-      // 更新销量（SKU级别）
-      await shopStore.updateShopSales(product.shopId, count)
-
-      // 查找购物车是否已有该商品
-      const existingIndex = cartItems.value.findIndex(item =>
-        item.id === product.id &&
-        (product.skuId ? item.skuId === product.skuId : true)
-      )
-
-      if (existingIndex > -1) {
-        cartItems.value[existingIndex].count += count
+      if (userStore.isLogin) {
+        // 已登录用户，使用API添加到服务器
+        const res = await addToCart(item)
+        if (res.success) {
+          // 添加成功后重新获取购物车数据
+          await fetchUserCart()
+          // 显示后端返回的消息
+          ElMessage.success(res.message || '已添加到购物车')
+        } else {
+          // 显示错误信息
+          ElMessage.error(res.errorMsg || '添加到购物车失败')
+        }
+        return res
       } else {
-        cartItems.value.push({
-          ...product,
-          count,
-          checked
-        })
-      }
-      saveCurrentCart()
-      return true
-    } catch (error) {
-      ElMessage.error('添加失败' + error)
-      return false
-    }
-  }
-
-  /**
-   * 从购物车移除商品
-   * @param {number} index - 商品索引
-   */
-  async function removeFromCart(index) {
-    try {
-      const item = cartItems.value[index]
-      // 恢复库存，但不减少销量，考虑SKU
-      await goodsStore.updateGoodsStock(item.id, -item.count, item.skuId)
-
-      cartItems.value.splice(index, 1)
-      saveCurrentCart()
-    } catch (error) {
-      ElMessage.error('移除失败' + error)
-    }
-  }
-
-  /**
-   * 根据ID移除购物车商品
-   * @param {number} id - 商品ID
-   * @param {number} skuId - 商品SKU ID
-   */
-  async function removeById(id, skuId = null) {
-    try {
-      const index = cartItems.value.findIndex(item =>
-        item.id === id && (skuId ? item.skuId === skuId : true)
-      )
-
-      if (index > -1) {
-        const item = cartItems.value[index]
-        // 恢复库存，但不减少销量，考虑SKU
-        await goodsStore.updateGoodsStock(item.id, -item.count, item.skuId)
-
-        cartItems.value.splice(index, 1)
-        saveCurrentCart()
+        // 未登录用户，添加到本地购物车
+        addItemToGuestCart(item)
+        saveGuestCart()
+        ElMessage.success('已添加到购物车')
+        return { success: true, message: '已添加到购物车' }
       }
     } catch (error) {
-      ElMessage.error('移除失败' + error)
+      console.error('添加到购物车失败:', error)
+      ElMessage.error('添加到购物车失败，请重试')
+      throw error
+    } finally {
+      loading.value = false
     }
   }
 
   /**
-   * 更新商品数量
-   * @param {number} index - 商品索引
-   * @param {number} count - 新数量
+   * 添加商品到游客购物车
+   * @param {Object} item - 购物车项
    */
-  async function updateItemCount(index, count) {
-    if (count < 1) count = 1
+  function addItemToGuestCart(item) {
+    // 查找商品所属商铺
+    const shopId = item.shopId || 0 // 如果没有shopId，使用默认值
+    const shopName = item.shopName || '默认店铺' // 如果没有shopName，使用默认值
 
-    try {
-      const item = cartItems.value[index]
-      const oldCount = item.count
-      const diffCount = count - oldCount
+    // 查找商铺购物车
+    let shopCart = cartList.value.find(shop => shop.shopId === shopId)
 
-      const stockUpdated = await goodsStore.updateGoodsStock(item.id, diffCount, item.skuId)
-      if (!stockUpdated) {
-        ElMessage.warning('商品库存不足')
-        return
+    if (!shopCart) {
+      // 创建新的商铺购物车
+      shopCart = {
+        shopId,
+        shopName,
+        shopImage: item.shopImage || [],
+        items: []
       }
-
-      // 更新销量
-      await goodsStore.updateGoodsSold(item.id, diffCount, item.skuId)
-      await shopStore.updateShopSales(item.shopId, diffCount)
-
-
-      // 更新购物车数量
-      cartItems.value[index].count = count
-      saveCurrentCart()
-    } catch (error) {
-      ElMessage.error('更新失败' + error)
+      cartList.value.push(shopCart)
     }
-  }
 
-  /**
-   * 切换商品选中状态
-   * @param {number} index - 商品索引
-   */
-  function toggleItemCheck(index) {
-    cartItems.value[index].checked = !cartItems.value[index].checked
-    saveCurrentCart()
-  }
-
-  /**
-   * 按ID切换商品选中状态
-   * @param {number} id - 商品ID 
-   * @param {number} skuId - 商品SKU ID
-   */
-  function toggleItemCheckById(id, skuId = null) {
-    const index = cartItems.value.findIndex(item =>
-      item.id === id && (skuId ? item.skuId === skuId : true)
+    // 查找是否已存在相同商品
+    const existItem = shopCart.items.find(i =>
+      i.goodsId === item.goodsId &&
+      ((item.skuId === null && i.skuId === null) ||
+        (item.skuId !== null && i.skuId === item.skuId))
     )
 
-    if (index > -1) {
-      cartItems.value[index].checked = !cartItems.value[index].checked
+    if (existItem) {
+      // 已存在则增加数量
+      existItem.count += item.count
+      existItem.checked = item.checked
+    } else {
+      // 不存在则添加新商品
+      shopCart.items.push({
+        goodsId: item.goodsId,
+        skuId: item.skuId,
+        goodsName: item.goodsName || '未知商品',
+        goodsImages: item.goodsImages || '',
+        price: item.price || 0,
+        count: item.count || 1,
+        checked: item.checked === undefined ? true : item.checked,
+        skuName: item.skuName || ''
+      })
     }
-    saveCurrentCart()
+    
+    // 保存到本地存储
+    saveGuestCart()
   }
 
   /**
-   * 切换商铺所有商品的选中状态
-   * @param {number} shopId - 商铺ID
-   * @param {boolean} checked - 选中状态
+   * 更新购物车商品数量
+   * @param {Object} params - 请求参数
+   * @param {number} params.goodsId - 商品ID
+   * @param {number} params.skuId - 商品SKU ID (可以为null)
+   * @param {number} params.count - 商品数量
    */
-  function toggleShopItems(shopId, checked) {
-    cartItems.value.forEach(item => {
-      if (item.shopId === shopId) {
-        item.checked = checked
+  async function updateItemCount(params) {
+    try {
+      loading.value = true
+      // 确保有skuId参数，即使是null
+      const newParams = {
+        ...params,
+        skuId: params.skuId || null
       }
-    })
-    saveCurrentCart()
+
+      if (userStore.isLogin) {
+        // 已登录用户，使用API更新服务器
+        const res = await updateCartItemCount(newParams)
+        if (res.success) {
+          // 更新成功后重新获取购物车数据
+          await fetchUserCart()
+        }
+        return res
+      } else {
+        // 未登录用户，更新本地购物车
+        updateGuestCartItemCount(newParams)
+        saveGuestCart()
+        return { success: true, message: '数量已更新' }
+      }
+    } catch (error) {
+      console.error('更新购物车数量失败:', error)
+      throw error
+    } finally {
+      loading.value = false
+    }
   }
 
   /**
-   * 全选/取消全选
-   * @param {boolean} checked - 是否全选
+   * 更新游客购物车商品数量
    */
-  function toggleAllCheck(checked) {
-    cartItems.value.forEach(item => {
-      item.checked = checked
-    })
-    saveCurrentCart()
+  function updateGuestCartItemCount(params) {
+    for (const shop of cartList.value) {
+      for (const item of shop.items) {
+        if (item.goodsId === params.goodsId &&
+          ((params.skuId === null && item.skuId === null) ||
+            (params.skuId !== null && item.skuId === params.skuId))) {
+          item.count = params.count
+          return
+        }
+      }
+    }
+  }
+
+  /**
+   * 移除购物车商品
+   * @param {Object} params - 请求参数
+   * @param {number} params.goodsId - 商品ID
+   * @param {number} params.skuId - 商品SKU ID (可以为null)
+   */
+  async function removeItem(params) {
+    try {
+      loading.value = true
+      // 确保有skuId参数，即使是null
+      const newParams = {
+        ...params,
+        skuId: params.skuId || null
+      }
+
+      if (userStore.isLogin) {
+        // 已登录用户，使用API移除服务器数据
+        const res = await removeFromCart(newParams)
+        if (res.success) {
+          // 移除成功后重新获取购物车数据
+          await fetchUserCart()
+        }
+        return res
+      } else {
+        // 未登录用户，移除本地购物车商品
+        removeGuestCartItem(newParams)
+        saveGuestCart()
+        return { success: true, message: '商品已移除' }
+      }
+    } catch (error) {
+      console.error('移除购物车商品失败:', error)
+      throw error
+    } finally {
+      loading.value = false
+    }
+  }
+
+  /**
+   * 移除游客购物车商品
+   */
+  function removeGuestCartItem(params) {
+    for (let i = 0; i < cartList.value.length; i++) {
+      const shop = cartList.value[i]
+      for (let j = 0; j < shop.items.length; j++) {
+        const item = shop.items[j]
+        if (item.goodsId === params.goodsId &&
+          ((params.skuId === null && item.skuId === null) ||
+            (params.skuId !== null && item.skuId === params.skuId))) {
+          // 移除商品
+          shop.items.splice(j, 1)
+          // 如果商铺没有商品了，也移除商铺
+          if (shop.items.length === 0) {
+            cartList.value.splice(i, 1)
+          }
+          return
+        }
+      }
+    }
   }
 
   /**
    * 清空购物车
    */
-  function clearCart() {
+  async function clearUserCart() {
     try {
-      // 恢复所有商品库存，注意SKU
-      cartItems.value.forEach(async item => {
-        await goodsStore.updateGoodsStock(item.id, -item.count, item.skuId)
-      })
-
-      cartItems.value = []
-      saveCurrentCart()
+      loading.value = true
+      if (userStore.isLogin) {
+        // 已登录用户，使用API清空服务器购物车
+        const res = await clearCart()
+        if (res.success) {
+          // 清空成功后重新获取购物车数据
+          cartList.value = []
+        }
+        return res
+      } else {
+        // 未登录用户，清空本地购物车
+        clearGuestCart()
+        return { success: true, message: '购物车已清空' }
+      }
     } catch (error) {
-      ElMessage.error('清空失败' + error)
+      console.error('清空购物车失败:', error)
+      throw error
+    } finally {
+      loading.value = false
     }
   }
 
   /**
-   * 删除选中商品
+   * 选中或取消选中购物车商品
+   * @param {Object} params - 请求参数
+   * @param {number} params.goodsId - 商品ID
+   * @param {number} params.skuId - 商品SKU ID (可以为null)
+   * @param {boolean} params.checked - 是否选中
    */
-  function removeCheckedItems() {
-    cartItems.value = cartItems.value.filter(item => !item.checked)
-    saveCurrentCart()
+  async function checkItem(params) {
+    try {
+      loading.value = true
+      // 确保有skuId参数，即使是null
+      const newParams = {
+        ...params,
+        skuId: params.skuId || null
+      }
+
+      if (userStore.isLogin) {
+        // 已登录用户，使用API更新服务器
+        const res = await checkCartItem(newParams)
+        if (res.success) {
+          // 更新成功后重新获取购物车数据
+          await fetchUserCart()
+        }
+        return res
+      } else {
+        // 未登录用户，更新本地购物车
+        checkGuestCartItem(newParams)
+        saveGuestCart()
+        return { success: true, message: '选中状态已更新' }
+      }
+    } catch (error) {
+      console.error('更新商品选中状态失败:', error)
+      throw error
+    } finally {
+      loading.value = false
+    }
   }
 
-  // 新增：结算后移除选中的商品，不影响库存和销量（因为已经被订单处理）
-  function removeCheckedItemsAfterCheckout() {
-    cartItems.value = cartItems.value.filter(item => !item.checked)
-    saveCurrentCart()
+  /**
+   * 选中或取消选中游客购物车商品
+   */
+  function checkGuestCartItem(params) {
+    for (const shop of cartList.value) {
+      for (const item of shop.items) {
+        if (item.goodsId === params.goodsId &&
+          ((params.skuId === null && item.skuId === null) ||
+            (params.skuId !== null && item.skuId === params.skuId))) {
+          item.checked = params.checked
+          return
+        }
+      }
+    }
   }
 
-  // 监听用户登录状态变化，使用电话号码作为标识
-  watch(() => userStore.userPhone, (newUserPhone, oldUserPhone) => {
-    // 检测从无电话号码到有电话号码的变化（表示用户刚登录）
-    if (newUserPhone && !oldUserPhone) {
-      // 用户刚登录，合并游客购物车到用户购物车
-      mergeGuestCartToUserCart(newUserPhone);
-    } else {
-      // 其他情况正常切换购物车
-      switchUserCart(newUserPhone);
+  /**
+   * 全选或取消全选
+   * @param {boolean} checked - 是否全选
+   */
+  async function checkAll(checked) {
+    try {
+      loading.value = true
+      if (userStore.isLogin) {
+        // 已登录用户，使用API更新服务器
+        const res = await checkAllItems(checked)
+        if (res.success) {
+          // 更新成功后重新获取购物车数据
+          await fetchUserCart()
+        }
+        return res
+      } else {
+        // 未登录用户，更新本地购物车
+        checkAllGuestCart(checked)
+        saveGuestCart()
+        return { success: true, message: checked ? '已全选' : '已取消全选' }
+      }
+    } catch (error) {
+      console.error('全选/取消全选失败:', error)
+      throw error
+    } finally {
+      loading.value = false
+    }
+  }
+
+  /**
+   * 全选或取消全选游客购物车
+   */
+  function checkAllGuestCart(checked) {
+    for (const shop of cartList.value) {
+      for (const item of shop.items) {
+        item.checked = checked
+      }
+    }
+  }
+
+  /**
+   * 选中或取消选中商铺商品
+   * @param {Object} params - 请求参数
+   * @param {number} params.shopId - 商铺ID
+   * @param {boolean} params.checked - 是否选中
+   */
+  async function checkShopCart(params) {
+    try {
+      loading.value = true
+      if (userStore.isLogin) {
+        // 已登录用户，使用API更新服务器
+        const res = await checkShopItems(params)
+        if (res.success) {
+          // 更新成功后重新获取购物车数据
+          await fetchUserCart()
+        }
+        return res
+      } else {
+        // 未登录用户，更新本地购物车
+        checkGuestShopCart(params)
+        saveGuestCart()
+        return { success: true, message: '店铺商品选中状态已更新' }
+      }
+    } catch (error) {
+      console.error('更新商铺商品选中状态失败:', error)
+      throw error
+    } finally {
+      loading.value = false
+    }
+  }
+
+  /**
+   * 选中或取消选中游客购物车商铺商品
+   */
+  function checkGuestShopCart(params) {
+    const shop = cartList.value.find(s => s.shopId === params.shopId)
+    if (shop) {
+      for (const item of shop.items) {
+        item.checked = params.checked
+      }
+    }
+  }
+
+  /**
+   * 移除选中商品
+   */
+  async function removeChecked() {
+    try {
+      loading.value = true
+      if (userStore.isLogin) {
+        // 已登录用户，使用API更新服务器
+        const res = await removeCheckedItems()
+        if (res.success) {
+          // 移除成功后重新获取购物车数据
+          await fetchUserCart()
+        }
+        return res
+      } else {
+        // 未登录用户，更新本地购物车
+        removeCheckedGuestCart()
+        saveGuestCart()
+        return { success: true, message: '已移除选中商品' }
+      }
+    } catch (error) {
+      console.error('移除选中商品失败:', error)
+      throw error
+    } finally {
+      loading.value = false
+    }
+  }
+
+  /**
+   * 移除选中的游客购物车商品
+   */
+  function removeCheckedGuestCart() {
+    for (let i = 0; i < cartList.value.length; i++) {
+      const shop = cartList.value[i]
+      // 移除选中的商品
+      shop.items = shop.items.filter(item => !item.checked)
+      // 如果商铺没有商品了，也移除商铺
+      if (shop.items.length === 0) {
+        cartList.value.splice(i, 1)
+        i-- // 调整索引
+      }
+    }
+  }
+
+  // 计算属性
+  const isLoading = computed(() => loading.value)
+  const shopCarts = computed(() => cartList.value || [])
+
+  // 计算购物车总数量
+  const totalCount = computed(() => {
+    return shopCarts.value.reduce((total, shop) => {
+      return total + shop.items.reduce((sum, item) => sum + item.count, 0)
+    }, 0)
+  })
+
+  // 计算选中的商品总数量
+  const selectedCount = computed(() => {
+    return shopCarts.value.reduce((total, shop) => {
+      return total + shop.items.reduce((sum, item) => sum + (item.checked ? item.count : 0), 0)
+    }, 0)
+  })
+
+  // 计算选中的商品总价
+  const selectedAmount = computed(() => {
+    return shopCarts.value.reduce((total, shop) => {
+      return total + shop.items.reduce((sum, item) => {
+        return sum + (item.checked ? item.count * item.price : 0)
+      }, 0)
+    }, 0)
+  })
+
+  // 计算选中商品数量
+  const checkedCount = computed(() => {
+    return shopCarts.value.reduce((total, shop) => {
+      return total + shop.items.reduce((sum, item) => sum + (item.checked ? item.count : 0), 0)
+    }, 0)
+  })
+
+  // 计算总价格
+  const totalPrice = computed(() => {
+    return shopCarts.value.reduce((total, shop) => {
+      return total + shop.items.reduce((sum, item) => {
+        return sum + (item.checked ? item.count * item.price : 0)
+      }, 0)
+    }, 0)
+  })
+
+  // 按店铺分组的选中商品列表
+  const checkedShops = computed(() => {
+    // 结果数组
+    const result = []
+
+    // 遍历每个店铺
+    for (const shop of shopCarts.value) {
+      // 获取店铺中选中的商品
+      const checkedItems = shop.items.filter(item => item.checked)
+
+      // 如果有选中的商品，添加到结果中
+      if (checkedItems.length > 0) {
+        // 计算店铺商品总金额
+        const totalAmount = checkedItems.reduce(
+          (sum, item) => sum + item.price * item.count, 0
+        )
+
+        result.push({
+          shopId: shop.shopId,
+          shopName: shop.shopName,
+          shopImage: shop.shopImage || '',
+          items: checkedItems,
+          totalAmount
+        })
+      }
+    }
+
+    return result
+  })
+
+  /**
+   * 移除结算后的选中商品
+   */
+  async function removeCheckedItemsAfterCheckout() {
+    try {
+      loading.value = true
+      if (userStore.isLogin) {
+        // 已登录用户，使用API更新服务器
+        const res = await removeCheckedItems()
+        if (res.success) {
+          // 移除成功后重新获取购物车数据
+          await fetchUserCart()
+        }
+        return res
+      }
+    } catch (error) {
+      console.error('移除选中商品失败:', error)
+      throw error
+    } finally {
+      loading.value = false
+    }
+  }
+
+  // 监听用户状态变化
+  watch(() => userStore.isLogin, (newValue, oldValue) => {
+    // 当用户从未登录变为已登录状态时
+    if (newValue && !oldValue) {
+      // 合并游客购物车到用户购物车
+      mergeGuestCart().catch(error => {
+        console.error('自动合并购物车失败:', error)
+      })
     }
   }, { immediate: true })
 
-  /**
-   * 根据用户ID切换购物车
-   * @param {string|null} userPhone - 用户ID
-   */
-  function switchUserCart(userPhone) {
-
-    // 然后加载对应用户的购物车
-    const cartKey = userPhone ? `cart-items-${userPhone}` : 'cart-items-guest'
-    const savedCart = localStorage.getItem(cartKey)
-
-    if (savedCart) {
-      try {
-        cartItems.value = JSON.parse(savedCart)
-      } catch (error) {
-        console.error('购物车数据解析失败', error)
-        cartItems.value = []
-      }
-    } else {
-      cartItems.value = []
-    }
-  }
-
-  /**
-   * 保存当前购物车到localStorage
-   */
-  function saveCurrentCart() {
-    const currentUserPhone = useUserStore().userPhone
-    const cartKey = currentUserPhone ? `cart-items-${currentUserPhone}` : 'cart-items-guest'
-    localStorage.setItem(cartKey, JSON.stringify(cartItems.value))
-  }
-
-  // 添加通过商品对象操作的方法
-  function updateItemCountByObject(item, count) {
-    const index = cartItems.value.indexOf(item)
-    if (index > -1) {
-      updateItemCount(index, count)
-    }
-  }
-
-  function removeItemByObject(item) {
-    const index = cartItems.value.indexOf(item)
-    if (index > -1) {
-      removeFromCart(index)
-    }
-  }
-
-  /**
-   * 将游客购物车合并到用户购物车并清空游客购物车
-   * @param {string} userPhone - 用户电话号码
-   */
-  function mergeGuestCartToUserCart(userPhone) {
-    // 1. 获取游客购物车数据
-    const guestCartKey = 'cart-items-guest';
-    const guestCartData = JSON.parse(localStorage.getItem(guestCartKey) || '[]');
-
-    // 2. 如果游客购物车为空，则直接加载用户购物车
-    if (guestCartData.length === 0) {
-      switchUserCart(userPhone);
-      return;
-    }
-
-    // 3. 获取用户购物车数据
-    const userCartKey = `cart-items-${userPhone}`;
-    const userCartData = JSON.parse(localStorage.getItem(userCartKey) || '[]');
-
-    // 4. 合并购物车数据(避免重复商品)
-    guestCartData.forEach(guestItem => {
-      const existingItemIndex = userCartData.findIndex(userItem =>
-        userItem.id === guestItem.id &&
-        (guestItem.skuId ? userItem.skuId === guestItem.skuId : true)
-      );
-
-      if (existingItemIndex > -1) {
-        // 如果用户购物车已有该商品，合并数量
-        userCartData[existingItemIndex].count += guestItem.count;
-      } else {
-        // 否则添加到用户购物车
-        userCartData.push(guestItem);
-      }
-    });
-
-    // 5. 保存合并后的用户购物车
-    localStorage.setItem(userCartKey, JSON.stringify(userCartData));
-
-    // 6. 清空游客购物车
-    localStorage.removeItem(guestCartKey);
-
-    // 7. 加载用户购物车数据到当前state
-    cartItems.value = userCartData;
-
-    console.log(`已将游客购物车(${guestCartData.length}件商品)合并到用户[${userPhone}]的购物车`);
-  }
-
   return {
     // 状态
-    cartItems,
+    cartList,
+    loading,
+    isInitialized,
 
     // 计算属性
-    totalPrice,
-    checkedCount,
+    isLoading,
+    shopCarts,
     totalCount,
-    isAllChecked,
-    checkedItems,
-    groupedItems,
+    selectedCount,
+    selectedAmount,
+    checkedCount,
+    totalPrice,
+    checkedShops,
 
     // 方法
-    addToCart,
-    removeFromCart,
-    removeById,
+    fetchUserCart,
+    addItemToCart,
     updateItemCount,
-    toggleItemCheck,
-    toggleItemCheckById,
-    toggleShopItems,
-    toggleAllCheck,
-    clearCart,
-    removeCheckedItems,
+    removeItem,
+    clearUserCart,
+    checkItem,
+    checkAll,
+    checkShopCart,
+    removeChecked,
+
+    // 游客购物车相关方法
+    loadGuestCart,
+    saveGuestCart,
+    clearGuestCart,
     switchUserCart,
-    updateItemCountByObject,
-    removeItemByObject,
+    mergeGuestCart,
     removeCheckedItemsAfterCheckout
   }
 }, {
-  persist: false
+  persist: false // 不使用 persist，因为我们手动管理游客购物车的本地存储
 })
