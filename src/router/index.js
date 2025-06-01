@@ -1,6 +1,6 @@
-import { createRouter, createWebHistory } from 'vue-router'
-import { useUserStore } from '../stores/user'
+import { createRouter, createWebHashHistory } from 'vue-router'
 import { useCartStore } from '../stores/cart'
+import { useUserStore } from '../stores/user'
 import adminRoutes from './admin'
 
 /**
@@ -139,6 +139,7 @@ const routes = [
       title: '售后详情'
     }
   },
+  {
     path: '/order/result',
     name: 'PayResult',
     component: () => import('../views/order/result.vue'),

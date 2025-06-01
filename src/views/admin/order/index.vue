@@ -1,30 +1,13 @@
 <template>
   <div class="order-management">
     <h2 class="page-title">订单管理</h2>
-    
+
     <!-- 搜索和过滤 -->
     <div class="filter-container">
-      <el-input
-        v-model="queryParams.keyword"
-        placeholder="订单号/用户名/手机号"
-        style="width: 250px;"
-        class="filter-item"
-        @keyup.enter="handleSearch"
-        clearable
-      />
-      <el-select 
-        v-model="queryParams.status" 
-        placeholder="订单状态" 
-        clearable 
-        style="width: 150px" 
-        class="filter-item"
-      >
-        <el-option 
-          v-for="item in orderStatusOptions" 
-          :key="item.value" 
-          :label="item.label" 
-          :value="item.value" 
-        />
+      <el-input v-model="queryParams.keyword" placeholder="订单号/用户名/手机号" style="width: 250px;" class="filter-item"
+        @keyup.enter="handleSearch" clearable />
+      <el-select v-model="queryParams.status" placeholder="订单状态" clearable style="width: 150px" class="filter-item">
+        <el-option v-for="item in orderStatusOptions" :key="item.value" :label="item.label" :value="item.value" />
       </el-select>
       <!-- <el-date-picker
         v-model="queryParams.dateRange"
@@ -37,7 +20,9 @@
         style="width: 260px"
       /> -->
       <el-button type="primary" class="filter-item" @click="handleSearch">
-        <el-icon><Search /></el-icon>
+        <el-icon>
+          <Search />
+        </el-icon>
         搜索
       </el-button>
       <!-- <el-button type="success" class="filter-item" @click="exportOrders">
@@ -45,14 +30,9 @@
         导出
       </el-button> -->
     </div>
-    
+
     <!-- 订单列表 -->
-    <el-table
-      v-loading="loading"
-      :data="orderList"
-      border
-      style="width: 100%"
-    >
+    <el-table v-loading="loading" :data="orderList" border style="width: 100%">
       <el-table-column prop="orderNo" label="订单号" min-width="180" />
       <el-table-column prop="userName" label="用户名" width="120" />
       <el-table-column prop="phone" label="手机号" width="120" />
@@ -73,58 +53,34 @@
       <el-table-column label="操作" width="280" align="center">
         <template #default="{ row }">
           <el-button type="primary" size="small" @click="handleDetail(row)">详情</el-button>
-          <el-button 
-            v-if="row.orderStatus === 2" 
-            type="primary" 
-            size="small" 
-            @click="handleShip(row.id)"
-            :loading="loading"
-          >
+          <el-button v-if="row.orderStatus === 2" type="primary" size="small" @click="handleShip(row.id)"
+            :loading="loading">
             发货
           </el-button>
-          <el-button 
-            v-if="row.orderStatus === 1" 
-            type="danger" 
-            size="small" 
-            @click="handleCancel(row)"
-          >
+          <el-button v-if="row.orderStatus === 1" type="danger" size="small" @click="handleCancel(row)">
             取消
           </el-button>
         </template>
       </el-table-column>
     </el-table>
-    
+
     <!-- 分页 -->
     <div class="pagination-container">
-      <el-pagination
-        v-model:current-page="queryParams.page"
-        v-model:page-size="queryParams.size"
-        :page-sizes="[10, 20, 50, 100]"
-        layout="total, sizes, prev, pager, next, jumper"
-        :total="total"
-        @size-change="handleSizeChange"
-        @current-change="handleCurrentChange"
-      />
+      <el-pagination v-model:current-page="queryParams.page" v-model:page-size="queryParams.size"
+        :page-sizes="[10, 20, 50, 100]" layout="total, sizes, prev, pager, next, jumper" :total="total"
+        @size-change="handleSizeChange" @current-change="handleCurrentChange" />
     </div>
-    
+
     <!-- 发货对话框 -->
-    <el-dialog
-      title="订单发货"
-      v-model="shipDialogVisible"
-      width="500px"
-    >
-      <el-form
-        ref="shipFormRef"
-        :model="shipForm"
-        :rules="shipRules"
-        label-width="100px"
-      >
+    <el-dialog title="订单发货" v-model="shipDialogVisible" width="500px">
+      <el-form ref="shipFormRef" :model="shipForm" :rules="shipRules" label-width="100px">
         <el-form-item label="订单号" prop="orderNo">
           <el-input v-model="shipForm.orderNo" disabled />
         </el-form-item>
         <el-form-item label="物流公司" prop="expressCompany">
           <el-select v-model="shipForm.expressCompany" placeholder="请选择物流公司" style="width: 100%">
-            <el-option v-for="item in expressCompanyOptions" :key="item.value" :label="item.label" :value="item.value" />
+            <el-option v-for="item in expressCompanyOptions" :key="item.value" :label="item.label"
+              :value="item.value" />
           </el-select>
         </el-form-item>
         <el-form-item label="物流单号" prop="expressNo">
@@ -139,19 +95,10 @@
         <el-button type="primary" @click="submitShipForm">确定</el-button>
       </template>
     </el-dialog>
-    
+
     <!-- 退款对话框 -->
-    <el-dialog
-      title="订单退款"
-      v-model="refundDialogVisible"
-      width="500px"
-    >
-      <el-form
-        ref="refundFormRef"
-        :model="refundForm"
-        :rules="refundRules"
-        label-width="100px"
-      >
+    <el-dialog title="订单退款" v-model="refundDialogVisible" width="500px">
+      <el-form ref="refundFormRef" :model="refundForm" :rules="refundRules" label-width="100px">
         <el-form-item label="订单号" prop="orderNo">
           <el-input v-model="refundForm.orderNo" disabled />
         </el-form-item>
@@ -172,13 +119,9 @@
         <el-button type="primary" @click="submitRefundForm">确定</el-button>
       </template>
     </el-dialog>
-    
+
     <!-- 详情弹窗 -->
-    <el-dialog
-      title="订单详情"
-      v-model="detailDialogVisible"
-      width="400px"
-    >
+    <el-dialog title="订单详情" v-model="detailDialogVisible" width="400px">
       <el-form label-width="80px">
         <el-form-item label="备注">
           <span>{{ detailData.remark }}</span>
@@ -195,12 +138,12 @@
 </template>
 
 <script setup>
-import { getOrderPage } from '@/api/order'
-import { Download, Search } from '@element-plus/icons-vue'
+import { Search } from '@element-plus/icons-vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { onMounted, reactive, ref, watch } from 'vue'
 import { useRouter } from 'vue-router'
-import { useOrderStore } from '@/stores/order'
+import { getOrderPage } from '../../../api/order'
+import { useOrderStore } from '../../../stores/order'
 
 const router = useRouter()
 const orderStore = useOrderStore()
@@ -275,16 +218,6 @@ const detailData = ref({
   addressDetail: ''
 })
 
-// 获取支付状态文本
-const getPaymentStatusText = (status) => {
-  return paymentStatusMap[status]?.text || '未知状态'
-}
-
-// 获取支付状态类型
-const getPaymentStatusType = (status) => {
-  return paymentStatusMap[status]?.type || 'info'
-}
-
 // 获取订单状态文本
 const orderStatusText = (status) => orderStatusMap[status]?.text || '未知'
 
@@ -314,7 +247,7 @@ const fetchOrderList = async () => {
   try {
     const res = await getOrderPage(queryParams)
     console.log('API返回数据:', res)
-    
+
     if (res.data) {
       orderList.value = res.data.records.map(item => ({
         id: item.id,
@@ -355,11 +288,11 @@ const handleDetail = (row) => {
 const handleShip = async (orderId) => {
   try {
     loading.value = true
-    const res = await orderStore.shipUserOrder(orderId)
+    const res = await orderStore.confirmUserOrder(orderId)
     if (res.success) {
       ElMessage.success('发货成功')
       // 刷新订单列表
-      await orderStore.fetchOrderList()
+      await fetchOrderList()
     } else {
       ElMessage.error(res.errorMsg || '发货失败')
     }
@@ -374,10 +307,10 @@ const handleShip = async (orderId) => {
 // 提交发货表单
 const submitShipForm = async () => {
   if (!shipFormRef.value) return
-  
+
   try {
     await shipFormRef.value.validate()
-    
+
     // 模拟发货操作
     ElMessage.success(`订单 ${shipForm.orderNo} 发货成功`)
     shipDialogVisible.value = false
@@ -397,7 +330,7 @@ const handleCancel = (row) => {
     // 模拟取消订单操作
     ElMessage.success(`订单 ${row.orderNo} 已取消`)
     fetchOrderList()
-  }).catch(() => {})
+  }).catch(() => { })
 }
 
 // 退款
@@ -413,10 +346,10 @@ const handleRefund = (row) => {
 // // 提交退款表单
 // const submitRefundForm = async () => {
 //   if (!refundFormRef.value) return
-  
+
 //   try {
 //     await refundFormRef.value.validate()
-    
+
 //     // 模拟退款操作
 //     ElMessage.success(`订单 ${refundForm.orderNo} 退款成功`)
 //     refundDialogVisible.value = false

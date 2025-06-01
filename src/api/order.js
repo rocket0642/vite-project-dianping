@@ -71,7 +71,7 @@ export function cancelOrder(data) {
  */
 export function confirmOrder(orderId) {
   return request({
-    url: `/order/${orderId}`,
+    url: `/order/confirm/${orderId}`,
     method: 'put'
   })
 }

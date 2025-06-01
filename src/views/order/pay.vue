@@ -176,7 +176,7 @@ const payOrder = async () => {
 
   paying.value = true
   try {
-    const res = await orderStore.payOrder(orderId)
+    const res = await orderStore.payUserOrder(orderId)
 
     if (res && res.success) {
       if (payType.value === 2) { // 支付宝支付

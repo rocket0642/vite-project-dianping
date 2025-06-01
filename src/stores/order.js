@@ -85,10 +85,8 @@ export const useOrderStore = defineStore('order', () => {
   async function fetchOrderList(params = {}) {
     try {
       loading.value = true
-      console.log('请求订单列表，参数:', params)
 
       const res = await getUserOrders(params)
-      console.log('收到订单列表响应:', res)
 
       if (res.success) {
         orderList.value = res.data || []
@@ -99,15 +97,12 @@ export const useOrderStore = defineStore('order', () => {
           data: orderList.value,
           total: total.value
         }
-      }
-        console.log('更新订单列表数据，条数:', orderList.value.length)
       } else {
         console.warn('获取订单列表失败:', res.errorMsg)
         ElMessage.error(res.errorMsg || '获取订单列表失败')
         orderList.value = []
         total.value = 0
       }
-
       return {
         success: false,
         data: [],
@@ -127,7 +122,9 @@ export const useOrderStore = defineStore('order', () => {
       loading.value = false
     }
   }
-                                         
+
+  /**
+   * 支付订单
    * @param {String} orderId - 订单ID
    * @param {number} payType - 支付方式: 1-微信支付，2-支付宝
    * @returns {Promise} - 支付结果
@@ -435,7 +432,7 @@ export const useOrderStore = defineStore('order', () => {
     createNewOrder,
     fetchOrderDetail,
     fetchOrderList,
-    payOrder,
+    payUserOrder,
     cancelUserOrder,
     confirmUserOrder,
     deliveryUserOrder,

@@ -21,18 +21,6 @@
           <span class="label">支付方式</span>
           <span class="value">{{ payTypeName }}</span>
         </div>
-        <div class="info-item" v-if="paymentSuccess && !isDelivered">
-          <span class="label">发货倒计时</span>
-          <span class="value countdown">{{ countdown }}秒</span>
-        </div>
-        <div class="info-item" v-if="isDelivered">
-          <span class="label">订单状态</span>
-          <span class="value success-text">已发货</span>
-        </div>
-      </div>
-
-      <div class="progress-bar" v-if="paymentSuccess && !isDelivered">
-        <div class="progress-inner" :style="{ width: `${(5 - countdown) / 5 * 100}%` }"></div>
       </div>
 
       <div class="action-buttons">
@@ -57,11 +45,8 @@ const orderId = ref(route.query.orderId)
 const paymentSuccess = ref(route.query.payResult === 'success')
 const payType = ref(localStorage.getItem(`order_payment_type_${orderId.value}`) || '2')
 const payTypeName = ref(payType.value === '1' ? '微信支付' : '支付宝支付')
-const countdown = ref(5)
-const isDelivered = ref(false)
 
 let statusCheckInterval = null
-let countdownTimer = null
 
 onMounted(() => {
   if (!paymentSuccess.value) {
@@ -69,20 +54,12 @@ onMounted(() => {
     statusCheckInterval = setInterval(checkPayStatus, 3000)
     // 立即查询一次
     checkPayStatus()
-  } else {
-    // 支付成功，开始5秒倒计时自动发货
-    startDeliveryCountdown()
-    // 显示成功通知
-    ElMessage.success('支付成功！系统将在5秒后自动发货')
   }
 })
 
 onUnmounted(() => {
   if (statusCheckInterval) {
     clearInterval(statusCheckInterval)
-  }
-  if (countdownTimer) {
-    clearInterval(countdownTimer)
   }
 })
 
@@ -92,41 +69,11 @@ async function checkPayStatus() {
     if (result) {
       paymentSuccess.value = true
       clearInterval(statusCheckInterval)
-      // 支付成功，开始5秒倒计时自动发货
-      startDeliveryCountdown()
       // 显示成功通知
-      ElMessage.success('支付成功！系统将在5秒后自动发货')
+      ElMessage.success('支付成功！')
     }
   } catch (error) {
     console.error('查询支付状态失败:', error)
-  }
-}
-
-function startDeliveryCountdown() {
-  countdownTimer = setInterval(() => {
-    countdown.value--
-    if (countdown.value <= 0) {
-      clearInterval(countdownTimer)
-      // 发货
-      deliverOrder()
-    }
-  }, 1000)
-}
-
-async function deliverOrder() {
-  if (!isDelivered.value) {
-    isDelivered.value = true
-    try {
-      const res = await orderStore.confirmUserOrder(orderId.value)
-      if (res.success) {
-        ElMessage.success('订单已发货')
-      } else {
-        ElMessage.error(res.errorMsg || '发货失败，请稍后重试')
-      }
-    } catch (error) {
-      console.error('发货失败:', error)
-      ElMessage.error('发货失败，请稍后重试')
-    }
   }
 }
 
@@ -224,31 +171,6 @@ function goToOrderList() {
 .value {
   color: #303133;
   font-weight: 500;
-}
-
-.countdown {
-  color: #f56c6c;
-  font-weight: bold;
-}
-
-.success-text {
-  color: #67c23a;
-  font-weight: bold;
-}
-
-.progress-bar {
-  height: 6px;
-  background-color: #ebeef5;
-  border-radius: 3px;
-  margin-bottom: 24px;
-  overflow: hidden;
-}
-
-.progress-inner {
-  height: 100%;
-  background-color: #67c23a;
-  border-radius: 3px;
-  transition: width 1s linear;
 }
 
 .action-buttons {
