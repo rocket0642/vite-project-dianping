@@ -1,7 +1,7 @@
 <script setup>
 import { ref, onMounted } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
-import { getAfterSaleList, handleAfterSale } from '@/api/afterSale'
+import { getAfterSaleList, handleAfterSale } from '../../../api/afterSale'
 
 const loading = ref(false)
 const afterSaleList = ref([])
@@ -25,7 +25,7 @@ const loadAfterSaleList = async () => {
       current: currentPage.value,
       pageSize: pageSize.value
     })
-    
+
     if (res.success && res.data) {
       // 添加数据检查和默认值
       afterSaleList.value = (res.data.records || []).map(item => ({
@@ -213,26 +213,14 @@ onMounted(() => {
       <el-table-column label="操作" width="200" fixed="right">
         <template #default="{ row }">
           <template v-if="row.status === 1">
-            <el-button 
-              type="success" 
-              size="small" 
-              @click="openHandleDialog(row.id, 'approve')"
-            >
+            <el-button type="success" size="small" @click="openHandleDialog(row.id, 'approve')">
               同意
             </el-button>
-            <el-button 
-              type="danger" 
-              size="small" 
-              @click="openHandleDialog(row.id, 'reject')"
-            >
+            <el-button type="danger" size="small" @click="openHandleDialog(row.id, 'reject')">
               拒绝
             </el-button>
           </template>
-          <el-button 
-            type="primary" 
-            size="small" 
-            @click="showDetail(row)"
-          >
+          <el-button type="primary" size="small" @click="showDetail(row)">
             查看详情
           </el-button>
         </template>
@@ -240,41 +228,24 @@ onMounted(() => {
     </el-table>
 
     <div class="pagination-container">
-      <el-pagination
-        v-model:current-page="currentPage"
-        v-model:page-size="pageSize"
-        :total="total"
-        :page-sizes="[10, 20, 50, 100]"
-        layout="total, sizes, prev, pager, next"
-        @size-change="loadAfterSaleList"
-        @current-change="loadAfterSaleList"
-      />
+      <el-pagination v-model:current-page="currentPage" v-model:page-size="pageSize" :total="total"
+        :page-sizes="[10, 20, 50, 100]" layout="total, sizes, prev, pager, next" @size-change="loadAfterSaleList"
+        @current-change="loadAfterSaleList" />
     </div>
 
     <!-- 处理售后申请对话框 -->
-    <el-dialog
-      v-model="handleDialogVisible"
-      :title="handleForm.action === 'approve' ? '同意售后申请' : '拒绝售后申请'"
-      width="500px"
-      :close-on-click-modal="false"
-    >
+    <el-dialog v-model="handleDialogVisible" :title="handleForm.action === 'approve' ? '同意售后申请' : '拒绝售后申请'"
+      width="500px" :close-on-click-modal="false">
       <el-form :model="handleForm" label-width="80px">
         <el-form-item label="处理原因" required>
-          <el-input
-            v-model="handleForm.reason"
-            type="textarea"
-            rows="3"
-            :placeholder="handleForm.action === 'approve' ? '请输入同意原因' : '请输入拒绝原因'"
-          />
+          <el-input v-model="handleForm.reason" type="textarea" rows="3"
+            :placeholder="handleForm.action === 'approve' ? '请输入同意原因' : '请输入拒绝原因'" />
         </el-form-item>
       </el-form>
       <template #footer>
         <span class="dialog-footer">
           <el-button @click="handleDialogVisible = false">取消</el-button>
-          <el-button 
-            :type="handleForm.action === 'approve' ? 'success' : 'danger'"
-            @click="submitHandle"
-          >
+          <el-button :type="handleForm.action === 'approve' ? 'success' : 'danger'" @click="submitHandle">
             确定{{ handleForm.action === 'approve' ? '同意' : '拒绝' }}
           </el-button>
         </span>
@@ -282,12 +253,7 @@ onMounted(() => {
     </el-dialog>
 
     <!-- 详情弹窗 -->
-    <el-dialog
-      v-model="detailDialogVisible"
-      title="售后详情"
-      width="600px"
-      destroy-on-close
-    >
+    <el-dialog v-model="detailDialogVisible" title="售后详情" width="600px" destroy-on-close>
       <div v-if="currentDetail" class="detail-content">
         <div class="detail-item">
           <span class="label">售后单号：</span>
@@ -328,14 +294,8 @@ onMounted(() => {
         <div class="detail-item">
           <span class="label">图片凭证：</span>
           <div class="image-list" v-if="formatImages(currentDetail.images).length > 0">
-            <el-image
-              v-for="(img, index) in formatImages(currentDetail.images)"
-              :key="index"
-              :src="img"
-              :preview-src-list="formatImages(currentDetail.images)"
-              fit="cover"
-              class="evidence-image"
-            />
+            <el-image v-for="(img, index) in formatImages(currentDetail.images)" :key="index" :src="img"
+              :preview-src-list="formatImages(currentDetail.images)" fit="cover" class="evidence-image" />
           </div>
           <span v-else class="no-image">无图片</span>
         </div>

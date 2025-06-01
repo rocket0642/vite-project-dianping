@@ -1,12 +1,8 @@
+import { ElMessage } from 'element-plus'
 import { defineStore } from 'pinia'
 import { computed, ref } from 'vue'
-import { useGoodsStore } from './goods'
-import { useShopStore } from './shop'
-import request from '../utils/request'
-import { submitAfterSale, handleAfterSale } from '../api/afterSale'
 import { cancelOrder, confirmOrder, createOrder, deliveryOrder, getOrderCount, getOrderDetail, getTodaySales, getUserOrders, getUserOrderStatistics } from '../api/order'
 import { createPayment, queryPayStatus } from '../api/pay'
-import { ElMessage } from 'element-plus'
 
 /**
  * 订单状态管理

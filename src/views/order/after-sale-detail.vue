@@ -1,316 +1,376 @@
 <script setup>
-import { ref, onMounted } from 'vue'
-import { useRoute, useRouter } from 'vue-router'
 import { ElMessage } from 'element-plus'
-import { getAfterSaleDetail, cancelAfterSale } from '../../api/afterSale'
+import { onMounted, ref } from 'vue'
+import { useRoute, useRouter } from 'vue-router'
 import AppLayout from '../../components/AppLayout.vue'
+import { useAfterSaleStore } from '../../stores/afterSale'
+import { useOrderStore } from '../../stores/order'
 
 const route = useRoute()
 const router = useRouter()
+const afterSaleStore = useAfterSaleStore()
+const orderStore = useOrderStore()
+
+// 获取售后ID
+const afterSaleId = Number(route.params.id)
 const loading = ref(false)
-const afterSaleDetail = ref(null)
+const afterSale = ref(null)
+const orderDetail = ref(null)
 
-// 售后类型映射
-const typeMap = {
-  1: '仅退款',
-  2: '退货退款'
-}
-
-// 售后状态映射
-const statusMap = {
-  1: { text: '待处理', class: 'pending' },
-  2: { text: '处理中', class: 'processing' },
-  3: { text: '已完成', class: 'completed' },
-  4: { text: '已拒绝', class: 'rejected' }
-}
-
-// 格式化金额
-const formatPrice = (price) => {
-  return (price / 100).toFixed(2)
-}
-
-// 格式化时间
-const formatDate = (date) => {
-  if (!date) return ''
-  return new Date(date).toLocaleString()
-}
-
-// 获取售后详情
-const fetchAfterSaleDetail = async () => {
-  const afterSaleId = route.params.id
-  if (!afterSaleId) {
-    ElMessage.error('售后单号不存在')
-    return
-  }
-
-  loading.value = true
+// 加载售后详情
+const loadAfterSaleDetail = async () => {
   try {
-    const res = await getAfterSaleDetail(afterSaleId)
-    if (res.success) {
-      afterSaleDetail.value = res.data
+    loading.value = true
+    const data = await afterSaleStore.fetchAfterSaleDetail(afterSaleId)
+    if (data) {
+      afterSale.value = data
+      // 加载关联的订单信息
+      await loadOrderDetail(data.orderId)
     } else {
-      ElMessage.error(res.message || '获取售后详情失败')
+      ElMessage.error('获取售后详情失败')
+      router.push('/order/list?status=6')
     }
   } catch (error) {
     console.error('获取售后详情失败:', error)
-    ElMessage.error('获取售后详情失败')
+    ElMessage.error('获取售后详情失败，请稍后重试')
+    router.push('/order/list?status=6')
   } finally {
     loading.value = false
   }
 }
 
-// 取消售后申请
-const handleCancel = async () => {
+// 加载订单详情
+const loadOrderDetail = async (orderId) => {
   try {
-    const res = await cancelAfterSale(afterSaleDetail.value.id)
-    if (res.success) {
-      ElMessage.success('售后申请已取消')
-      await fetchAfterSaleDetail()
-    } else {
-      ElMessage.error(res.message || '取消售后申请失败')
+    const res = await orderStore.fetchOrderDetail(orderId)
+    if (res) {
+      orderDetail.value = res
     }
   } catch (error) {
-    console.error('取消售后申请失败:', error)
-    ElMessage.error('取消售后申请失败')
+    console.error('获取订单详情失败:', error)
   }
 }
 
-// 返回订单列表
-const goBack = () => {
-  router.push('/order/list?status=6')
+// 获取售后状态文本
+const getStatusText = (status) => {
+  return afterSaleStore.getAfterSaleStatusText(status)
 }
 
+// 获取售后类型文本
+const getTypeText = (type) => {
+  return afterSaleStore.getAfterSaleTypeText(type)
+}
+
+// 格式化金额 (分 -> 元)
+const formatAmount = (amount) => {
+  return (amount / 100).toFixed(2)
+}
+
+// 组件挂载时加载详情
 onMounted(() => {
-  fetchAfterSaleDetail()
+  loadAfterSaleDetail()
 })
 </script>
 
 <template>
   <AppLayout>
-    <div class="after-sale-detail" v-loading="loading">
+    <div class="after-sale-detail-container" v-loading="loading">
       <div class="page-header">
-        <el-button type="text" icon="ArrowLeft" @click="goBack">返回售后列表</el-button>
-        <h2>售后详情</h2>
+        <h2 class="page-title">售后详情</h2>
+        <el-button @click="router.push('/order/list?status=6')">返回列表</el-button>
       </div>
 
-      <template v-if="afterSaleDetail">
+      <div v-if="afterSale" class="detail-content">
         <div class="detail-card">
-          <div class="card-header">
-            <h3>基本信息</h3>
-            <div class="status-tag" :class="statusMap[afterSaleDetail.status].class">
-              {{ statusMap[afterSaleDetail.status].text }}
-            </div>
-          </div>
-
-          <div class="info-grid">
+          <h3>基本信息</h3>
+          <div class="info-section">
             <div class="info-item">
               <span class="label">售后单号：</span>
-              <span class="value">{{ afterSaleDetail.id }}</span>
+              <span>{{ afterSale.id }}</span>
             </div>
             <div class="info-item">
-              <span class="label">关联订单：</span>
-              <span class="value link" @click="router.push(`/order/detail/${afterSaleDetail.orderId}`)">
-                {{ afterSaleDetail.orderId }}
-              </span>
-            </div>
-            <div class="info-item">
-              <span class="label">申请时间：</span>
-              <span class="value">{{ formatDate(afterSaleDetail.createTime) }}</span>
+              <span class="label">订单号：</span>
+              <span>{{ afterSale.orderId }}</span>
             </div>
             <div class="info-item">
               <span class="label">售后类型：</span>
-              <span class="value">{{ typeMap[afterSaleDetail.type] }}</span>
+              <span>{{ getTypeText(afterSale.type) }}</span>
             </div>
             <div class="info-item">
+              <span class="label">申请时间：</span>
+              <span>{{ afterSale.createTime }}</span>
+            </div>
+            <div class="info-item">
+              <span class="label">状态：</span>
+              <span :class="['status', `status-${afterSale.status}`]">{{ getStatusText(afterSale.status) }}</span>
+            </div>
+            <div class="info-item">
+              <span class="label">申请原因：</span>
+              <span>{{ afterSale.reason }}</span>
+            </div>
+            <div v-if="afterSale.type === 1 || afterSale.type === 2" class="info-item">
               <span class="label">退款金额：</span>
-              <span class="value price">¥{{ formatPrice(afterSaleDetail.amount) }}</span>
+              <span class="amount">¥{{ formatAmount(afterSale.amount) }}</span>
             </div>
           </div>
         </div>
 
         <div class="detail-card">
-          <h3>退款信息</h3>
-          <div class="refund-info">
+          <h3>问题描述</h3>
+          <div class="description">{{ afterSale.description }}</div>
+        </div>
+
+        <div v-if="afterSale.images && afterSale.images.length" class="detail-card">
+          <h3>问题图片</h3>
+          <div class="images-container">
+            <div v-for="(img, index) in afterSale.images" :key="index" class="image-item">
+              <el-image :src="img" :preview-src-list="afterSale.images" :initial-index="index" fit="cover" />
+            </div>
+          </div>
+        </div>
+
+        <div v-if="afterSale.status !== 1" class="detail-card">
+          <h3>处理结果</h3>
+          <div class="result-info">
             <div class="info-item">
-              <span class="label">退款原因：</span>
-              <span class="value">{{ afterSaleDetail.reason }}</span>
+              <span class="label">处理时间：</span>
+              <span>{{ afterSale.handleTime || '-' }}</span>
             </div>
             <div class="info-item">
-              <span class="label">问题描述：</span>
-              <span class="value">{{ afterSaleDetail.description || '无' }}</span>
+              <span class="label">处理结果：</span>
+              <span :class="['status', `status-${afterSale.status}`]">{{ getStatusText(afterSale.status) }}</span>
             </div>
-            <div class="info-item" v-if="afterSaleDetail.images">
-              <span class="label">图片凭证：</span>
-              <div class="image-list">
-                <el-image
-                  v-for="(img, index) in afterSaleDetail.images.split(',')"
-                  :key="index"
-                  :src="img"
-                  :preview-src-list="afterSaleDetail.images.split(',')"
-                  fit="cover"
-                />
+            <div class="info-item">
+              <span class="label">处理备注：</span>
+              <span>{{ afterSale.handleMsg || '-' }}</span>
+            </div>
+          </div>
+        </div>
+
+        <div v-if="orderDetail" class="detail-card">
+          <h3>关联订单信息</h3>
+          <div class="order-info">
+            <div class="info-item">
+              <span class="label">商家名称：</span>
+              <span>{{ orderDetail.shopName }}</span>
+            </div>
+            <div class="info-item">
+              <span class="label">订单金额：</span>
+              <span>¥{{ formatAmount(orderDetail.amount) }}</span>
+            </div>
+            <div class="info-item">
+              <span class="label">订单状态：</span>
+              <span>{{ orderDetail.status === 6 ? '售后处理中' : '已完成' }}</span>
+            </div>
+          </div>
+
+          <h4>商品信息</h4>
+          <div class="goods-list">
+            <div v-for="(item, index) in orderDetail.items" :key="index" class="goods-item">
+              <div class="goods-image">
+                <img :src="item.goodsImage?.[0]" alt="商品图片">
+              </div>
+              <div class="goods-info">
+                <h5>{{ item.goodsName }}</h5>
+                <p>{{ item.skuName }}</p>
+                <p>数量：{{ item.count }}</p>
+              </div>
+              <div class="goods-price">
+                ¥{{ formatAmount(item.price * item.count) }}
               </div>
             </div>
           </div>
         </div>
+      </div>
 
-        <div class="detail-card" v-if="afterSaleDetail.handleMsg || afterSaleDetail.handleTime">
-          <h3>处理信息</h3>
-          <div class="handle-info">
-            <div class="info-item" v-if="afterSaleDetail.handleMsg">
-              <span class="label">处理备注：</span>
-              <span class="value">{{ afterSaleDetail.handleMsg }}</span>
-            </div>
-            <div class="info-item" v-if="afterSaleDetail.handleTime">
-              <span class="label">处理时间：</span>
-              <span class="value">{{ formatDate(afterSaleDetail.handleTime) }}</span>
-            </div>
-          </div>
-        </div>
-
-        <div class="actions" v-if="afterSaleDetail.status === 1">
-          <el-button type="danger" @click="handleCancel">取消申请</el-button>
-        </div>
-      </template>
-
-      <el-empty v-else description="售后详情不存在" />
+      <div v-else-if="!loading" class="no-data">
+        <el-empty description="未找到售后详情" />
+      </div>
     </div>
   </AppLayout>
 </template>
 
 <style scoped>
-.after-sale-detail {
-  width: 80%;
-  max-width: 1000px;
-  margin: 20px auto;
-  padding: 20px;
+.after-sale-detail-container {
+  max-width: 800px;
+  margin: 0 auto;
+  padding: 20px 15px;
 }
 
 .page-header {
-  display: flex;
-  align-items: center;
-  margin-bottom: 20px;
-  gap: 20px;
-}
-
-.page-header h2 {
-  margin: 0;
-  font-size: 24px;
-}
-
-.detail-card {
-  background: #fff;
-  border-radius: 8px;
-  padding: 20px;
-  margin-bottom: 20px;
-  box-shadow: 0 2px 12px rgba(0, 0, 0, 0.1);
-}
-
-.card-header {
   display: flex;
   justify-content: space-between;
   align-items: center;
   margin-bottom: 20px;
 }
 
-.card-header h3 {
+.page-title {
+  font-size: 22px;
+  font-weight: 600;
   margin: 0;
 }
 
-.status-tag {
-  padding: 6px 12px;
-  border-radius: 4px;
-  color: white;
-  font-size: 14px;
+.detail-card {
+  background-color: #fff;
+  border-radius: 8px;
+  box-shadow: 0 2px 12px 0 rgba(0, 0, 0, 0.05);
+  padding: 20px;
+  margin-bottom: 20px;
 }
 
-.status-tag.pending {
-  background-color: #e6a23c;
+.detail-card h3 {
+  font-size: 18px;
+  margin-top: 0;
+  border-bottom: 1px solid #ebeef5;
+  padding-bottom: 15px;
+  margin-bottom: 15px;
 }
 
-.status-tag.processing {
-  background-color: #409eff;
+.detail-card h4 {
+  font-size: 16px;
+  margin: 20px 0 15px;
 }
 
-.status-tag.completed {
-  background-color: #67c23a;
-}
-
-.status-tag.rejected {
-  background-color: #f56c6c;
-}
-
-.info-grid {
+.info-section {
   display: grid;
-  grid-template-columns: repeat(2, 1fr);
-  gap: 20px;
+  grid-template-columns: 1fr 1fr;
+  gap: 15px;
 }
 
 .info-item {
   display: flex;
-  align-items: flex-start;
-  margin-bottom: 15px;
+  align-items: baseline;
+  margin-bottom: 10px;
 }
 
 .label {
+  width: 100px;
   color: #606266;
-  width: 100px;
-  flex-shrink: 0;
+  font-weight: 600;
 }
 
-.value {
-  color: #303133;
-  flex: 1;
-}
-
-.value.link {
-  color: #409eff;
-  cursor: pointer;
-}
-
-.value.link:hover {
-  text-decoration: underline;
-}
-
-.value.price {
-  color: #f56c6c;
-  font-weight: bold;
-}
-
-.image-list {
-  display: flex;
-  gap: 10px;
-  margin-top: 10px;
-}
-
-.image-list .el-image {
-  width: 100px;
-  height: 100px;
+.status {
+  padding: 2px 8px;
   border-radius: 4px;
+  color: white;
+  font-size: 13px;
+}
+
+.status-1 {
+  background-color: #e6a23c;
+}
+
+.status-2 {
+  background-color: #67c23a;
+}
+
+.status-3 {
+  background-color: #f56c6c;
+}
+
+.amount {
+  font-weight: bold;
+  color: #f56c6c;
+}
+
+.description {
+  line-height: 1.6;
+  color: #303133;
+  white-space: pre-wrap;
+}
+
+.images-container {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin-top: 15px;
+}
+
+.image-item {
+  width: 120px;
+  height: 120px;
+  border-radius: 4px;
+  overflow: hidden;
   border: 1px solid #ebeef5;
 }
 
-.actions {
-  display: flex;
-  justify-content: center;
-  margin-top: 30px;
+.image-item .el-image {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
 }
 
-.refund-info,
-.handle-info {
+.goods-list {
+  margin-top: 15px;
+}
+
+.goods-item {
   display: flex;
-  flex-direction: column;
-  gap: 15px;
+  border-bottom: 1px dashed #ebeef5;
+  padding: 15px 0;
+}
+
+.goods-item:last-child {
+  border-bottom: none;
+}
+
+.goods-image {
+  width: 70px;
+  height: 70px;
+  margin-right: 15px;
+  border-radius: 4px;
+  overflow: hidden;
+  border: 1px solid #eee;
+}
+
+.goods-image img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.goods-info {
+  flex: 1;
+}
+
+.goods-info h5 {
+  margin: 0 0 5px;
+  font-size: 15px;
+}
+
+.goods-info p {
+  margin: 5px 0;
+  color: #606266;
+  font-size: 13px;
+}
+
+.goods-price {
+  width: 80px;
+  text-align: right;
+  font-weight: bold;
+  color: #f56c6c;
+}
+
+.no-data {
+  padding: 40px 0;
+  text-align: center;
 }
 
 @media (max-width: 768px) {
-  .after-sale-detail {
-    width: 95%;
-    padding: 10px;
+  .after-sale-detail-container {
+    padding: 15px 10px;
   }
 
-  .info-grid {
+  .page-title {
+    font-size: 18px;
+  }
+
+  .detail-card {
+    padding: 15px;
+  }
+
+  .info-section {
     grid-template-columns: 1fr;
   }
 }
-</style> 
+</style>

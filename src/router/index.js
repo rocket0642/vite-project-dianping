@@ -110,12 +110,29 @@ const routes = [
   {
     path: '/order/after-sale/:id',
     name: 'OrderAfterSale',
-    component: () => import('../views/order/after-sale.vue')
+    component: () => import('../views/order/after-sale.vue'),
+    meta: {
+      requiresAuth: true,
+      title: '申请售后'
+    }
+  },
+  {
+    path: '/order/after-sale-detail/:id',
+    name: 'AfterSaleDetail',
+    component: () => import('../views/order/after-sale-detail.vue'),
+    meta: {
+      requiresAuth: true,
+      title: '售后详情'
+    }
   },
   {
     path: '/order/logistics/:id',
     name: 'OrderLogistics',
-    component: () => import('../views/order/logistics.vue')
+    component: () => import('../views/order/logistics.vue'),
+    meta: {
+      requiresAuth: true,
+      title: '查看物流'
+    }
   },
   {
     path: '/order/comment/:id',
@@ -128,15 +145,6 @@ const routes = [
     meta: {
       title: '我的收藏',
       requiresAuth: true
-    }
-  },
-  {
-    path: '/order/after-sale/:id',
-    name: 'AfterSaleDetail',
-    component: () => import('../views/order/after-sale-detail.vue'),
-    meta: {
-      requiresAuth: true,
-      title: '售后详情'
     }
   },
   {

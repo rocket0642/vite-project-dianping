@@ -1,5 +1,5 @@
 <script setup>
-import { Box, ChatDotRound, Document, Money, Van } from '@element-plus/icons-vue'
+import { Box, ChatDotRound, Document, Money, Van, Warning } from '@element-plus/icons-vue'
 import { ElIcon } from 'element-plus'
 import { useRouter } from 'vue-router'
 
@@ -54,6 +54,12 @@ const goToOrderList = (status) => {
                 </el-icon>
                 <span class="shortcut-label">待评价</span>
             </div>
+            <div class="shortcut-item" @click="goToOrderList(6)">
+                <el-icon>
+                    <Warning />
+                </el-icon>
+                <span class="shortcut-label">售后服务</span>
+            </div>
         </div>
     </div>
 </template>
@@ -77,6 +83,7 @@ const goToOrderList = (status) => {
 .order-shortcuts {
     display: flex;
     justify-content: space-between;
+    flex-wrap: wrap;
 }
 
 .shortcut-item {
@@ -87,6 +94,7 @@ const goToOrderList = (status) => {
     cursor: pointer;
     padding: 15px 0;
     flex: 1;
+    min-width: 80px;
 }
 
 .shortcut-item:hover {
@@ -97,5 +105,16 @@ const goToOrderList = (status) => {
 .shortcut-label {
     margin-top: 8px;
     font-size: 14px;
+}
+
+@media (max-width: 768px) {
+    .shortcut-item {
+        min-width: 25%;
+        margin-bottom: 10px;
+    }
+
+    .order-shortcuts {
+        justify-content: flex-start;
+    }
 }
 </style>
