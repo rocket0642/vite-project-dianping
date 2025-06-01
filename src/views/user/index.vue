@@ -1,5 +1,5 @@
 <script setup>
-import { Box, ChatDotRound, Document, Edit, Location, Money, Plus, Van, StarFilled } from '@element-plus/icons-vue'
+import { Box, ChatDotRound, Document, Edit, Location, Money, Plus, Van, StarFilled, Service } from '@element-plus/icons-vue'
 import { BarChart, LineChart, PieChart } from 'echarts/charts'
 import { GridComponent, LegendComponent, TitleComponent, TooltipComponent } from 'echarts/components'
 import * as echarts from 'echarts/core'
@@ -485,8 +485,6 @@ const logout = () => {
   }).catch(() => { })
 }
 
-
-
 /**
  * 页面加载时执行
  */
@@ -669,6 +667,12 @@ const beforeAvatarUpload = (file) => {
             <ChatDotRound />
           </el-icon>
           <span class="shortcut-label">待评价</span>
+        </div>
+        <div class="shortcut-item" @click="goToOrderList(6)">
+          <el-icon>
+            <Service />
+          </el-icon>
+          <span class="shortcut-label">售后服务</span>
         </div>
       </div>
     </div>

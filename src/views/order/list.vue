@@ -66,7 +66,8 @@ const loadOrders = async () => {
       'unpaid': 1,
       'canceled': 3,
       'unreceived': 4,
-      'uncommented': 5
+      'uncommented': 5,
+      'afterSale': 6  // 添加售后服务状态
     };
 
     const statusValue = tabToStatusMap[activeTab.value];
@@ -314,6 +315,7 @@ const getStatusText = (status) => {
     case 3: return '已取消'
     case 4: return '待收货'
     case 5: return '已完成'
+    case 6: return '售后处理中'  // 添加售后状态文本
     default: return '未知状态'
   }
 }
@@ -327,9 +329,10 @@ const goToComment = (orderId) => {
 }
 
 /**
- * 申请售后/退款
+ * 申请售后
  */
 const applyRefund = (orderId) => {
+  // 直接跳转到售后申请页面
   router.push(`/order/after-sale/${orderId}`)
 }
 
@@ -409,7 +412,8 @@ const tabToStatusMap = {
   'unpaid': 1,
   'canceled': 3,
   'unreceived': 4,
-  'uncommented': 5
+  'uncommented': 5,
+  'afterSale': 6  // 添加售后服务状态
 };
 
 // 初始化
@@ -422,7 +426,8 @@ onMounted(async () => {
     1: 'unpaid',
     3: 'canceled',
     4: 'unreceived',
-    5: 'uncommented'
+    5: 'uncommented',
+    6: 'afterSale'  // 添加售后映射
   };
 
   // 如果URL中有状态参数，则使用它，否则使用store中保存的activeTab
@@ -451,7 +456,8 @@ watch(
       1: 'unpaid',
       3: 'canceled',
       4: 'unreceived',
-      5: 'uncommented'
+      5: 'uncommented',
+      6: 'afterSale'  // 添加售后映射
     };
 
     // 仅当路由状态参数与当前activeTab不一致时更新
@@ -486,6 +492,11 @@ function getDefaultImage(type) {
   }
   return 'https://cube.elemecdn.com/3/7c/3ea6beec64369c2642b92c6726f1epng.png'
 }
+
+// 添加查看售后详情的方法
+const viewAfterSaleDetail = (orderId) => {
+  router.push(`/order/after-sale-detail/${orderId}`)
+}
 </script>
 
 <template>
@@ -512,6 +523,9 @@ function getDefaultImage(type) {
         </div>
         <div class="tab-item" :class="{ active: activeTab === 'uncommented' }" @click="handleTabChange('uncommented')">
           待评价
+        </div>
+        <div class="tab-item" :class="{ active: activeTab === 'afterSale' }" @click="handleTabChange('afterSale')">
+          售后服务
         </div>
       </div>
 
@@ -617,6 +631,12 @@ function getDefaultImage(type) {
                 <button class="action-btn default" @click="applyRefund(order.id)">申请售后</button>
                 <button class="action-btn primary" @click="buyAgain(order)">再次购买</button>
                 <button class="action-btn info" @click="viewOrderDetail(order.id)">查看详情</button>
+              </template>
+
+              <!-- 售后服务状态 -->
+              <template v-else-if="order.status === 6">
+                <button class="action-btn info" @click="viewAfterSaleDetail(order.id)">查看售后详情</button>
+                <button class="action-btn info" @click="viewOrderDetail(order.id)">查看订单详情</button>
               </template>
             </div>
           </div>
@@ -835,6 +855,10 @@ function getDefaultImage(type) {
 
 .status-5 {
   background-color: #e6a23c;
+}
+
+.status-6 {
+  background-color: #E6A23C;  /* 售后处理中状态的颜色 */
 }
 
 .countdown-tag {
@@ -1061,5 +1085,15 @@ function getDefaultImage(type) {
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+}
+
+/* 可以添加售后服务相关的其他样式 */
+.after-sale-tag {
+  background-color: #E6A23C;
+  color: white;
+  padding: 2px 6px;
+  border-radius: 4px;
+  font-size: 12px;
+  margin-left: 8px;
 }
 </style>

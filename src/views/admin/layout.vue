@@ -4,13 +4,13 @@
       <div class="logo">后台管理系统</div>
       <el-menu
         router
-        :default-active="$route.path"
+        :default-active="activeMenu"
         background-color="#304156"
         text-color="#bfcbd9"
         active-text-color="#409EFF"
       >
         <el-menu-item index="/admin/dashboard">
-          <el-icon><DataLine /></el-icon>
+          <el-icon><Monitor /></el-icon>
           <span>仪表盘</span>
         </el-menu-item>
         <el-menu-item index="/admin/users">
@@ -22,8 +22,12 @@
           <span>商品管理</span>
         </el-menu-item>
         <el-menu-item index="/admin/orders">
-          <el-icon><List /></el-icon>
+          <el-icon><Document /></el-icon>
           <span>订单管理</span>
+        </el-menu-item>
+        <el-menu-item index="/admin/after-sale">
+          <el-icon><Headset /></el-icon>
+          <span>售后管理</span>
         </el-menu-item>
       </el-menu>
     </div>
@@ -53,7 +57,11 @@
       </div>
       
       <div class="admin-main">
-        <router-view />
+        <router-view v-slot="{ Component }">
+          <keep-alive>
+            <component :is="Component" />
+          </keep-alive>
+        </router-view>
       </div>
     </div>
   </div>
@@ -61,12 +69,41 @@
 
 <script setup>
 import { useUserStore } from '../../stores/user'
-import { useRouter } from 'vue-router'
+import { useRouter, useRoute } from 'vue-router'
 import { ElMessageBox } from 'element-plus'
-import { DataLine, User, Goods, List, ArrowDown } from '@element-plus/icons-vue'
+import { 
+  Monitor, 
+  User, 
+  Goods, 
+  Document, 
+  Headset,
+  ArrowDown 
+} from '@element-plus/icons-vue'
+import { ref, computed, onMounted, onBeforeUnmount } from 'vue'
 
 const userStore = useUserStore()
 const router = useRouter()
+const route = useRoute()
+
+const tableHeight = ref(500)
+
+// 计算当前激活的菜单项
+const activeMenu = computed(() => {
+  return route.path
+})
+
+const calcTableHeight = () => {
+  // 60(header) + 60(搜索栏) + 60(分页) + 40(边距) 你可以根据实际调整
+  tableHeight.value = window.innerHeight - 60 - 60 - 60 - 40
+}
+
+onMounted(() => {
+  calcTableHeight()
+  window.addEventListener('resize', calcTableHeight)
+})
+onBeforeUnmount(() => {
+  window.removeEventListener('resize', calcTableHeight)
+})
 
 // 退出登录
 const handleLogout = () => {
@@ -93,7 +130,7 @@ const goToHome = () => {
 }
 
 .admin-sidebar {
-  width: 240px;
+  width: 200px;
   height: 100%;
   background-color: #304156;
   color: white;
@@ -101,12 +138,13 @@ const goToHome = () => {
 }
 
 .logo {
-  height: 60px;
-  line-height: 60px;
+  height: 50px;
+  line-height: 50px;
   text-align: center;
-  font-size: 20px;
+  font-size: 18px;
   font-weight: bold;
-  border-bottom: 1px solid #1f2d3d;
+  color: #fff;
+  background-color: #2b3a4a;
 }
 
 .admin-content {
@@ -137,5 +175,48 @@ const goToHome = () => {
   padding: 20px;
   overflow-y: auto;
   background-color: #f0f2f5;
+}
+
+.filter-container {
+  margin-bottom: 20px;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+.pagination-container {
+  margin-top: 20px;
+  display: flex;
+  justify-content: flex-end;
+  flex-wrap: wrap;
+}
+
+.product-management {
+  padding: 0 10px;
+  height: 100%;
+  box-sizing: border-box;
+  display: flex;
+  flex-direction: column;
+}
+.el-table {
+  flex: 1;
+  min-height: 300px;
+}
+
+@media (max-width: 900px) {
+  .product-management {
+    padding: 0 2px;
+  }
+  .filter-container {
+    flex-direction: column;
+    gap: 6px;
+  }
+  .el-table th, .el-table td {
+    font-size: 12px;
+    padding: 4px 2px;
+  }
+  .el-button, .el-input, .el-select {
+    font-size: 12px !important;
+    height: 28px !important;
+  }
 }
 </style>

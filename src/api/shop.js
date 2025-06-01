@@ -92,3 +92,14 @@ export function getShopTypeStats() {
     method: 'get'
   })
 }
+
+/**
+ * 获取商铺列表
+ * @returns {Promise} - 商铺列表
+ */
+export function getAllShopNames() {
+  return request({
+    url: '/shop/list',
+    method: 'get'
+  })
+}

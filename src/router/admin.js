@@ -58,15 +58,15 @@ const adminRoutes = [
                     icon: 'shop'
                 }
             },
-            // {
-            //     path: 'settings',
-            //     name: 'SystemSettings',
-            //     component: () => import('../views/admin/settings/index.vue'),
-            //     meta: {
-            //         title: '系统设置',
-            //         icon: 'setting'
-            //     }
-            // }
+            {
+                path: 'after-sale',
+                name: 'AfterSaleManagement',
+                component: () => import('../views/admin/after-sale/index.vue'),
+                meta: {
+                    title: '售后管理',
+                    icon: 'service'
+                }
+            }
         ]
     },
     // {

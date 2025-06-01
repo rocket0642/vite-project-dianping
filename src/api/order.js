@@ -85,7 +85,7 @@ export function cancelOrder(data) {
  */
 export function confirmOrder(orderId) {
   return request({
-    url: `/order/confirm/${orderId}`,
+    url: `/order/pay/${orderId}`,
     method: 'put'
   })
 }
@@ -132,5 +132,51 @@ export function getWeekSales() {
   return request({
     url: '/order/week-sales',
     method: 'get'
+  })
+}
+
+/**
+ * 分页获取订单列表
+ * @param {Object} params - 查询参数
+ * @param {number} params.page - 当前页码
+ * @param {number} params.size - 每页条数
+ * @param {string} [params.keyword] - 搜索关键字(订单号/用户名/手机号)
+ * @param {number} [params.status] - 订单状态
+ * @returns {Promise}
+ */
+export function getOrderPage(params) {
+  return request({
+    url: '/order/page',
+    method: 'get',
+    params
+  })
+}
+
+/**
+ * 商家发货
+ * @param {number} orderId - 订单ID
+ * @returns {Promise} - 发货结果
+ */
+export function shipOrder(orderId) {
+  if (!orderId) {
+    return Promise.reject(new Error('订单ID不能为空'))
+  }
+
+  return request({
+    url: `/order/ship/${orderId}`,
+    method: 'put'
+  })
+}
+
+/**
+ * 更新订单状态
+ * @param {Object} data - 更新数据
+ * @returns {Promise} - 更新结果
+ */
+export function updateOrderStatus(data) {
+  return request({
+    url: '/order/status',
+    method: 'put',
+    data
   })
 }

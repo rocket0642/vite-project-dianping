@@ -16,9 +16,18 @@ export default defineConfig({
     strictPort: true, // 如果端口被占用，则会直接退出而不是尝试下一个可用端口
     proxy: {
       '/api': {
-        target: 'http://localhost:8081',
+        target: 'http://localhost:8081', // 确保这是正确的后端地址
         changeOrigin: true,
-        rewrite: (path) => path.replace(/^\/api/, '')
+        rewrite: (path) => path.replace(/^\/api/, ''),
+        // 添加以下配置以处理上传请求
+        configure: (proxy, options) => {
+          proxy.on('proxyReq', (proxyReq, req, res) => {
+            if (req.method === 'POST' && req.headers['content-type']?.includes('multipart/form-data')) {
+              // 保持原始的 content-type
+              proxyReq.setHeader('Content-Type', req.headers['content-type']);
+            }
+          });
+        }
       }
     }
   },

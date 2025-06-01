@@ -280,36 +280,8 @@ export const useUserStore = defineStore('user', () => {
   }
 }, {
   persist: {
-    key: 'user-store-data',
-    // 根据rememberMe决定使用哪种存储方式
-    storage: {
-      getItem: (key) => {
-        // 先从localStorage获取rememberMe状态
-        const storeData = localStorage.getItem(key)
-        if (storeData) {
-          const data = JSON.parse(storeData)
-          // 如果localStorage有数据并且rememberMe为true，使用localStorage
-          if (data?.rememberMe) {
-            return storeData
-          }
-        }
-        // 否则尝试从sessionStorage获取
-        return sessionStorage.getItem(key)
-      },
-      setItem: (key, value) => {
-        const data = JSON.parse(value)
-        // 根据rememberMe决定存储位置
-        if (data?.rememberMe) {
-          localStorage.setItem(key, value)
-        } else {
-          sessionStorage.setItem(key, value)
-        }
-      },
-      removeItem: (key) => {
-        localStorage.removeItem(key)
-        sessionStorage.removeItem(key)
-      }
-    },
-    paths: ['token', 'userPhone', 'userInfo', 'rememberMe']
+    key: 'user-store',
+    storage: localStorage,
+    paths: ['token', 'userInfo']  // 确保这些关键数据被持久化
   }
 })

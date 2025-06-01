@@ -1,10 +1,12 @@
 import { defineStore } from 'pinia'
 import { computed, ref } from 'vue'
-import { cancelOrder, confirmOrder, createOrder, deliveryOrder, getOrderDetail, getUserOrders, getUserOrderStatistics, payOrder } from '../api/order'
+import { cancelOrder, confirmOrder, createOrder, deliveryOrder, getOrderDetail, getUserOrders, getUserOrderStatistics, payOrder as payOrderApi, shipOrder, updateOrderStatus } from '../api/order'
 import { useGoodsStore } from './goods'
 import { useShopStore } from './shop'
 import { getOrderCount } from '../api/order'
 import { getTodaySales } from '../api/order'
+import request from '../utils/request'
+import { submitAfterSale, handleAfterSale } from '../api/afterSale'
 
 /**
  * 订单状态管理
@@ -28,13 +30,20 @@ export const useOrderStore = defineStore('order', () => {
       unpaid: { currentPage: 1, total: 0 },
       canceled: { currentPage: 1, total: 0 },
       unreceived: { currentPage: 1, total: 0 },
-      uncommented: { currentPage: 1, total: 0 }
+      uncommented: { currentPage: 1, total: 0 },
+      afterSale: { currentPage: 1, total: 0 }
     }
   })
 
   // 引入商品和商铺store
   const goodsStore = useGoodsStore()
   const shopStore = useShopStore()
+
+  // 1. 添加新的状态常量
+  const ORDER_STATUS = {
+    AFTER_SALE: 6,
+    AFTER_SALE_COMPLETE: 7
+  }
 
   /**
    * 创建订单
@@ -88,13 +97,27 @@ export const useOrderStore = defineStore('order', () => {
       loading.value = true
       const res = await getUserOrders(params)
       if (res.success) {
-        orderList.value = res.data
+        orderList.value = res.data || []
         total.value = res.total || 0
+
+        // 更新分页状态
+        if (params.status === 6) {
+          orderListPageState.value.paginationState.afterSale = {
+            currentPage: params.current || 1,
+            total: res.total || 0
+          }
+        }
+
+        return {
+          success: true,
+          data: orderList.value,
+          total: total.value
+        }
       }
-      console.log(orderList.value)
       return {
-        list: orderList.value,
-        total: total.value
+        success: false,
+        data: [],
+        total: 0
       }
     } catch (error) {
       console.error('获取订单列表失败:', error)
@@ -107,30 +130,29 @@ export const useOrderStore = defineStore('order', () => {
   /**
    * 支付订单
    * @param {number} orderId - 订单ID
-   * @param {number} payType - 支付方式: 1-微信支付，2-支付宝
-   * @returns {Promise} - 支付结果
+   * @returns {Promise} 支付结果
    */
-  async function payUserOrder(orderId, payType = 1) {
+  async function payOrder(orderId) {
     try {
-      loading.value = true
-      // 确保orderId是数字
-      const id = parseInt(orderId);
-      const res = await payOrder(id, payType)
-
-      // 支付成功后刷新订单详情
+      const res = await payOrderApi(orderId)
       if (res.success) {
-        await fetchOrderDetail(id)
-      }
+        // 支付成功后更新订单状态为已支付(2)
+        if (currentOrder.value && currentOrder.value.id === orderId) {
+          currentOrder.value.status = 2
+          currentOrder.value.payTime = new Date().toISOString()
+        }
 
+        // 更新订单列表中的订单状态
+        const order = orderList.value.find(o => o.id === orderId)
+        if (order) {
+          order.status = 2
+          order.payTime = new Date().toISOString()
+        }
+      }
       return res
     } catch (error) {
       console.error('支付订单失败:', error)
-      return {
-        success: false,
-        errorMsg: '支付请求失败，请稍后重试'
-      }
-    } finally {
-      loading.value = false
+      throw error
     }
   }
 
@@ -173,18 +195,30 @@ export const useOrderStore = defineStore('order', () => {
   /**
    * 确认收货
    * @param {number} orderId - 订单ID
-   * @returns {Promise} - 确认收货结果  
    */
   async function deliveryUserOrder(orderId) {
+    if (!orderId) {
+      throw new Error('订单ID不能为空')
+    }
+
     try {
-      loading.value = true
       const res = await deliveryOrder(orderId)
+      if (res.success) {
+        // 更新订单状态为已完成(5)
+        if (currentOrder.value && currentOrder.value.id === orderId) {
+          currentOrder.value.status = 5
+        }
+
+        // 更新订单列表中的状态
+        const order = orderList.value.find(o => o.id === orderId)
+        if (order) {
+          order.status = 5
+        }
+      }
       return res
     } catch (error) {
       console.error('确认收货失败:', error)
       throw error
-    } finally {
-      loading.value = false
     }
   }
 
@@ -242,7 +276,8 @@ export const useOrderStore = defineStore('order', () => {
       unpaid: 0,
       undelivered: 0,
       unreceived: 0,
-      uncommented: 0
+      uncommented: 0,
+      afterSale: 0
     }
 
     orderList.value.forEach(order => {
@@ -250,6 +285,7 @@ export const useOrderStore = defineStore('order', () => {
       else if (order.status === 2) stats.undelivered++
       else if (order.status === 3) stats.unreceived++
       else if (order.status === 4) stats.uncommented++
+      else if (order.status === 6) stats.afterSale++
     })
 
     return stats
@@ -286,6 +322,155 @@ export const useOrderStore = defineStore('order', () => {
     }
   }
 
+  /**
+   * 商家发货
+   * @param {number} orderId - 订单ID
+   * @returns {Promise} - 发货结果
+   */
+  async function shipUserOrder(orderId) {
+    if (!orderId) {
+      throw new Error('订单ID不能为空')
+    }
+
+    try {
+      loading.value = true
+      const res = await shipOrder(orderId)
+      if (res.success) {
+        // 更新当前订单状态
+        if (currentOrder.value && currentOrder.value.id === orderId) {
+          currentOrder.value.status = 4  // 更新为已发货状态
+          currentOrder.value.deliveryTime = new Date().toISOString()
+        }
+
+        // 更新订单列表中的状态
+        const order = orderList.value.find(o => o.id === orderId)
+        if (order) {
+          order.status = 4
+          order.deliveryTime = new Date().toISOString()
+        }
+      }
+      return res
+    } catch (error) {
+      console.error('商家发货失败:', error)
+      throw error
+    } finally {
+      loading.value = false
+    }
+  }
+
+  /**
+   * 获取售后订单列表
+   * @param {Object} params - 查询参数
+   * @returns {Promise} - 售后订单列表
+   */
+  async function fetchAfterSaleOrders(params = {}) {
+    try {
+      loading.value = true
+      // 添加售后状态过滤
+      const afterSaleParams = {
+        ...params,
+        status: [6, 7]  // 售后处理中和售后完成的状态
+      }
+      const res = await getUserOrders(afterSaleParams)
+      if (res.success) {
+        orderList.value = res.data
+        total.value = res.total || 0
+      }
+      return {
+        list: orderList.value,
+        total: total.value
+      }
+    } catch (error) {
+      console.error('获取售后订单列表失败:', error)
+      throw error
+    } finally {
+      loading.value = false
+    }
+  }
+
+  // 修改提交售后申请的方法
+  async function submitAfterSaleApplication(data) {
+    try {
+      // 处理图片数组
+      const afterSaleData = {
+        ...data,
+        images: Array.isArray(data.images) ? data.images :
+          typeof data.images === 'string' ? [data.images] : []
+      }
+
+      // 1. 提交售后申请
+      const res = await submitAfterSale(afterSaleData)
+
+      if (res.success) {
+        // 2. 更新订单状态为售后中(6)
+        const updateRes = await handleAfterSale({
+          id: data.orderId,
+          status: ORDER_STATUS.AFTER_SALE
+        })
+
+        if (updateRes.success) {
+          // 3. 更新本地订单状态
+          const order = orderList.value.find(o => o.id === data.orderId)
+          if (order) {
+            order.status = ORDER_STATUS.AFTER_SALE
+            order.afterSaleTime = new Date().toISOString()
+          }
+
+          // 4. 重新获取售后列表
+          await fetchOrderList({
+            current: 1,
+            pageSize: 5,
+            status: ORDER_STATUS.AFTER_SALE
+          })
+
+          return true
+        }
+      }
+      throw new Error(res.errorMsg || '提交售后申请失败')
+    } catch (error) {
+      console.error('提交售后申请失败:', error)
+      throw error
+    }
+  }
+
+  // 更新订单状态
+  async function updateOrderStatus(data) {
+    try {
+      // 使用正确的售后处理API
+      const res = await handleAfterSale({
+        id: data.id,
+        status: data.status
+      })
+
+      if (res.success) {
+        // 更新本地订单状态
+        const order = orderList.value.find(o => o.id === data.id)
+        if (order) {
+          order.status = data.status
+          if (data.status === 6) {
+            order.afterSaleTime = new Date().toISOString()
+          }
+        }
+
+        // 如果是更新为售后状态，重新获取售后列表
+        if (data.status === 6) {
+          await fetchOrderList({
+            current: 1,
+            pageSize: 5,
+            status: 6
+          })
+        }
+      }
+      return res
+    } catch (error) {
+      console.error('更新订单状态失败:', error)
+      return {
+        success: false,
+        errorMsg: error.message || '更新订单状态失败'
+      }
+    }
+  }
+
   return {
     // 状态
     currentOrder,
@@ -306,7 +491,7 @@ export const useOrderStore = defineStore('order', () => {
     createNewOrder,
     fetchOrderDetail,
     fetchOrderList,
-    payUserOrder,
+    payOrder,
     cancelUserOrder,
     confirmUserOrder,
     deliveryUserOrder,
@@ -315,6 +500,10 @@ export const useOrderStore = defineStore('order', () => {
     clearOrderCountdown,
     fetchOrderStatistics,
     fetchOrderCount,
-    fetchTodaySales
+    fetchTodaySales,
+    shipUserOrder,
+    fetchAfterSaleOrders,
+    submitAfterSaleApplication,
+    updateOrderStatus
   }
 })

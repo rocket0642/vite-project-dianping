@@ -1,4 +1,4 @@
-import { createRouter, createWebHashHistory } from 'vue-router'
+import { createRouter, createWebHistory } from 'vue-router'
 import { useUserStore } from '../stores/user'
 import adminRoutes from './admin'
 
@@ -128,14 +128,23 @@ const routes = [
       title: '我的收藏',
       requiresAuth: true
     }
-  }
+  },
+  {
+    path: '/order/after-sale/:id',
+    name: 'AfterSaleDetail',
+    component: () => import('../views/order/after-sale-detail.vue'),
+    meta: {
+      requiresAuth: true,
+      title: '售后详情'
+    }
+  },
 ]
 
 /**
  * 创建路由实例
  */
 const router = createRouter({
-  history: createWebHashHistory(),
+  history: createWebHistory(),
   routes: [...routes, ...adminRoutes]
 })
 
