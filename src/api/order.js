@@ -71,7 +71,7 @@ export function cancelOrder(data) {
  */
 export function confirmOrder(orderId) {
   return request({
-    url: `/order/confirm/${orderId}`,
+    url: `/order/${orderId}`,
     method: 'put'
   })
 }
@@ -120,3 +120,21 @@ export function getWeekSales() {
     method: 'get'
   })
 }
+
+/**
+ * 分页获取订单列表
+ * @param {Object} params - 查询参数
+ * @param {number} params.page - 当前页码
+ * @param {number} params.size - 每页条数
+ * @param {string} [params.keyword] - 搜索关键字(订单号/用户名/手机号)
+ * @param {number} [params.status] - 订单状态
+ * @returns {Promise}
+ */
+export function getOrderPage(params) {
+  return request({
+    url: '/order/page',
+    method: 'get',
+    params
+  })
+}
+

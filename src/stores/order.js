@@ -1,5 +1,9 @@
 import { defineStore } from 'pinia'
 import { computed, ref } from 'vue'
+import { useGoodsStore } from './goods'
+import { useShopStore } from './shop'
+import request from '../utils/request'
+import { submitAfterSale, handleAfterSale } from '../api/afterSale'
 import { cancelOrder, confirmOrder, createOrder, deliveryOrder, getOrderCount, getOrderDetail, getTodaySales, getUserOrders, getUserOrderStatistics } from '../api/order'
 import { createPayment, queryPayStatus } from '../api/pay'
 import { ElMessage } from 'element-plus'
@@ -26,7 +30,8 @@ export const useOrderStore = defineStore('order', () => {
       unpaid: { currentPage: 1, total: 0 },
       canceled: { currentPage: 1, total: 0 },
       unreceived: { currentPage: 1, total: 0 },
-      uncommented: { currentPage: 1, total: 0 }
+      uncommented: { currentPage: 1, total: 0 },
+      afterSale: { currentPage: 1, total: 0 }
     }
   })
 
@@ -88,6 +93,13 @@ export const useOrderStore = defineStore('order', () => {
       if (res.success) {
         orderList.value = res.data || []
         total.value = res.total || 0
+
+        return {
+          success: true,
+          data: orderList.value,
+          total: total.value
+        }
+      }
         console.log('更新订单列表数据，条数:', orderList.value.length)
       } else {
         console.warn('获取订单列表失败:', res.errorMsg)
@@ -97,8 +109,9 @@ export const useOrderStore = defineStore('order', () => {
       }
 
       return {
-        list: orderList.value,
-        total: total.value
+        success: false,
+        data: [],
+        total: 0
       }
     } catch (error) {
       console.error('获取订单列表出错:', error)
@@ -114,9 +127,7 @@ export const useOrderStore = defineStore('order', () => {
       loading.value = false
     }
   }
-
-  /**
-   * 支付订单
+                                         
    * @param {String} orderId - 订单ID
    * @param {number} payType - 支付方式: 1-微信支付，2-支付宝
    * @returns {Promise} - 支付结果
@@ -145,12 +156,7 @@ export const useOrderStore = defineStore('order', () => {
       }
     } catch (error) {
       console.error('支付订单失败:', error)
-      return {
-        success: false,
-        errorMsg: '支付请求失败，请稍后重试'
-      }
-    } finally {
-      loading.value = false
+      throw error
     }
   }
 
@@ -284,15 +290,28 @@ export const useOrderStore = defineStore('order', () => {
    * @returns {Promise} - 确认收货结果  
    */
   async function deliveryUserOrder(orderId) {
+    if (!orderId) {
+      throw new Error('订单ID不能为空')
+    }
+
     try {
-      loading.value = true
       const res = await deliveryOrder(orderId)
+      if (res.success) {
+        // 更新订单状态为已完成(5)
+        if (currentOrder.value && currentOrder.value.id === orderId) {
+          currentOrder.value.status = 5
+        }
+
+        // 更新订单列表中的状态
+        const order = orderList.value.find(o => o.id === orderId)
+        if (order) {
+          order.status = 5
+        }
+      }
       return res
     } catch (error) {
       console.error('确认收货失败:', error)
       throw error
-    } finally {
-      loading.value = false
     }
   }
 
@@ -350,7 +369,8 @@ export const useOrderStore = defineStore('order', () => {
       unpaid: 0,
       undelivered: 0,
       unreceived: 0,
-      uncommented: 0
+      uncommented: 0,
+      afterSale: 0
     }
 
     orderList.value.forEach(order => {
@@ -358,6 +378,7 @@ export const useOrderStore = defineStore('order', () => {
       else if (order.status === 2) stats.undelivered++
       else if (order.status === 3) stats.unreceived++
       else if (order.status === 4) stats.uncommented++
+      else if (order.status === 6) stats.afterSale++
     })
 
     return stats
@@ -414,7 +435,7 @@ export const useOrderStore = defineStore('order', () => {
     createNewOrder,
     fetchOrderDetail,
     fetchOrderList,
-    payUserOrder,
+    payOrder,
     cancelUserOrder,
     confirmUserOrder,
     deliveryUserOrder,
@@ -426,5 +447,6 @@ export const useOrderStore = defineStore('order', () => {
     fetchTodaySales,
     checkPaymentStatus,
     handleAlipayResponse
+
   }
 })

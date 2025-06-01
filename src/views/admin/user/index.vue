@@ -100,7 +100,7 @@
 import { ref, reactive, computed, onMounted } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { Search, Plus } from '@element-plus/icons-vue'
-import { getUserList, deleteUser, updateUser, createUser } from '@/api/user'
+import { getUserList, deleteUser, updateUser, createUser } from '../../../api/user'
 
 // 查询参数
 const queryParams = reactive({

@@ -1,4 +1,4 @@
-import { createRouter, createWebHashHistory } from 'vue-router'
+import { createRouter, createWebHistory } from 'vue-router'
 import { useUserStore } from '../stores/user'
 import { useCartStore } from '../stores/cart'
 import adminRoutes from './admin'
@@ -131,6 +131,14 @@ const routes = [
     }
   },
   {
+    path: '/order/after-sale/:id',
+    name: 'AfterSaleDetail',
+    component: () => import('../views/order/after-sale-detail.vue'),
+    meta: {
+      requiresAuth: true,
+      title: '售后详情'
+    }
+  },
     path: '/order/result',
     name: 'PayResult',
     component: () => import('../views/order/result.vue'),
@@ -156,6 +164,7 @@ const router = createRouter({
 router.beforeEach(async (to, from, next) => {
   // 设置页面标题
   document.title = to.meta.title ? `${to.meta.title} - 点评电商` : '点评电商'
+
 
   // 检查是否从登录页面跳转过来，需要合并购物车
   if (from.path === '/login' && to.path !== '/login') {

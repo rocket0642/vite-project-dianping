@@ -11,7 +11,7 @@
             </div>
           </template>
           <div class="card-body">
-            <div class="card-value">{{ userStore.userCount }}</div>
+            <div class="card-value">¥{{ (orderStore.todaySales / 100).toFixed(2) }}</div>
           </div>
         </el-card>
       </el-col>
@@ -50,7 +50,7 @@
             </div>
           </template>
           <div class="card-body">
-            <div class="card-value">¥{{ orderStore.todaySales }}</div>
+            <div class="card-value">¥{{ (orderStore.todaySales / 100).toFixed(2) }}</div>
           </div>
         </el-card>
       </el-col>
@@ -130,15 +130,26 @@ function renderSalesChart() {
   if (!salesChartRef.value) return
   const chart = echarts.init(salesChartRef.value)
   const option = {
+
+    tooltip: {
+      trigger: 'axis',
+      formatter: params => {
+        const data = params[0]
+        return `${data.axisValue}<br/>销售额：¥${data.data}`
+      }
+    },
     xAxis: {
       type: 'category',
       data: weekSales.value.map(item => item.date)
     },
     yAxis: {
-      type: 'value'
+      type: 'value',
+      axisLabel: {
+        formatter: value => `¥${(value).toFixed(2)}`
+      }
     },
     series: [{
-      data: weekSales.value.map(item => item.sales),
+      data: weekSales.value.map(item => (item.sales / 100).toFixed(2)),
       type: 'line'
     }]
   }

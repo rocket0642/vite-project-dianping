@@ -6,14 +6,11 @@
     <div class="filter-container">
       <el-input
         v-model="queryParams.keyword"
-        placeholder="商品名称/编号"
+        placeholder="商品名称"
         style="width: 200px;"
         class="filter-item"
         @keyup.enter="handleSearch"
       />
-      <el-select v-model="queryParams.shopId" placeholder="所属商铺" clearable style="width: 150px" class="filter-item">
-        <el-option v-for="item in shopOptions" :key="item.value" :label="item.label" :value="item.value" />
-      </el-select>
       <el-select v-model="queryParams.status" placeholder="状态" clearable style="width: 120px" class="filter-item">
         <el-option v-for="item in statusOptions" :key="item.value" :label="item.label" :value="item.value" />
       </el-select>
@@ -39,8 +36,7 @@
         <template #default="{ row }">
           <el-image
             style="width: 60px; height: 60px"
-            :src="row.image"
-            :preview-src-list="[row.image]"
+            :src="Array.isArray(row.images) ? row.images[0] : row.images"
             fit="cover"
           />
         </template>
@@ -72,6 +68,31 @@
             {{ row.status === 1 ? '下架' : '上架' }}
           </el-button>
           <el-button type="danger" size="small" @click="handleDelete(row)">删除</el-button>
+          <el-button 
+            v-if="row.orderStatus === 2" 
+            type="success" 
+            size="small" 
+            @click="handleShip(row)"
+          >
+            发货
+          </el-button>
+          <el-button 
+            v-if="row.orderStatus === 1" 
+            type="danger" 
+            size="small" 
+            @click="handleCancel(row)"
+          >
+            取消
+          </el-button>
+          <el-button 
+            v-if="row.orderStatus === 4" 
+            type="warning" 
+            size="small" 
+            @click="handleRefund(row)"
+          >
+            退款
+          </el-button>
+
         </template>
       </el-table-column>
     </el-table>
@@ -108,19 +129,37 @@
         
         <el-form-item label="所属商铺" prop="shopId">
           <el-select v-model="form.shopId" placeholder="请选择所属商铺" style="width: 100%">
-            <el-option v-for="item in shopOptions" :key="item.value" :label="item.label" :value="item.value" />
+            <el-option v-for="item in shopOptions" :key="item.id" :label="item.name" :value="item.id" />
           </el-select>
         </el-form-item>
         
-        <el-form-item label="商品图片" prop="image">
+        <el-form-item label="商品图片" prop="imagesList">
           <el-upload
             class="product-image-uploader"
-            action="#"
+            :action="uploadUrl"
             :show-file-list="false"
-            :http-request="handleUpload"
+            :on-success="handleUploadSuccess"
+            :before-upload="beforeUpload"
+            :headers="uploadHeaders"
+            :data="uploadData"
+            accept="image/*"
+            :multiple="false"
           >
-            <img v-if="form.image" :src="form.image" class="preview-image" />
-            <el-icon v-else class="upload-icon"><Plus /></el-icon>
+            <template #default>
+              <div class="image-list">
+                <div v-if="form.imagesList.length > 0" style="position:relative;">
+                  <img :src="form.imagesList[0]" class="preview-image" />
+                  <el-icon
+                    style="position:absolute;top:2px;right:2px;cursor:pointer;color:red;"
+                    @click.stop="form.imagesList.splice(0,1)"
+                  ><Close /></el-icon>
+                </div>
+                <el-icon
+                  v-else
+                  class="upload-icon"
+                ><Plus /></el-icon>
+              </div>
+            </template>
           </el-upload>
         </el-form-item>
         
@@ -131,24 +170,33 @@
             </el-form-item>
           </el-col>
           <el-col :span="12">
-            <el-form-item label="库存" prop="stock">
-              <el-input-number v-model="form.stock" :min="0" :step="1" style="width: 100%" />
+            <el-form-item label="原价" prop="originalPrice">
+              <el-input-number v-model="form.originalPrice" :min="0" :precision="2" :step="0.1" style="width: 100%" />
             </el-form-item>
           </el-col>
         </el-row>
         
-        <el-form-item label="商品分类" prop="categoryId">
+        <el-row :gutter="20">
+          <el-col :span="12">
+            <el-form-item label="库存" prop="stock">
+              <el-input-number v-model="form.stock" :min="0" :step="1" style="width: 100%" />
+            </el-form-item>
+          </el-col>
+          <el-col :span="12">
+            <el-form-item label="商品状态" prop="status">
+              <el-radio-group v-model="form.status">
+                <el-radio :label="1">上架</el-radio>
+                <el-radio :label="0">下架</el-radio>
+              </el-radio-group>
+            </el-form-item>
+          </el-col>
+        </el-row>
+        
+        <!-- <el-form-item label="商品分类" prop="categoryId">
           <el-select v-model="form.categoryId" placeholder="请选择商品分类" style="width: 100%">
             <el-option v-for="item in categoryOptions" :key="item.value" :label="item.label" :value="item.value" />
           </el-select>
-        </el-form-item>
-        
-        <el-form-item label="商品状态" prop="status">
-          <el-radio-group v-model="form.status">
-            <el-radio :label="1">上架</el-radio>
-            <el-radio :label="0">下架</el-radio>
-          </el-radio-group>
-        </el-form-item>
+        </el-form-item> -->
         
         <el-form-item label="商品描述" prop="description">
           <el-input v-model="form.description" type="textarea" rows="4" placeholder="请输入商品描述" />
@@ -165,7 +213,9 @@
 <script setup>
 import { ref, reactive, computed, onMounted } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
-import { Search, Plus } from '@element-plus/icons-vue'
+import { Search, Plus, Close } from '@element-plus/icons-vue'
+import { getGoodsList, updateGoods, addGoods, updateGoodsStatus, deleteGoods } from '@/api/goods'
+import { getAllShopNames } from '@/api/shop'
 
 // 查询参数
 const queryParams = reactive({
@@ -183,11 +233,7 @@ const statusOptions = [
 ]
 
 // 商铺选项
-const shopOptions = [
-  { label: '美食店铺', value: 1 },
-  { label: '服装店铺', value: 2 },
-  { label: '电子产品店', value: 3 }
-]
+const shopOptions = ref([])
 
 // 分类选项
 const categoryOptions = [
@@ -200,14 +246,8 @@ const categoryOptions = [
 
 // 表格数据
 const loading = ref(false)
-const productList = ref([
-  { id: 1, name: '香辣鸡腿堡', price: 15.00, stock: 100, image: 'https://via.placeholder.com/60', shopId: 1, shopName: '美食店铺', status: 1, createTime: '2023-01-01 00:00:00', categoryId: 1, description: '美味的香辣鸡腿堡' },
-  { id: 2, name: '时尚T恤', price: 99.00, stock: 50, image: 'https://via.placeholder.com/60', shopId: 2, shopName: '服装店铺', status: 1, createTime: '2023-01-02 00:00:00', categoryId: 2, description: '舒适的时尚T恤' },
-  { id: 3, name: '智能手机', price: 2999.00, stock: 30, image: 'https://via.placeholder.com/60', shopId: 3, shopName: '电子产品店', status: 1, createTime: '2023-01-03 00:00:00', categoryId: 3, description: '高性能智能手机' },
-  { id: 4, name: '床上用品', price: 299.00, stock: 20, image: 'https://via.placeholder.com/60', shopId: 1, shopName: '美食店铺', status: 0, createTime: '2023-01-04 00:00:00', categoryId: 4, description: '舒适的床上用品' },
-  { id: 5, name: '办公用品', price: 15.00, stock: 200, image: 'https://via.placeholder.com/60', shopId: 2, shopName: '服装店铺', status: 1, createTime: '2023-01-05 00:00:00', categoryId: 5, description: '实用的办公用品' }
-])
-const total = ref(5)
+const productList = ref([])
+const total = ref(0)
 
 // 对话框
 const dialogVisible = ref(false)
@@ -219,8 +259,9 @@ const form = reactive({
   name: '',
   shopId: '',
   price: 0,
+  originalPrice: 0,
   stock: 0,
-  image: '',
+  imagesList: [],
   categoryId: '',
   status: 1,
   description: ''
@@ -240,12 +281,15 @@ const rules = {
   stock: [
     { required: true, message: '请输入商品库存', trigger: 'blur' }
   ],
-  image: [
+  imagesList: [
     { required: true, message: '请上传商品图片', trigger: 'change' }
   ],
-  categoryId: [
-    { required: true, message: '请选择商品分类', trigger: 'change' }
+  originalPrice: [
+    { required: true, message: '请输入商品原价', trigger: 'blur' }
   ]
+  // categoryId: [
+  //   { required: true, message: '请选择商品分类', trigger: 'change' }
+  // ]
 }
 
 // 搜索
@@ -266,12 +310,29 @@ const handleCurrentChange = (page) => {
 }
 
 // 获取商品列表
-const fetchProductList = () => {
+const fetchProductList = async () => {
   loading.value = true
-  // 模拟异步请求
-  setTimeout(() => {
+  try {
+    const res = await getGoodsList({
+      page: queryParams.currentPage,
+      size: queryParams.pageSize,
+      keyword: queryParams.keyword,
+      status: queryParams.status,
+      shopId: queryParams.shopId
+    })
+    if (res.success) {
+      productList.value = (res.data.list || []).map(item => ({
+        ...item,
+        price: (item.price / 100).toFixed(2),
+        originalPrice: item.originalPrice ? (item.originalPrice / 100).toFixed(2) : undefined
+      }))
+      total.value = res.data.total
+    } else {
+      ElMessage.error(res.message || '获取商品列表失败')
+    }
+  } finally {
     loading.value = false
-  }, 500)
+  }
 }
 
 // 新增商品
@@ -285,10 +346,19 @@ const handleCreate = () => {
 const handleEdit = (row) => {
   dialogType.value = 'edit'
   dialogVisible.value = true
-  
   // 填充表单
   Object.keys(form).forEach(key => {
-    if (key in row) {
+    if (key === 'imagesList') {
+      form.imagesList = Array.isArray(row.images) ? row.images : []
+    } else if (key === 'price' || key === 'originalPrice') {
+      // 这里 row[key] 可能已经是字符串（如 "98.00"），也可能是数字（如 9800）
+      // 只在 row[key] 是整数时才分转元，否则直接赋值
+      if (typeof row[key] === 'number' && row[key] > 10) {
+        form[key] = (row[key] / 100)
+      } else {
+        form[key] = row[key] || 0
+      }
+    } else if (key in row) {
       form[key] = row[key]
     }
   })
@@ -300,10 +370,15 @@ const handleDelete = (row) => {
     confirmButtonText: '确定',
     cancelButtonText: '取消',
     type: 'warning'
-  }).then(() => {
-    // 模拟删除操作
-    ElMessage.success('删除成功')
-    fetchProductList()
+  }).then(async () => {
+    // 调用后端接口删除
+    const res = await deleteGoods(row.id)
+    if (res.success) {
+      ElMessage.success('删除成功')
+      fetchProductList() // 重新拉取商品列表
+    } else {
+      ElMessage.error(res.message || '删除失败')
+    }
   }).catch(() => {})
 }
 
@@ -316,21 +391,40 @@ const handleStatusChange = (row) => {
     confirmButtonText: '确定',
     cancelButtonText: '取消',
     type: 'warning'
-  }).then(() => {
-    // 模拟状态变更
-    row.status = newStatus
-    ElMessage.success(`已${statusText}商品: ${row.name}`)
+  }).then(async () => {
+    // 调用后端接口修改状态
+    const res = await updateGoodsStatus(row.id, newStatus)
+    if (res.success) {
+      ElMessage.success(`已${statusText}商品: ${row.name}`)
+      fetchProductList() // 刷新列表，确保状态和数据库一致
+    } else {
+      ElMessage.error(res.message || `商品${statusText}失败`)
+    }
   }).catch(() => {})
 }
 
 // 上传图片
-const handleUpload = (options) => {
-  // 模拟上传
-  const file = options.file
-  const reader = new FileReader()
-  reader.readAsDataURL(file)
-  reader.onload = () => {
-    form.image = reader.result
+const uploadUrl = '/api/upload/save' // 后端上传接口
+const uploadHeaders = {} // 需要认证时加token
+const uploadData = { type: 'product' } // 必须有type字段，和后端接口一致
+
+// 上传前校验
+const beforeUpload = (file) => {
+  const isImage = file.type.startsWith('image/')
+  if (!isImage) {
+    ElMessage.error('只能上传图片文件')
+  }
+  return isImage
+}
+
+// 上传成功回调
+const handleUploadSuccess = (response, file) => {
+  if (response.success) {
+    form.imagesList = [response.data] // 单图
+    // form.imagesList.push(response.data) // 多图
+    ElMessage.success('图片上传成功')
+  } else {
+    ElMessage.error(response.message || '图片上传失败')
   }
 }
 
@@ -339,10 +433,8 @@ const resetForm = () => {
   if (formRef.value) {
     formRef.value.resetFields()
   }
-  
-  // 重置表单数据
   Object.keys(form).forEach(key => {
-    if (key === 'price' || key === 'stock') {
+    if (key === 'price' || key === 'stock' || key === 'originalPrice') {
       form[key] = 0
     } else if (key === 'status') {
       form[key] = 1
@@ -355,27 +447,38 @@ const resetForm = () => {
 
 // 提交表单
 const submitForm = async () => {
-  if (!formRef.value) return
-  
-  try {
-    await formRef.value.validate()
-    
-    if (dialogType.value === 'create') {
-      // 模拟创建商品
-      ElMessage.success('创建商品成功')
-    } else {
-      // 模拟更新商品
-      ElMessage.success('更新商品成功')
-    }
-    
+  await formRef.value.validate()
+  // 构造提交数据，价格和原价都转为分
+  const submitData = {
+    ...form,
+    price: Math.round(form.price * 100), // 元转分
+    originalPrice: Math.round(form.originalPrice * 100), // 元转分
+    images: Array.isArray(form.imagesList) ? form.imagesList.join(',') : ''
+  }
+  delete submitData.imagesList
+
+  const res = dialogType.value === 'create'
+    ? await addGoods(submitData)
+    : await updateGoods(submitData)
+  if (res.success) {
+    ElMessage.success(dialogType.value === 'create' ? '创建商品成功' : '更新商品成功')
     dialogVisible.value = false
     fetchProductList()
-  } catch (error) {
-    console.error('表单验证失败:', error)
+  } else {
+    ElMessage.error(res.message || '操作失败')
+  }
+}
+
+// 获取商铺列表
+const fetchShopOptions = async () => {
+  const res = await getAllShopNames()
+  if (res.success) {
+    shopOptions.value = res.data
   }
 }
 
 onMounted(() => {
+  fetchShopOptions()
   fetchProductList()
 })
 </script>
@@ -415,6 +518,9 @@ onMounted(() => {
   display: flex;
   justify-content: center;
   align-items: center;
+  box-sizing: border-box;
+  padding: 0;
+
 }
 
 .product-image-uploader:hover {
@@ -427,8 +533,22 @@ onMounted(() => {
 }
 
 .preview-image {
-  width: 100%;
-  height: 100%;
+  width: 100px;
+  height: 100px;
   object-fit: cover;
+  border-radius: 6px;
+  border: 1px solid transparent;
+  margin: 0;
+  display: block;
+  box-sizing: border-box;
+}
+
+.image-list {
+  width: 100px;
+  height: 100px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  position: relative;
 }
 </style>

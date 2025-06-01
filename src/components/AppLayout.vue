@@ -1,6 +1,8 @@
 <script setup>
 import AppFooter from './AppFooter.vue';
 import AppHeader from './AppHeader.vue';
+import { onMounted } from 'vue';
+import { useUserStore } from '../stores/user';
 
 // 定义props
 defineProps({
@@ -13,6 +15,15 @@ defineProps({
   showFooter: {
     type: Boolean,
     default: true
+  }
+})
+
+const userStore = useUserStore();
+
+onMounted(() => {
+  // 在组件挂载时检查登录状态
+  if (!userStore.isLogin) {
+    userStore.checkLoginStatus(); // 添加一个方法来验证token是否有效
   }
 })
 </script>

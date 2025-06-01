@@ -27,8 +27,8 @@ const orderSteps = computed(() => {
   const steps = [
     { title: '提交订单', description: order.value.createTime || '' },
     { title: '支付', description: order.value.payTime || '待支付' },
-    { title: '商家发货', description: order.value.deliveryTime || '等待商家发货' },
-    { title: '确认收货', description: order.value.status === 5 ? '已完成' : '订单完成' }
+    { title: '商家发货', description: order.value.deliveryTime || '商家已发货' },
+    { title: '确认收货', description: order.value.status === 5 ? '已完成' : '待收货' }
   ]
 
   return steps
@@ -37,11 +37,11 @@ const orderSteps = computed(() => {
 // 当前步骤
 const activeStep = computed(() => {
   switch (order.value.status) {
-    case 1: return 0 // 待付款
-    case 2: return 1 // 已支付
+    case 1: return 0  // 待付款
+    case 2: return 1  // 已支付，等待发货
     case 3: return -1 // 已取消
-    case 4: return 2 // 待收货
-    case 5: return 3 // 已完成
+    case 4: return 2  // 已发货，待收货
+    case 5: return 3  // 已完成
     default: return 0
   }
 })
@@ -57,10 +57,10 @@ const formatPrice = (price) => (price / 100).toFixed(2);
 const getStatusText = (status) => {
   switch (status) {
     case 1: return '待付款'
-    case 2: return '已支付'
+    case 2: return '待发货'  // 已支付，等待商家发货
     case 3: return '已取消'
-    case 4: return '待收货'
-    case 5: return '已完成'
+    case 4: return '待收货'  // 已发货，等待收货
+    case 5: return '已完成'  // 确认收货后的状态
     default: return '未知状态'
   }
 }
@@ -164,33 +164,19 @@ const goToOrderList = () => {
 /**
  * 确认收货
  */
-const confirmReceipt = () => {
-  ElMessageBox.confirm(
-    '确认已收到商品吗？',
-    '确认收货',
-    {
-      confirmButtonText: '确定',
-      cancelButtonText: '取消',
-      type: 'warning'
+const confirmReceipt = async () => {
+  try {
+    const res = await orderStore.deliveryUserOrder(orderId)
+    if (res.success) {
+      ElMessage.success('确认收货成功')
+      await loadOrderDetail()  // 刷新订单详情
+    } else {
+      ElMessage.error(res.errorMsg || '确认收货失败')
     }
-  )
-    .then(async () => {
-      try {
-        const res = await orderStore.deliveryUserOrder(orderId)
-        if (res.success) {
-          ElMessage.success('确认收货成功')
-          loadOrderDetail()
-        } else {
-          ElMessage.error(res.errorMsg || '确认收货失败')
-        }
-      } catch (error) {
-        console.error('确认收货失败:', error)
-        ElMessage.error('确认收货失败，请稍后重试')
-      }
-    })
-    .catch(() => {
-      // 用户取消操作
-    })
+  } catch (error) {
+    console.error('确认收货失败:', error)
+    ElMessage.error('确认收货失败，请稍后重试')
+  }
 }
 
 /**

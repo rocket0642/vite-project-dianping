@@ -160,6 +160,11 @@ export function getUserCount() {
   })
 }
 
+/**
+ * 获取用户列表
+ * @param {Object} params - 查询参数
+ * @returns {Promise} - 用户列表
+ */
 export function getUserList(params) {
   return request({
     url: '/user/list',
@@ -168,6 +173,11 @@ export function getUserList(params) {
   })
 }
 
+/**
+ * 创建用户
+ * @param {Object} data - 用户信息
+ * @returns {Promise} - 创建结果
+ */
 export function createUser(data) {
   return request({
     url: '/user/create',
@@ -176,6 +186,11 @@ export function createUser(data) {
   })
 }
 
+/**
+ * 删除用户
+ * @param {string} id - 用户ID
+ * @returns {Promise} - 删除结果
+ */
 export function deleteUser(id) {
   return request({
     url: `/user/delete/${id}`,
