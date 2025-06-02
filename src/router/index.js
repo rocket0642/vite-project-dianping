@@ -117,6 +117,24 @@ const routes = [
     }
   },
   {
+    path: '/order/after-sale-create/:id',
+    name: 'OrderAfterSaleCreate',
+    component: () => import('../views/order/after-sale.vue'),
+    meta: {
+      requiresAuth: true,
+      title: '申请售后'
+    }
+  },
+  {
+    path: '/order/after-sale-records/:id',
+    name: 'AfterSaleRecords',
+    component: () => import('../views/order/after-sale-records.vue'),
+    meta: {
+      requiresAuth: true,
+      title: '售后记录'
+    }
+  },
+  {
     path: '/order/after-sale-detail/:id',
     name: 'AfterSaleDetail',
     component: () => import('../views/order/after-sale-detail.vue'),

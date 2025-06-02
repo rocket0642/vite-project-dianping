@@ -58,6 +58,7 @@ const {
   applyAfterSale,
   viewLogistics,
   viewAfterSaleDetail,
+  viewAfterSaleRecords,
   goToGoodsDetail,
   goToShopDetail
 } = useOrderOperations(router, orderStore, afterSaleStore, loadOrders)
@@ -151,12 +152,13 @@ const handleUpdateAddress = (address) => {
       </div>
 
       <div v-else class="orders-scroll-container">
-        <!-- 使用拆分出的OrderItem组件 -->
+        <!-- 使用拆分出的OrderItem组件，传入inAfterSaleTab属性 -->
         <OrderItem v-for="order in orders" :key="order.id" :order="order" :countdown="countdowns[order.id]"
-          @view-detail="viewOrderDetail" @go-to-pay="goToPay" @buy-again="buyAgain" @cancel-order="cancelOrder"
-          @confirm-order="confirmOrder" @view-logistics="viewLogistics" @go-to-comment="goToComment"
-          @apply-refund="applyAfterSale" @apply-after-sale="applyAfterSale"
-          @view-after-sale-detail="viewAfterSaleDetail" @go-to-shop-detail="goToShopDetail"
+          :in-after-sale-tab="activeTab === 'afterSale'" @view-detail="viewOrderDetail" @go-to-pay="goToPay"
+          @buy-again="buyAgain" @cancel-order="cancelOrder" @confirm-order="confirmOrder"
+          @view-logistics="viewLogistics" @go-to-comment="goToComment" @apply-refund="applyAfterSale"
+          @apply-after-sale="applyAfterSale" @view-after-sale-detail="viewAfterSaleDetail"
+          @view-after-sale-records="viewAfterSaleRecords" @go-to-shop-detail="goToShopDetail"
           @go-to-goods-detail="goToGoodsDetail" @open-address-dialog="openAddressDialog" />
 
         <!-- 分页组件 -->

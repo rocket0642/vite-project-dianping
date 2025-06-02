@@ -9,6 +9,11 @@ const props = defineProps({
     countdown: {
         type: String,
         default: '20:00'
+    },
+    // 新增参数，用于标识是否在售后服务列表中显示
+    inAfterSaleTab: {
+        type: Boolean,
+        default: false
     }
 })
 
@@ -26,7 +31,8 @@ const emit = defineEmits([
     'applyAfterSale',
     'goToShopDetail',
     'goToGoodsDetail',
-    'openAddressDialog'
+    'openAddressDialog',
+    'viewAfterSaleRecords' // 新增售后记录事件
 ])
 
 // 格式化价格
@@ -44,6 +50,17 @@ const getStatusText = (status) => {
         case 5: return '已完成'
         case 6: return '售后处理中'
         default: return '未知状态'
+    }
+}
+
+// 获取售后状态文本
+const getAfterSaleStatusText = (status) => {
+    switch (status) {
+        case 0: return '无售后'
+        case 1: return '售后处理中'
+        case 2: return '售后完成'
+        case 3: return '售后拒绝'
+        default: return '无售后'
     }
 }
 
@@ -68,6 +85,7 @@ const handleGoToComment = () => emit('goToComment', props.order.id)
 const handleApplyRefund = () => emit('applyRefund', props.order.id)
 const handleApplyAfterSale = () => emit('applyAfterSale', props.order.id)
 const handleViewAfterSaleDetail = () => emit('viewAfterSaleDetail', props.order.id)
+const handleViewAfterSaleRecords = () => emit('viewAfterSaleRecords', props.order.id) // 新增方法
 const handleGoToShopDetail = () => emit('goToShopDetail', props.order.shopId)
 const handleOpenAddressDialog = () => emit('openAddressDialog', props.order.id)
 const handleGoToGoodsDetail = (goodsId) => emit('goToGoodsDetail', goodsId)
@@ -89,6 +107,12 @@ const handleGoToGoodsDetail = (goodsId) => emit('goToGoodsDetail', goodsId)
                 </div>
             </div>
             <div class="order-status">
+                <!-- 添加售后状态标签 -->
+                <span v-if="order.afterSaleStatus > 0"
+                    :class="['after-sale-tag', `after-sale-${order.afterSaleStatus}`]">
+                    {{ getAfterSaleStatusText(order.afterSaleStatus) }}
+                </span>
+
                 <span :class="['status-tag', `status-${order.status}`]">
                     {{ getStatusText(order.status) }}
                 </span>
@@ -159,23 +183,24 @@ const handleGoToGoodsDetail = (goodsId) => emit('goToGoodsDetail', goodsId)
                 <template v-else-if="order.status === 4">
                     <button class="action-btn primary" @click="handleConfirmOrder">确认收货</button>
                     <button class="action-btn default" @click="handleViewLogistics">查看物流</button>
-                    <button class="action-btn warning" @click="handleApplyAfterSale">申请售后</button>
                     <button class="action-btn info" @click="handleViewDetail">查看详情</button>
                 </template>
 
-                <!-- 已完成订单 -->
-                <template v-else-if="order.status === 5">
+                <!-- 已完成订单待评价订单 -->
+                <template v-else-if="order.status === 5 && !inAfterSaleTab">
                     <button v-if="!order.commented" class="action-btn primary" @click="handleGoToComment">去评价</button>
                     <button v-else class="action-btn disabled" disabled>已评价</button>
-                    <button class="action-btn warning" @click="handleApplyAfterSale">申请售后</button>
                     <button class="action-btn primary" @click="handleBuyAgain">再次购买</button>
                     <button class="action-btn info" @click="handleViewDetail">查看详情</button>
                 </template>
 
-                <!-- 售后服务状态 -->
-                <template v-else-if="order.status === 6">
-                    <button class="action-btn warning" @click="handleViewAfterSaleDetail">查看售后详情</button>
-                    <button class="action-btn info" @click="handleViewDetail">查看订单详情</button>
+                <!-- 售后服务列表中的已完成订单 -->
+                <template v-else-if="order.status === 5 && inAfterSaleTab">
+                    <button v-if="order.afterSaleStatus === 0 || order.afterSaleStatus === 3" class="action-btn warning"
+                        @click="handleApplyAfterSale">申请售后</button>
+                    <button v-if="order.afterSaleStatus > 0" class="action-btn info"
+                        @click="handleViewAfterSaleDetail">查看售后</button>
+                    <button class="action-btn secondary" @click="handleViewAfterSaleRecords">售后记录</button>
                 </template>
             </div>
         </div>
@@ -259,6 +284,27 @@ const handleGoToGoodsDetail = (goodsId) => emit('goToGoodsDetail', goodsId)
     border-radius: 4px;
     font-size: 13px;
     color: white;
+}
+
+/* 售后标签样式 */
+.after-sale-tag {
+    padding: 3px 8px;
+    border-radius: 4px;
+    font-size: 13px;
+    color: white;
+    margin-right: 5px;
+}
+
+.after-sale-1 {
+    background-color: #E6A23C;
+}
+
+.after-sale-2 {
+    background-color: #67C23A;
+}
+
+.after-sale-3 {
+    background-color: #F56C6C;
 }
 
 .status-1 {

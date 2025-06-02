@@ -1,4 +1,4 @@
-import { ElMessage } from 'element-plus'
+import { ElMessage, ElMessageBox } from 'element-plus'
 
 export function useOrderOperations(router, orderStore, afterSaleStore, loadOrders) {
     /**
@@ -24,15 +24,28 @@ export function useOrderOperations(router, orderStore, afterSaleStore, loadOrder
      */
     const cancelOrder = async (orderId) => {
         try {
-            const res = await orderStore.cancelUserOrder({
-                orderId,
-                cancelReason: `用户取消`
-            })
-            if (res.success) {
-                ElMessage.success('订单已取消')
-                await loadOrders()
-            } else {
-                ElMessage.error(res.errorMsg || '取消订单失败')
+            const result = await ElMessageBox.confirm(
+                '确认取消该订单?',
+                '提示',
+                {
+                    confirmButtonText: '确定',
+                    cancelButtonText: '取消',
+                    type: 'warning'
+                }
+            )
+
+            if (result === 'confirm') {
+                const res = await orderStore.cancelUserOrder({
+                    orderId: orderId,
+                    cancelReason: '用户取消'
+                })
+
+                if (res.success) {
+                    ElMessage.success('订单已取消')
+                    await loadOrders()
+                } else {
+                    ElMessage.error(res.errorMsg || '取消订单失败')
+                }
             }
         } catch (error) {
             console.error('取消订单失败:', error)
@@ -45,12 +58,24 @@ export function useOrderOperations(router, orderStore, afterSaleStore, loadOrder
      */
     const confirmOrder = async (orderId) => {
         try {
-            const res = await orderStore.deliveryUserOrder(orderId)
-            if (res.success) {
-                ElMessage.success('已确认收货')
-                await loadOrders()
-            } else {
-                ElMessage.error(res.errorMsg || '确认收货失败')
+            const result = await ElMessageBox.confirm(
+                '确认您已收到商品?',
+                '提示',
+                {
+                    confirmButtonText: '确认收货',
+                    cancelButtonText: '取消',
+                    type: 'warning'
+                }
+            )
+
+            if (result === 'confirm') {
+                const res = await orderStore.deliveryUserOrder(orderId)
+                if (res.success) {
+                    ElMessage.success('已确认收货')
+                    await loadOrders()
+                } else {
+                    ElMessage.error(res.errorMsg || '确认收货失败')
+                }
             }
         } catch (error) {
             console.error('确认收货失败:', error)
@@ -76,7 +101,7 @@ export function useOrderOperations(router, orderStore, afterSaleStore, loadOrder
      * 申请售后
      */
     const applyAfterSale = (orderId) => {
-        router.push(`/order/after-sale/${orderId}`)
+        router.push(`/order/after-sale/create/${orderId}`)
     }
 
     /**
@@ -93,15 +118,23 @@ export function useOrderOperations(router, orderStore, afterSaleStore, loadOrder
         try {
             const afterSales = await afterSaleStore.fetchOrderAfterSales(orderId)
             if (afterSales && afterSales.length > 0) {
-                router.push(`/order/after-sale-detail/${afterSales[0].id}`)
+                const latestAfterSale = afterSales[0]
+                router.push(`/order/after-sale-detail/${latestAfterSale.id}`)
             } else {
-                ElMessage.info('该订单暂无售后记录，请先申请售后')
-                router.push(`/order/after-sale/${orderId}`)
+                ElMessageBox.alert('没有找到相关售后记录', '提示', {
+                    confirmButtonText: '确定'
+                })
             }
         } catch (error) {
-            console.error('查询售后记录失败:', error)
-            ElMessage.error('查询售后记录失败，请稍后重试')
+            console.error('查看售后详情失败:', error)
         }
+    }
+
+    /**
+     * 查看售后记录列表
+     */
+    const viewAfterSaleRecords = (orderId) => {
+        router.push(`/order/after-sale-records/${orderId}`)
     }
 
     /**
@@ -128,6 +161,7 @@ export function useOrderOperations(router, orderStore, afterSaleStore, loadOrder
         applyAfterSale,
         viewLogistics,
         viewAfterSaleDetail,
+        viewAfterSaleRecords,
         goToGoodsDetail,
         goToShopDetail
     }

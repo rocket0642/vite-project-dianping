@@ -78,7 +78,7 @@ onMounted(() => {
     <div class="after-sale-detail-container" v-loading="loading">
       <div class="page-header">
         <h2 class="page-title">售后详情</h2>
-        <el-button @click="router.push('/order/list?status=6')">返回列表</el-button>
+        <el-button @click="router.back()">返回</el-button>
       </div>
 
       <div v-if="afterSale" class="detail-content">

@@ -57,7 +57,7 @@ export function useOrderList(router) {
 
             // 特殊处理售后标签
             if (activeTab.value === 'afterSale') {
-                params.afterSaleStatus = 1
+                params.afterSaleStatus = true
             } else {
                 // 处理其他标签的状态
                 const statusValue = tabToStatusMap[activeTab.value]
