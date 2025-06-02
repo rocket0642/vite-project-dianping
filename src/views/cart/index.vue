@@ -21,10 +21,8 @@ const shopCheckedMap = ref({}) // 存储每个店铺的选中状态
 
 // 在组件挂载时获取购物车数据并初始化店铺选择状态
 onMounted(async () => {
-  // 如果还未初始化，则加载购物车数据
-  if (!cartStore.isInitialized) {
-    await cartStore.fetchUserCart()
-  }
+  // 加载购物车数据
+  await cartStore.fetchUserCart()
 
   // 初始化店铺选中状态
   initShopCheckedMap()
@@ -65,14 +63,15 @@ const isEmpty = computed(() => cartStore.shopCarts.length === 0)
 const isGuest = computed(() => !userStore.isLogin)
 
 // 防抖处理购物车商品选中状态变更
-const checkItemWithDebounce = debounce((item, checked) => {
+const checkItemWithDebounce = debounce((shopId, item, checked) => {
   cartStore.checkItem({
+    shopId: shopId,
     goodsId: item.goodsId,
     skuId: item.skuId,
     checked: checked
   }).then(() => {
     // 成功后更新shopCheckedMap
-    updateShopCheckedState(item.shopId)
+    updateShopCheckedState(shopId)
   })
 }, 200)
 
@@ -86,12 +85,13 @@ const updateShopCheckedState = (shopId) => {
 }
 
 // 防抖处理数量更新
-const updateCountWithDebounce = debounce(async (item, count) => {
+const updateCountWithDebounce = debounce(async (shopId, item, count) => {
   try {
     loading.value = true
     const res = await cartStore.updateItemCount({
+      shopId: shopId,
       goodsId: item.goodsId,
-      skuId: item.skuId,
+      skuId: item.skuId || null,
       count: count
     })
 
@@ -103,17 +103,17 @@ const updateCountWithDebounce = debounce(async (item, count) => {
   } finally {
     loading.value = false
   }
-}, 500)
+}, 200)
 
 // 替换原来的updateCount函数
-const updateCount = (item, count) => {
-  updateCountWithDebounce(item, count)
+const updateCount = (shopId, item, count) => {
+  updateCountWithDebounce(shopId, item, count)
 }
 
 /**
  * 删除购物车商品
  */
-const removeItem = (item) => {
+const removeItem = (shopId, item) => {
   ElMessageBox.confirm(
     '确定要从购物车中删除此商品吗？',
     '删除提示',
@@ -125,6 +125,7 @@ const removeItem = (item) => {
   )
     .then(() => {
       cartStore.removeItem({
+        shopId: shopId,
         goodsId: item.goodsId,
         skuId: item.skuId
       })
@@ -144,8 +145,8 @@ const removeItem = (item) => {
 const toggleShopItems = (shopId, checked) => {
   // 直接调用store方法修改所有商品状态
   cartStore.checkShopCart({
-    shopId,
-    checked
+    shopId: shopId,
+    checked: checked
   }).then(() => {
     // 更新店铺选中状态映射
     shopCheckedMap.value[shopId] = checked
@@ -279,9 +280,9 @@ const continueShopping = () => {
 }
 
 // 检查商品选择状态变化
-const checkItem = (item, checked) => {
+const checkItem = (shopId, item, checked) => {
   // 使用防抖处理
-  checkItemWithDebounce(item, checked)
+  checkItemWithDebounce(shopId, item, checked)
 }
 
 // 添加刷新购物车方法
@@ -297,9 +298,10 @@ const refreshCart = async () => {
 
 <template>
   <AppLayout>
-    <div class="cart-container">
-      <div class="cart-header">
-        <el-button type="text" icon="ArrowLeft" @click="$router.go(-1)">返回</el-button>
+    <!-- 固定顶部标题栏 -->
+    <div class="cart-header-fixed">
+      <div class="cart-header-content">
+        <el-button type="text" icon="ArrowLeft" @click="router.back()">返回</el-button>
         <h2 class="cart-title">我的购物车</h2>
         <div class="cart-actions">
           <el-button type="primary" plain size="small" icon="Refresh" @click="refreshCart">
@@ -313,7 +315,12 @@ const refreshCart = async () => {
           </el-button>
         </div>
       </div>
+    </div>
 
+    <!-- 为固定标题栏预留空间 -->
+    <div class="header-placeholder"></div>
+
+    <div class="cart-container">
       <!-- 未登录提示 -->
       <div v-if="isGuest" class="guest-alert">
         <el-alert title="您当前未登录，购物车数据将保存在本地，登录后可以同步到您的账户" type="info" description="注意：本地购物车数据仅在当前浏览器保存，清除浏览器缓存可能导致数据丢失"
@@ -321,7 +328,7 @@ const refreshCart = async () => {
       </div>
 
       <!-- 空购物车提示 -->
-      <el-empty v-if="isEmpty" description="购物车还是空的">
+      <el-empty v-if="isEmpty" description="购物车还是空的" class="empty-cart">
         <el-button type="primary" @click="continueShopping">
           去购物
         </el-button>
@@ -348,7 +355,8 @@ const refreshCart = async () => {
             <div v-for="(item, itemIndex) in group.items" :key="`${item.goodsId}-${item.skuId || 0}`" class="cart-item"
               :class="{ 'item-checked': item.checked }">
               <!-- 商品选择框 -->
-              <el-checkbox :model-value="item.checked" @change="(val) => checkItem(item, val)" class="item-checkbox" />
+              <el-checkbox :model-value="item.checked" @change="(val) => checkItem(group.shopId, item, val)"
+                class="item-checkbox" />
 
               <!-- 商品图片 -->
               <div class="item-image" @click="goToGoods(item.goodsId)">
@@ -371,7 +379,7 @@ const refreshCart = async () => {
               <!-- 商品数量 -->
               <div class="item-quantity">
                 <el-input-number :model-value="item.count" :min="1" :max="99" size="small"
-                  @change="(val) => updateCount(item, val)" />
+                  @change="(val) => updateCount(group.shopId, item, val)" />
               </div>
 
               <!-- 商品小计 -->
@@ -381,15 +389,21 @@ const refreshCart = async () => {
 
               <!-- 操作 -->
               <div class="item-actions">
-                <el-button type="danger" plain circle size="small" :icon="Delete" @click="removeItem(item)" />
+                <el-button type="danger" plain circle size="small" :icon="Delete"
+                  @click="removeItem(group.shopId, item)" />
               </div>
             </div>
           </div>
         </div>
       </div>
+    </div>
 
-      <!-- 结算栏 -->
-      <div class="cart-footer">
+    <!-- 为底部结算栏预留空间 -->
+    <div class="footer-placeholder"></div>
+
+    <!-- 固定底部结算栏 -->
+    <div class="cart-footer-fixed">
+      <div class="cart-footer-content">
         <div class="select-all">
           <el-checkbox :model-value="isAllChecked" :indeterminate="cartStore.selectedCount > 0 && !isAllChecked"
             @change="toggleAllChecked">
@@ -418,22 +432,70 @@ const refreshCart = async () => {
 
 <style scoped>
 .cart-container {
-  padding: 20px;
-  background-color: #fff;
-  border-radius: 8px;
-  box-shadow: 0 2px 12px rgba(0, 0, 0, 0.1);
+  padding: 10px 20px 20px;
+  max-width: 1200px;
+  margin: 0 auto;
 }
 
-.cart-header {
+/* 固定顶部标题栏 */
+.cart-header-fixed {
+  position: fixed;
+  top: 60px;
+  /* 假设导航栏高度为60px，根据实际情况调整 */
+  left: 0;
+  right: 0;
+  background-color: #fff;
+  z-index: 100;
+  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+  padding: 0 20px;
+}
+
+.cart-header-content {
   display: flex;
   align-items: center;
-  margin-bottom: 20px;
+  justify-content: space-between;
+  height: 60px;
+  max-width: 1200px;
+  margin: 0 auto;
 }
 
-.cart-header h2 {
-  margin: 0;
+/* 为固定顶部预留空间 */
+.header-placeholder {
+  height: 60px;
+}
+
+/* 固定底部结算栏 */
+.cart-footer-fixed {
+  position: fixed;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  background-color: #fff;
+  z-index: 100;
+  box-shadow: 0 -2px 10px rgba(0, 0, 0, 0.1);
+  padding: 0 20px;
+}
+
+.cart-footer-content {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  height: 70px;
+  max-width: 1200px;
+  margin: 0 auto;
+}
+
+/* 为固定底部预留空间 */
+.footer-placeholder {
+  height: 70px;
+}
+
+.cart-title {
   flex: 1;
   text-align: center;
+  margin: 0;
+  font-size: 18px;
+  color: #333;
 }
 
 .cart-actions {
@@ -442,7 +504,11 @@ const refreshCart = async () => {
 }
 
 .shop-group {
-  margin-bottom: 30px;
+  margin-bottom: 20px;
+  background-color: #fff;
+  border-radius: 8px;
+  box-shadow: 0 2px 12px rgba(0, 0, 0, 0.05);
+  overflow: hidden;
 }
 
 .shop-header {
@@ -450,9 +516,8 @@ const refreshCart = async () => {
   align-items: center;
   justify-content: space-between;
   background-color: #f8f8f8;
-  padding: 10px 15px;
-  border-radius: 6px;
-  margin-bottom: 15px;
+  padding: 12px 15px;
+  border-bottom: 1px solid #eee;
 }
 
 .shop-title {
@@ -465,6 +530,7 @@ const refreshCart = async () => {
   font-weight: bold;
   cursor: pointer;
   transition: color 0.3s;
+  font-size: 15px;
 }
 
 .shop-name:hover {
@@ -477,6 +543,11 @@ const refreshCart = async () => {
   padding: 15px;
   border-bottom: 1px solid #f0f0f0;
   position: relative;
+  transition: background-color 0.3s;
+}
+
+.cart-item:hover {
+  background-color: #fafafa;
 }
 
 .item-checked {
@@ -490,6 +561,7 @@ const refreshCart = async () => {
   cursor: pointer;
   overflow: hidden;
   border-radius: 4px;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.1);
 }
 
 .item-image img {
@@ -506,13 +578,18 @@ const refreshCart = async () => {
 .item-info {
   flex: 1;
   margin-right: 15px;
+  min-width: 0;
 }
 
 .item-name {
   font-size: 16px;
-  margin-bottom: 6px;
+  margin-bottom: 8px;
   cursor: pointer;
   transition: color 0.3s;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  max-width: 100%;
 }
 
 .item-name:hover {
@@ -522,16 +599,17 @@ const refreshCart = async () => {
 .item-sku {
   font-size: 14px;
   color: #999;
-  margin-bottom: 6px;
+  margin-bottom: 8px;
 }
 
 .item-price {
   font-size: 16px;
   color: #f60;
+  font-weight: 500;
 }
 
 .item-quantity {
-  margin-right: 30px;
+  margin: 0 30px;
 }
 
 .item-subtotal {
@@ -546,14 +624,8 @@ const refreshCart = async () => {
   margin-left: 15px;
 }
 
-.cart-footer {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  padding: 15px;
-  background-color: #f8f8f8;
-  border-radius: 6px;
-  margin-top: 20px;
+.select-all {
+  margin-left: 5px;
 }
 
 .cart-total {
@@ -567,7 +639,7 @@ const refreshCart = async () => {
 }
 
 .price {
-  font-size: 20px;
+  font-size: 22px;
   font-weight: bold;
   color: #f60;
 }
@@ -579,31 +651,91 @@ const refreshCart = async () => {
 
 .checkout-btn .el-button {
   padding: 12px 30px;
+  min-width: 120px;
+  font-size: 16px;
+}
+
+.checkout-btn .el-button:hover {
+  opacity: 0.9;
+  transform: translateY(-1px);
+}
+
+.empty-cart {
+  padding: 50px 0;
+}
+
+.guest-alert {
+  margin-bottom: 20px;
+}
+
+.cart-content {
+  margin-top: 20px;
+}
+
+.shop-checkbox {
+  margin-right: 12px;
+}
+
+.item-checkbox {
+  margin-right: 15px;
 }
 
 /* 响应式设计 */
 @media (max-width: 768px) {
+  .cart-header-content {
+    flex-direction: column;
+    height: auto;
+    padding: 10px 0;
+    gap: 10px;
+  }
+
+  .cart-header-fixed {
+    padding: 0 10px;
+  }
+
+  .header-placeholder {
+    height: 110px;
+  }
+
+  .cart-actions {
+    width: 100%;
+    justify-content: center;
+  }
+
   .cart-item {
     flex-wrap: wrap;
+    padding: 10px;
+  }
+
+  .item-image {
+    width: 70px;
+    height: 70px;
   }
 
   .item-info {
-    width: calc(100% - 120px);
+    width: calc(100% - 100px);
     margin-bottom: 10px;
   }
 
   .item-quantity,
   .item-subtotal {
-    margin-top: 10px;
+    margin: 10px 10px 10px 0;
   }
 
-  .cart-footer {
+  .cart-footer-content {
     flex-direction: column;
-    gap: 15px;
+    height: auto;
+    padding: 10px 0;
+    gap: 10px;
+  }
+
+  .footer-placeholder {
+    height: 130px;
   }
 
   .select-all {
     width: 100%;
+    margin-left: 0;
   }
 
   .cart-total {
@@ -618,52 +750,7 @@ const refreshCart = async () => {
 
   .checkout-btn .el-button {
     width: 100%;
+    margin-top: 5px;
   }
-}
-
-.cart-title {
-  flex: 1;
-  text-align: center;
-  margin: 0;
-}
-
-.guest-alert {
-  margin-bottom: 20px;
-}
-
-.guest-action {
-  display: flex;
-  justify-content: center;
-  margin-top: 10px;
-}
-
-.shop-checkbox {
-  margin-right: 12px;
-}
-
-.shop-checkbox .el-checkbox__inner {
-  border-radius: 2px;
-}
-
-.item-checkbox {
-  margin-right: 15px;
-}
-
-.item-checkbox .el-checkbox__inner {
-  border-color: #dcdfe6;
-}
-
-.item-checkbox .el-checkbox__input.is-checked .el-checkbox__inner {
-  background-color: #409EFF;
-  border-color: #409EFF;
-}
-
-.select-all-checkbox {
-  font-size: 16px;
-  font-weight: 500;
-}
-
-.select-all-checkbox .el-checkbox__label {
-  font-size: 16px;
 }
 </style>

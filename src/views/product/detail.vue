@@ -80,13 +80,8 @@ const debouncedAddToCart = debounce(async () => {
     return false
   }
 
-  // 2. 获取当前SKU信息或商品信息
-  const currentSkuInfo = selectedSkuId.value 
-    ? goods.value.skus.find(sku => sku.id === selectedSkuId.value)
-    : null
-  
-  // 3. 检查库存
-  const stockToCheck = currentSkuInfo ? currentSkuInfo.stock : goods.value.stock
+  // 2. 检查库存
+  const stockToCheck = currentSku.value ? currentSku.value.stock : goods.value.stock
   if (stockToCheck < quantity.value) {
     ElMessage({
       message: '商品库存不足',
@@ -94,33 +89,34 @@ const debouncedAddToCart = debounce(async () => {
     })
     return false
   }
-  
+
   try {
     // 4. 创建购物车项对象，匹配后端的CartItemDTO结构
     const cartItem = {
-      goodsId: goods.value.id,  // 商品ID
       skuId: selectedSkuId.value || null, // 规格ID，如果没有则为null
+      skuName: currentSku.value ? currentSku.value.name : null,
+      price: currentSku.value ? currentSku.value.price : goods.value.price,
       count: quantity.value, // 商品数量
       checked: true, // 默认选中
-      
-      // 确保goodsImages是字符串类型，如果是数组则取第一个元素或转为字符串
+
+      // 商品
+      goodsId: goods.value.id,  // 商品ID
       goodsName: goods.value.name,
-      goodsImages: Array.isArray(goods.value.images) ? goods.value.images[0] : goods.value.images,
-      price: currentSkuInfo ? currentSkuInfo.price : goods.value.price,
-      skuName: currentSkuInfo ? currentSkuInfo.name : null,
-      
-      // 这些附加字段用于游客购物车
+      goodsImages: goods.value.images || [],
+
+      // 店铺
       shopId: goods.value.shopId,
-      shopName: shopInfo.value?.name || `店铺${goods.value.shopId}`
+      shopName: shopInfo.value?.name || `店铺${goods.value.shopId}`,
+      shopImage: shopInfo.value?.images || [],
     }
-    
+
     // 5. 调用购物车store的addItemToCart方法
     const res = await cartStore.addItemToCart(cartItem)
 
     if (!res || !res.success) {
       return false
     }
-    
+
     return true
   } catch (error) {
     console.error('加入购物车失败:', error)
@@ -140,7 +136,7 @@ const addToCart = async () => {
 const buyNow = async () => {
   // 先添加到购物车
   const success = await addToCart()
-  
+
   // 如果添加成功，跳转到购物车页面
   if (success) {
     router.push('/cart')

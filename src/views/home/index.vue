@@ -73,9 +73,6 @@ const loadRecommendShops = async () => {
  * 页面加载时执行
  */
 onMounted(async () => {
-  // 初始化加载购物车数据
-  await cartStore.fetchUserCart()
-  
   // 加载其他数据
   loadBanners()
   loadRecommendShops()

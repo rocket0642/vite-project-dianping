@@ -1,16 +1,21 @@
 import { defineStore } from "pinia";
-import { ref } from "vue"
+import { ref, watch } from "vue"
 import { getCollectShopList, collectShop, cancelCollectShop } from '../api/fravorite'
+import { useUserStore } from './user'
 
 export const useFravoriteStore = defineStore('fravorite', () => {
     // 收藏列表数据
     const favoriteList = ref([])
+    const userStore = useUserStore()
+
+    watch(() => userStore.isLogin, async (newVal, oldVal) => {
+        if (newVal && !oldVal) {
+            await getFavoriteList()
+        }
+    })
 
     // 从后端获取收藏列表并缓存到本地
     const getFavoriteList = async () => {
-        if (favoriteList.value.length > 0) {
-            return favoriteList.value
-        }
         try {
             const res = await getCollectShopList()
             if (res.success) {

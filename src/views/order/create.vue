@@ -75,7 +75,7 @@ const createOrder = async () => {
         // 店铺信息
         shopId: group.shopId,
         shopName: group.shopName,
-        shopImage: group.shopImage,
+        shopImage: group.shopImage || [],
         count: group.items.reduce((sum, item) => sum + item.count, 0),
         // 商品信息列表
         items: group.items.map(item => ({
@@ -83,7 +83,7 @@ const createOrder = async () => {
           goodsName: item.goodsName,
           count: item.count,
           price: item.price,
-          goodsImage: [item.goodsImages],
+          goodsImage: item.goodsImages,
           skuId: item.skuId || null,
           skuName: item.skuName || null,
         })),

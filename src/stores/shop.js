@@ -48,6 +48,9 @@ export const useShopStore = defineStore('shop', () => {
       if (res.success) {
         shopDetail.value = {
           ...res.data,
+          // 图片字符串以，分割转为列表
+          images: res.data.images.split(',') || [],
+          // 类型
           typeName: shopTypes.value.find(i => i.id === res.data.typeId)?.name
         }
       }

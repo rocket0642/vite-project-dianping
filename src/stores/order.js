@@ -138,7 +138,7 @@ export const useOrderStore = defineStore('order', () => {
           handleAlipayResponse(res.data)
         } else {
           // 微信支付跳转到支付链接
-          window.open(res.data, '_blank')
+          return res
         }
         return res
       } else {

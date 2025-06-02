@@ -25,8 +25,22 @@ export function addToCart(cartItem) {
 }
 
 /**
+ * 合并购物车
+ * @param {Object} guestCart - 游客购物车数据
+ * @returns {Promise} Promise对象
+ */
+export function mergeCart(guestCart) {
+    return request({
+        url: '/cart/merge',
+        method: 'post',
+        data: guestCart
+    })
+}
+
+/**
  * 更新购物车商品数量
  * @param {Object} params - 请求参数
+ * @param {number} params.shopId - 商铺ID
  * @param {number} params.goodsId - 商品ID
  * @param {number} [params.skuId] - 商品SKU ID
  * @param {number} params.count - 商品数量
@@ -43,6 +57,7 @@ export function updateCartItemCount(params) {
 /**
  * 移除购物车商品
  * @param {Object} params - 请求参数
+ * @param {number} params.shopId - 商铺ID
  * @param {number} params.goodsId - 商品ID
  * @param {number} [params.skuId] - 商品SKU ID
  * @returns {Promise} Promise对象
@@ -69,6 +84,7 @@ export function clearCart() {
 /**
  * 选中或取消选中购物车商品
  * @param {Object} params - 请求参数
+ * @param {number} params.shopId - 商铺ID
  * @param {number} params.goodsId - 商品ID
  * @param {number} [params.skuId] - 商品SKU ID
  * @param {boolean} params.checked - 是否选中

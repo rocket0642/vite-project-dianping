@@ -70,10 +70,14 @@ const toggleCollection = () => {
     return
   }
 
-  // 用户已登录，执行收藏/取消收藏操作
+  // 收藏/取消收藏
   if (!isCollected.value) {
     // 收藏
-    favoriteStore.addFavorite(shop.value)
+    favoriteStore.addFavorite({
+      ...shop.value,
+      // 图片以，连接为字符串
+      images: shop.value.images.join(',')
+    })
   } else {
     // 取消收藏
     favoriteStore.removeFavorite(shop.value.id)
@@ -160,7 +164,6 @@ watch(activeTab, (newTab) => {
 onMounted(() => {
   loadShopDetail()
   loadShopGoods()
-  favoriteStore.getFavoriteList()
 })
 
 // 添加手机号码隐藏方法

@@ -1,9 +1,8 @@
 import { defineStore } from 'pinia'
-import { computed, ref } from 'vue'
+import { computed, ref, watch } from 'vue'
 import { getCode, getUserInfo, login, register, resetPassword, uploadDelete, uploadImage, userLogout, refreshToken, updateUserInfo, update, getUserCount, getCaptcha } from '../api/user'
-import { useCartStore } from './cart'
 import { useFravoriteStore } from './fravorite'
-
+import { useCartStore } from './cart'
 /**
  * 用户状态管理
  * 使用Pinia管理用户登录状态、token和用户信息
@@ -11,7 +10,7 @@ import { useFravoriteStore } from './fravorite'
 export const useUserStore = defineStore('user', () => {
   // 状态
   const token = ref(null)
-  const userInfo = ref(null)
+  const userInfo = ref({})
   const userPhone = ref(null)
   const rememberMe = ref(false) // 添加记住我状态
   const isAdmin = ref(false) // 添加管理员状态
@@ -19,6 +18,12 @@ export const useUserStore = defineStore('user', () => {
   // 计算属性
   const isLogin = computed(() => !!token.value)
 
+  // 监听登录状态
+  watch(() => isLogin.value, async (newVal, oldVal) => {
+    if (newVal && !oldVal) {
+      await fetchUserInfo()
+    }
+  }, { immediate: true })
 
   /**
    * 获取图形验证码
@@ -51,14 +56,6 @@ export const useUserStore = defineStore('user', () => {
         userPhone.value = phone
         rememberMe.value = remember // 保存记住我状态
 
-        // 先获取用户信息
-        await fetchUserInfo()
-
-        // 再合并游客购物车数据到用户购物车
-        const cartStore = useCartStore()
-        if (cartStore) {
-          await cartStore.mergeGuestCart()
-        }
       }
       return res
     } catch (error) {
@@ -169,14 +166,16 @@ export const useUserStore = defineStore('user', () => {
   function clearUserData() {
     // 清除token和相关数据
     token.value = null
-    userInfo.value = null
+    userInfo.value = {}
     userPhone.value = null
     rememberMe.value = false
 
-    // 切换到游客购物车
-    const cartStore = useCartStore()
-    if (cartStore) {
-      cartStore.switchUserCart(null)
+    try {
+      // 切换到游客购物车
+      const cartStore = useCartStore()
+      cartStore?.switchUserCart()
+    } catch (error) {
+      console.error('切换购物车失败:', error)
     }
   }
 
@@ -297,8 +296,36 @@ export const useUserStore = defineStore('user', () => {
   }
 }, {
   persist: {
-    key: 'user-store',
-    storage: localStorage,
-    paths: ['token', 'userInfo']  // 确保这些关键数据被持久化
+    key: 'user-store-data',
+    // 根据rememberMe决定使用哪种存储方式
+    storage: {
+      getItem: (key) => {
+        // 先从localStorage获取rememberMe状态
+        const storeData = localStorage.getItem(key)
+        if (storeData) {
+          const data = JSON.parse(storeData)
+          // 如果localStorage有数据并且rememberMe为true，使用localStorage
+          if (data?.rememberMe) {
+            return storeData
+          }
+        }
+        // 否则尝试从sessionStorage获取
+        return sessionStorage.getItem(key)
+      },
+      setItem: (key, value) => {
+        const data = JSON.parse(value)
+        // 根据rememberMe决定存储位置
+        if (data?.rememberMe) {
+          localStorage.setItem(key, value)
+        } else {
+          sessionStorage.setItem(key, value)
+        }
+      },
+      removeItem: (key) => {
+        localStorage.removeItem(key)
+        sessionStorage.removeItem(key)
+      }
+    },
+    paths: ['token', 'userPhone', 'userInfo', 'rememberMe']
   }
 })

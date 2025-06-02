@@ -9,7 +9,8 @@ import {
   checkCartItem,
   checkAllItems,
   checkShopItems,
-  removeCheckedItems
+  removeCheckedItems,
+  mergeCart
 } from '../api/cart'
 import { ElMessage } from 'element-plus'
 import { useUserStore } from './user'
@@ -21,7 +22,6 @@ export const useCartStore = defineStore('cart', () => {
   // 状态
   const cartList = ref([]) // 按商铺分组的购物车列表
   const loading = ref(false)
-  const isInitialized = ref(false)
 
   // 获取用户状态
   const userStore = useUserStore()
@@ -47,9 +47,7 @@ export const useCartStore = defineStore('cart', () => {
         // 未登录用户从本地存储获取购物车
         loadGuestCart()
       }
-      
-      // 标记已初始化
-      isInitialized.value = true
+
       return cartList.value
     } catch (error) {
       console.error('获取购物车失败:', error)
@@ -99,10 +97,9 @@ export const useCartStore = defineStore('cart', () => {
 
   /**
    * 切换用户购物车（登录/登出时使用）
-   * @param {string} userPhone 用户手机号，如果为null表示退出登录
    */
-  async function switchUserCart(userPhone) {
-    if (userPhone) {
+  async function switchUserCart() {
+    if (userStore.isLogin) {
       // 登录操作，从服务器获取购物车
       await fetchUserCart()
     } else {
@@ -121,54 +118,26 @@ export const useCartStore = defineStore('cart', () => {
 
       if (!guestCartJson || guestCartJson === '[]') {
         // 如果游客购物车为空，直接获取用户购物车
-        await fetchUserCart()
         return { success: true }
       }
 
       // 获取游客购物车数据
       const guestCart = JSON.parse(guestCartJson)
-      let mergedCount = 0
-      let errorCount = 0
 
-      // 遍历游客购物车中的每个店铺
-      for (const shop of guestCart) {
-        // 遍历店铺中的每个商品
-        for (const item of shop.items) {
-          try {
-            // 将每个商品添加到用户购物车
-            const res = await addToCart({
-              goodsId: item.goodsId,
-              skuId: item.skuId,
-              count: item.count,
-              checked: item.checked
-            })
+      // 调用API合并购物车
+      const res = await mergeCart(guestCart)
 
-            if (res.success) {
-              mergedCount++
-            } else {
-              errorCount++
-              console.error('合并购物车商品失败:', res.errorMsg)
-            }
-          } catch (error) {
-            errorCount++
-            console.error('合并购物车商品失败:', error)
-          }
-        }
+      console.log(res)
+      if (res.success) {
+        ElMessage.success(res.data)
+      } else {
+        ElMessage.error(res.errorMsg || '购物车合并失败')
       }
 
       // 合并完成后清除游客购物车
       clearGuestCart()
 
-      // 重新获取用户购物车
-      await fetchUserCart()
-
-      if (errorCount > 0) {
-        ElMessage.warning(`购物车已同步，${mergedCount}件商品同步成功，${errorCount}件同步失败`)
-      } else {
-        ElMessage.success(`购物车已同步，共${mergedCount}件商品`)
-      }
-
-      return { success: true, mergedCount, errorCount }
+      return { success: true, message: res.data }
     } catch (error) {
       console.error('合并购物车失败:', error)
       ElMessage.error('购物车同步失败')
@@ -189,16 +158,9 @@ export const useCartStore = defineStore('cart', () => {
   async function addItemToCart(cartItem) {
     try {
       loading.value = true
-      // 确保有skuId参数，即使是null
-      const item = {
-        ...cartItem,
-        skuId: cartItem.skuId || null,
-        checked: cartItem.checked ?? true
-      }
-
       if (userStore.isLogin) {
         // 已登录用户，使用API添加到服务器
-        const res = await addToCart(item)
+        const res = await addToCart(cartItem)
         if (res.success) {
           // 添加成功后重新获取购物车数据
           await fetchUserCart()
@@ -211,7 +173,7 @@ export const useCartStore = defineStore('cart', () => {
         return res
       } else {
         // 未登录用户，添加到本地购物车
-        addItemToGuestCart(item)
+        addItemToGuestCart(cartItem)
         saveGuestCart()
         ElMessage.success('已添加到购物车')
         return { success: true, message: '已添加到购物车' }
@@ -272,7 +234,7 @@ export const useCartStore = defineStore('cart', () => {
         skuName: item.skuName || ''
       })
     }
-    
+
     // 保存到本地存储
     saveGuestCart()
   }
@@ -662,7 +624,7 @@ export const useCartStore = defineStore('cart', () => {
         result.push({
           shopId: shop.shopId,
           shopName: shop.shopName,
-          shopImage: shop.shopImage || '',
+          shopImage: shop.shopImage || [],
           items: checkedItems,
           totalAmount
         })
@@ -704,13 +666,18 @@ export const useCartStore = defineStore('cart', () => {
         console.error('自动合并购物车失败:', error)
       })
     }
+  })
+
+  watch(() => userStore.isLogin, async (newValue, oldValue) => {
+    if (newValue && !oldValue) {
+      await fetchUserCart()
+    }
   }, { immediate: true })
 
   return {
     // 状态
     cartList,
     loading,
-    isInitialized,
 
     // 计算属性
     isLoading,
@@ -741,6 +708,4 @@ export const useCartStore = defineStore('cart', () => {
     mergeGuestCart,
     removeCheckedItemsAfterCheckout
   }
-}, {
-  persist: false // 不使用 persist，因为我们手动管理游客购物车的本地存储
 })

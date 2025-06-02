@@ -23,7 +23,7 @@ const router = useRouter()
 const userStore = useUserStore()
 
 // 用户信息
-const userInfo = computed(() => userStore.userInfo)
+const userInfo = computed(() => userStore.userInfo || {})
 
 /**
  * 打开编辑对话框
@@ -92,7 +92,7 @@ const logout = () => {
                 <div class="user-info-grid">
                     <div class="info-item">
                         <div class="info-label">性别:</div>
-                        <div class="info-value">{{ userInfo.gender ? '女' : '男' }}</div>
+                        <div class="info-value">{{ userInfo.gender === 1 ? '女' : '男' }}</div>
                     </div>
                     <div class="info-item">
                         <div class="info-label">城市:</div>

@@ -176,7 +176,7 @@ const payOrder = async () => {
 
   paying.value = true
   try {
-    const res = await orderStore.payUserOrder(orderId)
+    const res = await orderStore.payUserOrder(orderId, payType.value)
 
     if (res && res.success) {
       if (payType.value === 2) { // 支付宝支付
@@ -204,7 +204,8 @@ const payOrder = async () => {
           }
         })
       } else { // 微信支付
-        window.location.href = res.data
+        // 跳转支付结果页
+        router.push(`/order/result?orderId=${orderId}&payType=1&payResult=${res.data}`)
       }
     } else {
       ElMessage.error(res?.errorMsg || '支付失败，请稍后重试')
