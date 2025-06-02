@@ -133,9 +133,6 @@ export const useOrderStore = defineStore('order', () => {
       const res = await createPayment(orderId, payType)
 
       if (res.success) {
-        // 保存支付类型到本地存储
-        localStorage.setItem(`order_payment_type_${orderId}`, payType.toString())
-
         if (payType === 2) {
           // 支付宝返回HTML表单，需要在新窗口中展示
           handleAlipayResponse(res.data)
@@ -220,11 +217,8 @@ export const useOrderStore = defineStore('order', () => {
   }
 
   // 查询支付状态
-  async function checkPaymentStatus(orderId) {
+  async function checkPaymentStatus(orderId, payType) {
     try {
-      // 获取支付类型
-      const payType = localStorage.getItem(`order_payment_type_${orderId}`) || '1'
-
       // 查询支付状态
       const res = await queryPayStatus(orderId, parseInt(payType))
 

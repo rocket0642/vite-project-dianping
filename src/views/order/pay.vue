@@ -19,7 +19,7 @@ const paying = ref(false)
 const order = ref({})
 const orderId = route.params.id
 const payType = ref(2) // 默认支付宝支付
-const countdown = ref(1800) // 默认30分钟倒计时（秒）
+const countdown = ref(1200) // 默认20分钟倒计时（秒）
 const timer = ref(null)
 
 // 地址相关
@@ -87,7 +87,7 @@ const loadOrder = async () => {
  */
 const initCountdown = () => {
   if (!order.value || !order.value.createTime) {
-    countdown.value = 1800; // 默认30分钟
+    countdown.value = 1200; // 默认20分钟
     startCountdown();
     return;
   }
@@ -95,7 +95,7 @@ const initCountdown = () => {
   try {
     // 从订单创建时间计算剩余时间
     const createTime = new Date(order.value.createTime).getTime();
-    const expireTime = createTime + 20 * 60 * 1000; // 30分钟后过期
+    const expireTime = createTime + 20 * 60 * 1000; // 20分钟后过期
     const now = Date.now();
 
     // 计算剩余秒数
@@ -111,7 +111,7 @@ const initCountdown = () => {
     startCountdown();
   } catch (error) {
     console.error('计算倒计时出错:', error);
-    countdown.value = 1800; // 出错时设置默认30分钟
+    countdown.value = 1200; // 出错时设置默认20分钟
     startCountdown();
   }
 }
@@ -366,20 +366,6 @@ const updateOrderAddress = async () => {
     console.error('更新地址失败:', error)
     ElMessage.error('更新地址失败，请稍后重试')
   }
-}
-
-/**
- * 地址添加成功回调
- */
-const handleAddressSuccess = (address) => {
-  addressFormVisible.value = false
-  loadUserAddresses()
-  // 选中新添加的地址
-  selectedAddress.value = address
-  // 重新打开地址选择对话框
-  setTimeout(() => {
-    addressDialogVisible.value = true
-  }, 300)
 }
 
 /**

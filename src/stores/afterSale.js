@@ -122,15 +122,15 @@ export const useAfterSaleStore = defineStore('afterSale', () => {
                 if (data.orderId) {
                     await fetchOrderAfterSales(data.orderId)
                 }
-                return true
+                return res.data
             } else {
                 ElMessage.error(res.message || '售后申请提交失败')
-                return false
+                return null
             }
         } catch (error) {
             console.error('售后申请提交失败:', error)
             ElMessage.error('售后申请提交失败')
-            return false
+            return null
         } finally {
             loading.value = false
         }

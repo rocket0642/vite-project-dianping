@@ -43,7 +43,7 @@ const orderStore = useOrderStore()
 
 const orderId = ref(route.query.orderId)
 const paymentSuccess = ref(route.query.payResult === 'success')
-const payType = ref(localStorage.getItem(`order_payment_type_${orderId.value}`) || '2')
+const payType = ref(route.query.payType)
 const payTypeName = ref(payType.value === '1' ? '微信支付' : '支付宝支付')
 
 let statusCheckInterval = null
@@ -65,7 +65,7 @@ onUnmounted(() => {
 
 async function checkPayStatus() {
   try {
-    const result = await orderStore.checkPaymentStatus(orderId.value)
+    const result = await orderStore.checkPaymentStatus(orderId.value, payType.value)
     if (result) {
       paymentSuccess.value = true
       clearInterval(statusCheckInterval)

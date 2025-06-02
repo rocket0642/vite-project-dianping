@@ -8,7 +8,7 @@ const props = defineProps({
     },
     countdown: {
         type: String,
-        default: '30:00'
+        default: '20:00'
     }
 })
 

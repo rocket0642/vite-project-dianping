@@ -12,7 +12,7 @@ const afterSaleStore = useAfterSaleStore()
 const orderStore = useOrderStore()
 
 // 获取售后ID
-const afterSaleId = Number(route.params.id)
+const afterSaleId = parseInt(route.params.id)
 const loading = ref(false)
 const afterSale = ref(null)
 const orderDetail = ref(null)
@@ -21,6 +21,7 @@ const orderDetail = ref(null)
 const loadAfterSaleDetail = async () => {
   try {
     loading.value = true
+    console.log('afterSaleId', afterSaleId)
     const data = await afterSaleStore.fetchAfterSaleDetail(afterSaleId)
     if (data) {
       afterSale.value = data

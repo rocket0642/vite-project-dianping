@@ -1,6 +1,6 @@
 <script setup>
 import { Clock, Plus, UploadFilled } from '@element-plus/icons-vue'
-import { ElButton, ElForm, ElFormItem, ElInput, ElInputNumber, ElMessage, ElRadio, ElRadioGroup, ElSelect, ElSelectOption, ElUpload } from 'element-plus'
+import { ElButton, ElForm, ElFormItem, ElInput, ElInputNumber, ElMessage, ElRadio, ElRadioGroup, ElSelect, ElUpload } from 'element-plus'
 import { onMounted, reactive, ref } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import AppLayout from '../../components/AppLayout.vue'
@@ -15,7 +15,7 @@ const userStore = useUserStore()
 const afterSaleStore = useAfterSaleStore()
 
 // 获取订单ID
-const orderId = Number(route.params.id)
+const orderId = route.params.id
 // 状态变量
 const loading = ref(false)
 const submitting = ref(false)
@@ -161,11 +161,11 @@ const submitAfterSale = async () => {
     }
 
     // 调用售后申请接口
-    const result = await afterSaleStore.submitAfterSale(submitData)
-    if (result && result.id) {
+    const id = await afterSaleStore.submitAfterSale(submitData)
+    if (id) {
       ElMessage.success('售后申请提交成功')
       // 跳转到售后详情页
-      router.push(`/order/after-sale-detail/${result.id}`)
+      router.push(`/order/after-sale-detail/${id}`)
     } else {
       ElMessage.error('售后申请提交失败')
     }
