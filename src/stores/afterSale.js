@@ -1,7 +1,7 @@
 import { ElMessage } from 'element-plus'
 import { defineStore } from 'pinia'
 import { ref } from 'vue'
-import { applyAfterSale, getAfterSaleByOrderId, getAfterSaleDetail, getUserAfterSales } from '../api/afterSale'
+import { applyAfterSale, getAfterSaleByOrderId, getAfterSaleDetail, getAfterSaleList, handleAfterSale } from '../api/afterSale'
 
 /**
  * 售后状态管理
@@ -16,43 +16,12 @@ export const useAfterSaleStore = defineStore('afterSale', () => {
         filter: {
             current: 1,
             pageSize: 10,
-            status: null
+            status: 1, // 默认为处理中
+            orderId: null // 添加订单ID筛选
         },
         total: 0
     })
 
-    /**
-     * 获取用户的售后记录列表
-     * @param {Object} params - 查询参数
-     * @returns {Promise} - 请求结果
-     */
-    async function fetchAfterSaleList(params = {}) {
-        try {
-            loading.value = true
-            const queryParams = {
-                current: listPageState.value.filter.current,
-                size: listPageState.value.filter.pageSize,
-                status: listPageState.value.filter.status,
-                ...params
-            }
-            const res = await getUserAfterSales(queryParams)
-
-            if (res.success) {
-                afterSaleList.value = res.data || []
-                listPageState.value.total = res.total || 0
-                return { data: res.data, total: res.total }
-            } else {
-                ElMessage.error(res.message || '获取售后记录失败')
-                return { data: [], total: 0 }
-            }
-        } catch (error) {
-            console.error('获取售后记录失败:', error)
-            ElMessage.error('获取售后记录失败')
-            return { data: [], total: 0 }
-        } finally {
-            loading.value = false
-        }
-    }
 
     /**
      * 获取售后详情
@@ -158,13 +127,62 @@ export const useAfterSaleStore = defineStore('afterSale', () => {
     function getAfterSaleTypeText(type) {
         const typeMap = {
             1: '退货退款',
-            2: '仅退款',
-            3: '换货',
-            4: '维修'
+            2: '换货',
+            3: '维修',
+            4: '仅退款'
         }
         return typeMap[type] || '未知类型'
     }
 
+    /**
+     * 获取售后列表
+     * @param {Object} params - 查询参数
+     * @returns {Promise} - 请求结果
+     */
+    async function fetchAfterSaleList(params) {
+        try {
+            loading.value = true
+            const res = await getAfterSaleList(params)
+
+            if (res.success) {
+                afterSaleList.value = res.data || []
+                listPageState.value.total = res.total || 0
+                return true
+            } else {
+                ElMessage.error(res.message || '获取售后列表失败')
+                return false
+            }
+        } catch (error) {
+            console.error('获取售后列表失败:', error)
+            ElMessage.error('获取售后列表失败')
+        } finally {
+            loading.value = false
+        }
+    }
+
+    /**
+     * 管理员处理售后
+     * @param {Object} data - 处理数据
+     * @returns {Promise} - 请求结果
+     */
+    async function handleAdminAfterSale(data) {
+        try {
+            loading.value = true
+            const res = await handleAfterSale(data)
+            if (res.success) {
+                ElMessage.success('售后处理成功')
+                return true
+            } else {
+                ElMessage.error(res.message || '售后处理失败')
+                return false
+            }
+        } catch (error) {
+            console.error('管理员处理售后失败:', error)
+            ElMessage.error('管理员处理售后失败')
+        } finally {
+            loading.value = false
+        }
+    }
     return {
         // 状态
         afterSaleList,
@@ -174,11 +192,12 @@ export const useAfterSaleStore = defineStore('afterSale', () => {
         listPageState,
 
         // 方法
-        fetchAfterSaleList,
         fetchAfterSaleDetail,
         fetchOrderAfterSales,
         submitAfterSale,
         getAfterSaleStatusText,
-        getAfterSaleTypeText
+        getAfterSaleTypeText,
+        fetchAfterSaleList,
+        handleAdminAfterSale
     }
 }) 

@@ -101,7 +101,7 @@ export function useOrderOperations(router, orderStore, afterSaleStore, loadOrder
      * 申请售后
      */
     const applyAfterSale = (orderId) => {
-        router.push(`/order/after-sale/create/${orderId}`)
+        router.push(`/order/after-sale/${orderId}`)
     }
 
     /**

@@ -22,11 +22,6 @@ export function saveHistoryAccount(phone) {
     // 将新账号添加到最前面
     historyAccounts.unshift(phone);
 
-    // 限制最多保存5个历史账号
-    if (historyAccounts.length > 5) {
-        historyAccounts.pop();
-    }
-
     // 保存到localStorage
     localStorage.setItem(HISTORY_ACCOUNTS_KEY, JSON.stringify(historyAccounts));
     // 同时保存最新账号

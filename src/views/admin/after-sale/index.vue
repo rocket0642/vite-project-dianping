@@ -1,374 +1,429 @@
-<script setup>
-import { ref, onMounted } from 'vue'
-import { ElMessage, ElMessageBox } from 'element-plus'
-import { getAfterSaleList, handleAfterSale } from '../../../api/afterSale'
-
-const loading = ref(false)
-const afterSaleList = ref([])
-const total = ref(0)
-const currentPage = ref(1)
-const pageSize = ref(10)
-
-// 售后状态映射
-const statusMap = {
-  1: { text: '待处理', type: 'warning' },
-  2: { text: '处理中', type: 'primary' },
-  3: { text: '已完成', type: 'success' },
-  4: { text: '已拒绝', type: 'danger' }
-}
-
-// 加载售后申请列表
-const loadAfterSaleList = async () => {
-  loading.value = true
-  try {
-    const res = await getAfterSaleList({
-      current: currentPage.value,
-      pageSize: pageSize.value
-    })
-
-    if (res.success && res.data) {
-      // 添加数据检查和默认值
-      afterSaleList.value = (res.data.records || []).map(item => ({
-        id: item.id || '',
-        orderId: item.orderId || '',
-        type: item.type || 1,
-        reason: item.reason || '',
-        amount: item.amount || 0,
-        status: item.status || 1,
-        createTime: item.createTime || new Date().toISOString(),
-        description: item.description || '',
-        images: item.images || '',
-        // 其他可能的字段...
-      }))
-      total.value = res.data.total || 0
-    } else {
-      afterSaleList.value = []
-      total.value = 0
-      throw new Error(res.message || '获取售后列表失败')
-    }
-  } catch (error) {
-    console.error('获取售后列表失败:', error)
-    ElMessage.error(error.message || '获取售后列表失败')
-  } finally {
-    loading.value = false
-  }
-}
-
-// 处理售后申请
-const handleAfterSaleRequest = async (id, action, reason) => {
-  try {
-    // 二次确认
-    await ElMessageBox.confirm(
-      `确定要${action === 'approve' ? '同意' : '拒绝'}该售后申请吗？`,
-      '确认操作',
-      {
-        confirmButtonText: '确定',
-        cancelButtonText: '取消',
-        type: action === 'approve' ? 'success' : 'warning'
-      }
-    )
-
-    const res = await handleAfterSale({
-      id,
-      status: action === 'approve' ? 3 : 4, // 3-已完成，4-已拒绝
-      handleMsg: reason
-    })
-
-    if (res.success) {
-      ElMessage.success(action === 'approve' ? '已同意售后申请' : '已拒绝售后申请')
-      // 重新加载列表
-      await loadAfterSaleList()
-    } else {
-      throw new Error(res.message || '处理失败')
-    }
-  } catch (error) {
-    if (error === 'cancel') return // 用户取消操作
-    console.error('处理售后申请失败:', error)
-    ElMessage.error(error.message || '处理失败')
-  }
-}
-
-// 审核对话框
-const handleDialogVisible = ref(false)
-const handleForm = ref({
-  id: null,
-  action: '',
-  reason: ''
-})
-
-// 打开处理对话框
-const openHandleDialog = (id, action) => {
-  handleForm.value = {
-    id,
-    action,
-    reason: ''
-  }
-  handleDialogVisible.value = true
-}
-
-// 提交处理
-const submitHandle = async () => {
-  if (!handleForm.value.reason) {
-    ElMessage.warning('请输入处理原因')
-    return
-  }
-
-  try {
-    await handleAfterSaleRequest(
-      handleForm.value.id,
-      handleForm.value.action,
-      handleForm.value.reason
-    )
-    handleDialogVisible.value = false
-  } catch (error) {
-    // 错误已在 handleAfterSaleRequest 中处理
-  }
-}
-
-// 详情弹窗相关
-const detailDialogVisible = ref(false)
-const currentDetail = ref(null)
-
-// 修改查看详情方法，直接使用列表数据
-const showDetail = (row) => {
-  currentDetail.value = row
-  detailDialogVisible.value = true
-}
-
-// 格式化图片列表
-const formatImages = (images) => {
-  if (!images) return []
-  return images.split(',').filter(img => img)
-}
-
-// 修改表格列的渲染逻辑
-const formatDate = (dateString) => {
-  if (!dateString) return ''
-  try {
-    return new Date(dateString).toLocaleString()
-  } catch (e) {
-    return dateString
-  }
-}
-
-const formatAmount = (amount) => {
-  if (typeof amount !== 'number') return '¥0.00'
-  return `¥${(amount / 100).toFixed(2)}`
-}
-
-const getStatusTag = (status) => {
-  const statusInfo = statusMap[status] || { text: '未知', type: 'info' }
-  return statusInfo
-}
-
-onMounted(() => {
-  loadAfterSaleList()
-})
-</script>
-
 <template>
-  <div class="after-sale-manage">
-    <div class="page-header">
+  <div class="after-sale-management">
+    <div class="header">
       <h2>售后管理</h2>
+      <div class="filter">
+        <el-select v-model="statusFilter" placeholder="售后状态" clearable @change="handleFilter" style="width: 150px">
+          <el-option :label="'全部'" :value="null" />
+          <el-option :label="'处理中'" :value="1" />
+          <el-option :label="'已完成'" :value="2" />
+          <el-option :label="'已拒绝'" :value="3" />
+        </el-select>
+      </div>
     </div>
 
-    <el-table v-loading="loading" :data="afterSaleList" style="width: 100%" row-key="id">
-      <el-table-column prop="id" label="售后单号" width="120">
-        <template #default="{ row }">
-          {{ row.id || '-' }}
-        </template>
-      </el-table-column>
-      <el-table-column prop="orderId" label="关联订单" width="120">
-        <template #default="{ row }">
-          {{ row.orderId || '-' }}
-        </template>
-      </el-table-column>
-      <el-table-column prop="type" label="售后类型" width="120">
-        <template #default="{ row }">
-          {{ row.type === 1 ? '仅退款' : '退货退款' }}
-        </template>
-      </el-table-column>
-      <el-table-column prop="reason" label="退款原因" show-overflow-tooltip>
-        <template #default="{ row }">
-          {{ row.reason || '-' }}
-        </template>
-      </el-table-column>
-      <el-table-column prop="amount" label="退款金额" width="120">
-        <template #default="{ row }">
-          {{ formatAmount(row.amount) }}
-        </template>
-      </el-table-column>
-      <el-table-column prop="status" label="状态" width="120">
-        <template #default="{ row }">
-          <el-tag :type="getStatusTag(row.status).type">
-            {{ getStatusTag(row.status).text }}
-          </el-tag>
-        </template>
-      </el-table-column>
-      <el-table-column prop="createTime" label="申请时间" width="180">
-        <template #default="{ row }">
-          {{ formatDate(row.createTime) }}
-        </template>
-      </el-table-column>
-      <el-table-column label="操作" width="200" fixed="right">
-        <template #default="{ row }">
-          <template v-if="row.status === 1">
-            <el-button type="success" size="small" @click="openHandleDialog(row.id, 'approve')">
-              同意
-            </el-button>
-            <el-button type="danger" size="small" @click="openHandleDialog(row.id, 'reject')">
-              拒绝
-            </el-button>
+    <el-card shadow="hover" class="list-card">
+      <el-table v-loading="loading" :data="afterSaleList" style="width: 100%" border stripe :fit="true"
+        empty-text="暂无售后数据" highlight-current-row>
+        <el-table-column prop="id" label="售后ID" width="80" />
+        <el-table-column prop="orderId" label="订单编号" min-width="180" show-overflow-tooltip />
+        <el-table-column label="售后类型" width="120">
+          <template #default="scope">
+            {{ getAfterSaleTypeText(scope.row.type) }}
           </template>
-          <el-button type="primary" size="small" @click="showDetail(row)">
-            查看详情
-          </el-button>
-        </template>
-      </el-table-column>
-    </el-table>
+        </el-table-column>
+        <el-table-column label="售后状态" width="120">
+          <template #default="scope">
+            <el-tag :type="getStatusType(scope.row.status)">{{ getAfterSaleStatusText(scope.row.status) }}</el-tag>
+          </template>
+        </el-table-column>
+        <el-table-column prop="reason" label="申请原因" min-width="120" show-overflow-tooltip />
+        <el-table-column prop="description" label="问题描述" min-width="150" show-overflow-tooltip />
+        <el-table-column prop="amount" label="退款金额" width="120">
+          <template #default="scope">
+            {{ (scope.row.amount / 100).toFixed(2) }} 元
+          </template>
+        </el-table-column>
+        <el-table-column prop="createTime" label="申请时间" width="180" show-overflow-tooltip />
+        <el-table-column label="操作" fixed="right" width="120">
+          <template #default="scope">
+            <el-button type="primary" link @click="showDetail(scope.row)">查看详情</el-button>
+          </template>
+        </el-table-column>
+      </el-table>
 
-    <div class="pagination-container">
-      <el-pagination v-model:current-page="currentPage" v-model:page-size="pageSize" :total="total"
-        :page-sizes="[10, 20, 50, 100]" layout="total, sizes, prev, pager, next" @size-change="loadAfterSaleList"
-        @current-change="loadAfterSaleList" />
-    </div>
+      <div class="pagination">
+        <el-pagination background :current-page="currentPage" :page-size="pageSize" :total="total"
+          layout="total, prev, pager, next" @current-change="handlePageChange" />
+      </div>
+    </el-card>
 
-    <!-- 处理售后申请对话框 -->
-    <el-dialog v-model="handleDialogVisible" :title="handleForm.action === 'approve' ? '同意售后申请' : '拒绝售后申请'"
-      width="500px" :close-on-click-modal="false">
-      <el-form :model="handleForm" label-width="80px">
-        <el-form-item label="处理原因" required>
-          <el-input v-model="handleForm.reason" type="textarea" rows="3"
-            :placeholder="handleForm.action === 'approve' ? '请输入同意原因' : '请输入拒绝原因'" />
-        </el-form-item>
-      </el-form>
-      <template #footer>
-        <span class="dialog-footer">
-          <el-button @click="handleDialogVisible = false">取消</el-button>
-          <el-button :type="handleForm.action === 'approve' ? 'success' : 'danger'" @click="submitHandle">
-            确定{{ handleForm.action === 'approve' ? '同意' : '拒绝' }}
-          </el-button>
-        </span>
-      </template>
-    </el-dialog>
-
-    <!-- 详情弹窗 -->
-    <el-dialog v-model="detailDialogVisible" title="售后详情" width="600px" destroy-on-close>
-      <div v-if="currentDetail" class="detail-content">
-        <div class="detail-item">
-          <span class="label">售后单号：</span>
-          <span class="value">{{ currentDetail.id }}</span>
-        </div>
-        <div class="detail-item">
-          <span class="label">关联订单：</span>
-          <span class="value">{{ currentDetail.orderId }}</span>
-        </div>
-        <div class="detail-item">
-          <span class="label">售后类型：</span>
-          <span class="value">{{ currentDetail.type === 1 ? '仅退款' : '退货退款' }}</span>
-        </div>
-        <div class="detail-item">
-          <span class="label">退款金额：</span>
-          <span class="value">¥{{ (currentDetail.amount / 100).toFixed(2) }}</span>
-        </div>
-        <div class="detail-item">
-          <span class="label">退款原因：</span>
-          <span class="value">{{ currentDetail.reason }}</span>
-        </div>
-        <div class="detail-item">
-          <span class="label">问题描述：</span>
-          <span class="value">{{ currentDetail.description || '无' }}</span>
-        </div>
-        <div class="detail-item">
-          <span class="label">申请时间：</span>
-          <span class="value">{{ new Date(currentDetail.createTime).toLocaleString() }}</span>
-        </div>
-        <div class="detail-item">
-          <span class="label">状态：</span>
-          <span class="value">
-            <el-tag :type="statusMap[currentDetail.status].type">
-              {{ statusMap[currentDetail.status].text }}
+    <!-- 详情对话框 -->
+    <el-dialog v-model="detailVisible" title="售后详情" width="700px" destroy-on-close :close-on-click-modal="false"
+      :show-close="true" top="5vh">
+      <div v-loading="detailLoading" v-if="currentDetail" class="detail-content">
+        <div class="detail-header">
+          <div class="detail-status">
+            <el-tag :type="getStatusType(currentDetail.status)" size="large" effect="dark">
+              {{ getAfterSaleStatusText(currentDetail.status) }}
             </el-tag>
-          </span>
-        </div>
-        <div class="detail-item">
-          <span class="label">图片凭证：</span>
-          <div class="image-list" v-if="formatImages(currentDetail.images).length > 0">
-            <el-image v-for="(img, index) in formatImages(currentDetail.images)" :key="index" :src="img"
-              :preview-src-list="formatImages(currentDetail.images)" fit="cover" class="evidence-image" />
           </div>
-          <span v-else class="no-image">无图片</span>
+          <div class="detail-id">售后单号: {{ currentDetail.id }}</div>
+        </div>
+
+        <el-divider content-position="left">基本信息</el-divider>
+
+        <el-descriptions :column="2" border>
+          <el-descriptions-item label="订单编号">{{ currentDetail.orderId }}</el-descriptions-item>
+          <el-descriptions-item label="售后类型">{{ getAfterSaleTypeText(currentDetail.type) }}</el-descriptions-item>
+          <el-descriptions-item label="申请原因">{{ currentDetail.reason }}</el-descriptions-item>
+          <el-descriptions-item label="退款金额">{{ (currentDetail.amount / 100).toFixed(2) }} 元</el-descriptions-item>
+          <el-descriptions-item label="申请时间" :span="2">{{ currentDetail.createTime }}</el-descriptions-item>
+        </el-descriptions>
+
+        <el-divider content-position="left">问题详情</el-divider>
+
+        <div class="problem-description">
+          <div class="description-text">{{ currentDetail.description || '无详细描述' }}</div>
+        </div>
+
+        <div v-if="currentDetail.images && currentDetail.images.length" class="image-gallery">
+          <el-divider content-position="left">问题图片</el-divider>
+          <div class="image-container">
+            <el-image v-for="(img, index) in currentDetail.images" :key="index" :src="img"
+              :preview-src-list="currentDetail.images" fit="cover" class="detail-image" />
+          </div>
+        </div>
+
+        <!-- 处理表单 -->
+        <div v-if="currentDetail.status === 1" class="handle-form">
+          <el-divider content-position="left">售后处理</el-divider>
+          <el-form :model="handleForm" label-width="100px">
+            <el-form-item label="处理结果">
+              <el-radio-group v-model="handleForm.status">
+                <el-radio :label="2">同意</el-radio>
+                <el-radio :label="3">拒绝</el-radio>
+              </el-radio-group>
+            </el-form-item>
+            <el-form-item label="退款金额"
+              v-if="handleForm.status === 2 && (currentDetail.type === 1 || currentDetail.type === 4)">
+              <div class="amount-display">{{ (currentDetail.amount / 100).toFixed(2) }} 元</div>
+            </el-form-item>
+            <el-form-item label="处理备注">
+              <el-input v-model="handleForm.handleMsg" type="textarea" rows="3" placeholder="请输入处理备注信息" />
+            </el-form-item>
+            <el-form-item>
+              <el-button type="primary" @click="submitHandleAfterSale" :loading="submitLoading"
+                :disabled="submitLoading">提交处理</el-button>
+            </el-form-item>
+          </el-form>
+        </div>
+
+        <div v-else-if="currentDetail.status !== 1" class="handled-result">
+          <el-divider content-position="left">处理结果</el-divider>
+          <el-descriptions :column="1" border>
+            <el-descriptions-item label="处理备注">{{ currentDetail.handleMsg || '无' }}</el-descriptions-item>
+            <el-descriptions-item label="处理时间">{{ currentDetail.handleTime }}</el-descriptions-item>
+          </el-descriptions>
         </div>
       </div>
       <template #footer>
-        <span class="dialog-footer">
-          <el-button @click="detailDialogVisible = false">关闭</el-button>
-        </span>
+        <el-button @click="detailVisible = false">关闭</el-button>
       </template>
     </el-dialog>
   </div>
 </template>
 
-<style scoped>
-.after-sale-manage {
-  padding: 20px;
+<script setup>
+import { ref, computed, onMounted, watch } from 'vue'
+import { useAfterSaleStore } from '../../../stores/afterSale'
+import { ElMessage, ElMessageBox } from 'element-plus'
+import { Search } from '@element-plus/icons-vue'
+
+const afterSaleStore = useAfterSaleStore()
+
+// 列表数据
+const afterSaleList = computed(() => afterSaleStore.afterSaleList)
+const loading = computed(() => afterSaleStore.loading)
+const currentPage = computed(() => afterSaleStore.listPageState.filter.current)
+const pageSize = computed(() => afterSaleStore.listPageState.filter.pageSize)
+const total = computed(() => afterSaleStore.listPageState.total)
+
+// 筛选条件
+const statusFilter = ref(afterSaleStore.listPageState.filter.status)
+const orderIdFilter = ref(afterSaleStore.listPageState.filter.orderId)
+
+// 详情相关
+const detailVisible = ref(false)
+const currentDetail = ref(null)
+const submitLoading = ref(false)
+const detailLoading = ref(false)
+
+// 处理表单
+const handleForm = ref({
+  id: null,
+  orderId: null,
+  status: 2,
+  type: null,
+  handleMsg: '',
+  amount: 0
+})
+
+// 加载售后列表
+const fetchList = async () => {
+  const params = {
+    current: currentPage.value,
+    size: pageSize.value,
+    status: statusFilter.value,
+    orderId: orderIdFilter.value
+  }
+
+  await afterSaleStore.fetchAfterSaleList(params)
 }
 
-.page-header {
+// 处理筛选
+const handleFilter = () => {
+  afterSaleStore.listPageState.filter.current = 1
+  afterSaleStore.listPageState.filter.status = statusFilter.value
+  afterSaleStore.listPageState.filter.orderId = orderIdFilter.value
+  fetchList() // 立即搜索
+}
+
+// 处理分页
+const handlePageChange = (page) => {
+  afterSaleStore.listPageState.filter.current = page
+  fetchList()
+}
+
+// 查看详情
+const showDetail = async (row) => {
+  try {
+    detailLoading.value = true
+    const detail = await afterSaleStore.fetchAfterSaleDetail(row.id)
+    if (detail) {
+      currentDetail.value = detail
+      handleForm.value = {
+        id: detail.id,
+        orderId: detail.orderId,
+        status: 2,
+        type: detail.type,
+        handleMsg: '',
+        amount: detail.amount // 直接使用后端返回的金额（分）
+      }
+      detailVisible.value = true
+    }
+  } catch (error) {
+    console.error('获取售后详情失败:', error)
+    ElMessage.error('获取售后详情失败')
+  } finally {
+    detailLoading.value = false
+  }
+}
+
+// 提交处理售后（添加防抖）
+const submitHandleAfterSale = async () => {
+  if (submitLoading.value) return; // 防止重复点击
+
+  // 表单校验
+  if (!handleForm.value.handleMsg) {
+    ElMessage.warning('请输入处理备注')
+    return
+  }
+
+  try {
+    submitLoading.value = true
+
+    // 确认处理
+    const confirmMsg = handleForm.value.status === 2 ? '确定同意此售后申请？' : '确定拒绝此售后申请？'
+    await ElMessageBox.confirm(confirmMsg, '确认操作')
+
+    // 确保ID是数字类型，金额使用分为单位
+    const submitData = {
+      ...handleForm.value,
+      id: Number(handleForm.value.id)
+    }
+
+    const result = await afterSaleStore.handleAdminAfterSale(submitData)
+    if (result) {
+      ElMessage.success('处理成功')
+      detailVisible.value = false
+      fetchList()
+    }
+  } catch (error) {
+    if (error === 'cancel') return
+    console.error('处理售后失败:', error)
+    ElMessage.error(typeof error === 'string' ? error : '处理售后失败，请稍后重试')
+  } finally {
+    submitLoading.value = false
+  }
+}
+
+// 获取状态文本
+const getAfterSaleStatusText = (status) => {
+  return afterSaleStore.getAfterSaleStatusText(status)
+}
+
+// 获取类型文本
+const getAfterSaleTypeText = (type) => {
+  return afterSaleStore.getAfterSaleTypeText(type)
+}
+
+// 获取状态样式
+const getStatusType = (status) => {
+  const typeMap = {
+    1: 'warning',
+    2: 'success',
+    3: 'danger'
+  }
+  return typeMap[status] || 'info'
+}
+
+// 监听筛选状态变化
+watch(() => statusFilter.value, (newVal) => {
+  afterSaleStore.listPageState.filter.status = newVal
+  fetchList() // 自动触发查询
+})
+
+// 监听订单ID变化
+watch(() => orderIdFilter.value, (newVal) => {
+  if (!newVal) {
+    // 当清空订单ID时自动刷新
+    afterSaleStore.listPageState.filter.orderId = null
+    fetchList()
+  }
+})
+
+// 页面加载时获取数据
+onMounted(() => {
+  // 初始化筛选条件，默认显示处理中的售后
+  statusFilter.value = afterSaleStore.listPageState.filter.status // 使用状态管理中的默认值
+  orderIdFilter.value = afterSaleStore.listPageState.filter.orderId
+  fetchList()
+})
+</script>
+
+<style scoped>
+.after-sale-management {
+  padding: 20px;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+}
+
+.header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
   margin-bottom: 20px;
 }
 
-.pagination-container {
+.filter {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+}
+
+.list-card {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  margin-bottom: 20px;
+  transition: all 0.3s;
+}
+
+.list-card:hover {
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+}
+
+.list-card :deep(.el-card__body) {
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+}
+
+.list-card :deep(.el-table) {
+  flex: 1;
+}
+
+.list-card :deep(.el-table__row) {
+  transition: background-color 0.3s;
+}
+
+.list-card :deep(.el-tag) {
+  transition: all 0.3s;
+}
+
+.list-card :deep(.el-table__row:hover) {
+  background-color: #ecf5ff;
+}
+
+.pagination {
   margin-top: 20px;
   display: flex;
   justify-content: flex-end;
+  padding: 10px 0;
 }
 
 .detail-content {
-  padding: 20px;
+  padding: 0 20px;
+  max-height: 60vh;
+  overflow-y: auto;
 }
 
-.detail-item {
-  margin-bottom: 15px;
+.detail-header {
   display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 20px;
 }
 
-.detail-item .label {
-  width: 100px;
-  color: #606266;
-  font-weight: bold;
+.detail-id {
+  font-size: 14px;
+  color: #666;
 }
 
-.detail-item .value {
-  flex: 1;
-  color: #333;
+.problem-description {
+  background-color: #f9f9f9;
+  border-radius: 4px;
+  padding: 16px;
+  margin-bottom: 20px;
+  border-left: 4px solid #409EFF;
 }
 
-.image-list {
+.description-text {
+  line-height: 1.6;
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+
+.image-gallery {
+  margin-top: 20px;
+}
+
+.image-container {
   display: flex;
   flex-wrap: wrap;
   gap: 10px;
   margin-top: 10px;
 }
 
-.evidence-image {
+.detail-image {
   width: 100px;
   height: 100px;
+  object-fit: cover;
   border-radius: 4px;
-  cursor: pointer;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+  transition: transform 0.2s;
 }
 
-.no-image {
-  color: #909399;
-  font-style: italic;
+.detail-image:hover {
+  transform: scale(1.05);
 }
 
-/* 图片预览样式优化 */
-:deep(.el-image-viewer__wrapper) {
-  .el-image-viewer__img {
-    max-width: 100%;
-    max-height: 80vh;
-    object-fit: contain;
-  }
+.handle-form {
+  margin-top: 20px;
+  padding-top: 10px;
+}
+
+.handled-result {
+  margin-top: 20px;
+  padding-top: 10px;
+}
+
+.amount-display {
+  font-size: 16px;
+  color: #f56c6c;
+  font-weight: bold;
+  padding: 5px 0;
 }
 </style>

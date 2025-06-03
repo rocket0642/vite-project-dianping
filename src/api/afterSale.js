@@ -37,28 +37,30 @@ export function getAfterSaleByOrderId(orderId) {
     })
 }
 
+
 /**
- * 获取用户的售后记录列表
+ * 获取售后列表（管理员）
+ * 与getAllAfterSales保持一致，为了兼容现有代码
  * @param {Object} params - 查询参数
  * @returns {Promise} - 请求结果
  */
-export function getUserAfterSales(params) {
+export function getAfterSaleList(params) {
     return request({
-        url: '/after-sale/user/list',
+        url: '/after-sale/admin/list',
         method: 'get',
         params
     })
 }
 
 /**
- * 获取所有售后记录（管理员）
- * @param {Object} params - 查询参数
+ * 管理员处理售后
+ * @param {Object} data - 处理数据
  * @returns {Promise} - 请求结果
  */
-export function getAllAfterSales(params) {
+export function handleAfterSale(data) {
     return request({
-        url: '/after-sale/admin/list',
-        method: 'get',
-        params
+        url: '/after-sale/admin/handle',
+        method: 'put',
+        data
     })
 }
