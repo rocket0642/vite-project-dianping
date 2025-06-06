@@ -1,7 +1,7 @@
 <template>
   <div class="dashboard-container">
     <h1>仪表盘</h1>
-    
+
     <el-row :gutter="20">
       <el-col :span="6">
         <el-card shadow="hover">
@@ -11,11 +11,11 @@
             </div>
           </template>
           <div class="card-body">
-            <div class="card-value">¥{{ (orderStore.todaySales / 100).toFixed(2) }}</div>
+            <div class="card-value">{{ userStore.userCount }}</div>
           </div>
         </el-card>
       </el-col>
-      
+
       <el-col :span="6">
         <el-card shadow="hover">
           <template #header>
@@ -28,7 +28,7 @@
           </div>
         </el-card>
       </el-col>
-      
+
       <el-col :span="6">
         <el-card shadow="hover">
           <template #header>
@@ -41,7 +41,7 @@
           </div>
         </el-card>
       </el-col>
-      
+
       <el-col :span="6">
         <el-card shadow="hover">
           <template #header>
@@ -55,7 +55,7 @@
         </el-card>
       </el-col>
     </el-row>
-    
+
     <el-row :gutter="20" style="margin-top: 20px;">
       <el-col :span="12">
         <el-card class="chart-card">

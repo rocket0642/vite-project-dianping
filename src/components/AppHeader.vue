@@ -67,9 +67,15 @@ const goToCart = () => {
         </el-badge>
 
         <div class="user-avatar-container">
-          <div v-if="userStore.isLogin" class="avatar-wrapper" @click="goToUserCenter">
-            <el-avatar :size="32" :src="userStore.userInfo.icon || defaultAvatar"></el-avatar>
-            <span class="username">{{ userStore.userInfo.nickName || userStore.userPhone }}</span>
+          <div v-if="userStore.isLogin" class="avatar-wrapper">
+            <div class="user-info" @click="goToUserCenter">
+              <el-avatar :size="32" :src="userStore.userInfo.icon || defaultAvatar"></el-avatar>
+              <span class="username">{{ userStore.userInfo.nickName || userStore.userPhone }}</span>
+            </div>
+            <!-- 返回管理员页面 -->
+            <el-button v-if="userStore.isAdmin" type="primary" @click="router.push('/admin')">
+              管理员
+            </el-button>
           </div>
           <div v-else class="login-btns">
             <el-button size="small" @click="goToLogin">登录</el-button>
@@ -173,6 +179,12 @@ const goToCart = () => {
   .cart-badge {
     margin-right: 10px;
   }
+}
+
+.user-info {
+  display: flex;
+  align-items: center;
+  cursor: pointer;
 }
 </style>
 
