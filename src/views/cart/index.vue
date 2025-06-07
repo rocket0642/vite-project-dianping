@@ -341,9 +341,11 @@ const refreshCart = async () => {
           <!-- 商铺标题和选择框 -->
           <div class="shop-header">
             <div class="shop-title">
-              <el-checkbox :model-value="shopCheckedMap[group.shopId]"
-                :indeterminate="group.items.some(item => item.checked) && !group.items.every(item => item.checked)"
-                @change="toggleShopItems(group.shopId, $event)" class="shop-checkbox" />
+              <div class="shop-checkbox-wrapper">
+                <el-checkbox :model-value="shopCheckedMap[group.shopId]"
+                  :indeterminate="group.items.some(item => item.checked) && !group.items.every(item => item.checked)"
+                  @change="toggleShopItems(group.shopId, $event)" />
+              </div>
               <div class="shop-name" @click="goToShop(group.shopId)">
                 <i class="el-icon-shop"></i> {{ group.shopName }}
               </div>
@@ -355,8 +357,9 @@ const refreshCart = async () => {
             <div v-for="(item, itemIndex) in group.items" :key="`${item.goodsId}-${item.skuId || 0}`" class="cart-item"
               :class="{ 'item-checked': item.checked }">
               <!-- 商品选择框 -->
-              <el-checkbox :model-value="item.checked" @change="(val) => checkItem(group.shopId, item, val)"
-                class="item-checkbox" />
+              <div class="item-checkbox-wrapper">
+                <el-checkbox :model-value="item.checked" @change="(val) => checkItem(group.shopId, item, val)" />
+              </div>
 
               <!-- 商品图片 -->
               <div class="item-image" @click="goToGoods(item.goodsId)">
@@ -405,10 +408,12 @@ const refreshCart = async () => {
     <div class="cart-footer-fixed">
       <div class="cart-footer-content">
         <div class="select-all">
-          <el-checkbox :model-value="isAllChecked" :indeterminate="cartStore.selectedCount > 0 && !isAllChecked"
-            @change="toggleAllChecked">
-            全选
-          </el-checkbox>
+          <div class="footer-checkbox-wrapper">
+            <el-checkbox :model-value="isAllChecked" :indeterminate="cartStore.selectedCount > 0 && !isAllChecked"
+              @change="toggleAllChecked">
+              全选
+            </el-checkbox>
+          </div>
         </div>
 
         <div class="cart-total">
@@ -523,7 +528,6 @@ const refreshCart = async () => {
 .shop-title {
   display: flex;
   align-items: center;
-  gap: 10px;
 }
 
 .shop-name {
@@ -552,6 +556,30 @@ const refreshCart = async () => {
 
 .item-checked {
   background-color: #f0f9ff;
+}
+
+/* 选择框样式 - 层级错开效果 */
+.shop-checkbox-wrapper {
+  margin-right: 15px;
+  /* 第一级选择框 - 最靠左侧 */
+  margin-left: 0;
+  display: flex;
+  align-items: center;
+}
+
+.item-checkbox-wrapper {
+  /* 第二级选择框 - 从左侧缩进 */
+  margin-right: 15px;
+  margin-left: 25px;
+  display: flex;
+  align-items: center;
+}
+
+.footer-checkbox-wrapper {
+  /* 底部全选框 - 靠左与店铺选择框对齐 */
+  margin-left: 0;
+  display: flex;
+  align-items: center;
 }
 
 .item-image {
@@ -625,7 +653,9 @@ const refreshCart = async () => {
 }
 
 .select-all {
-  margin-left: 5px;
+  display: flex;
+  align-items: center;
+  height: 100%;
 }
 
 .cart-total {
@@ -672,14 +702,6 @@ const refreshCart = async () => {
   margin-top: 20px;
 }
 
-.shop-checkbox {
-  margin-right: 12px;
-}
-
-.item-checkbox {
-  margin-right: 15px;
-}
-
 /* 响应式设计 */
 @media (max-width: 768px) {
   .cart-header-content {
@@ -713,8 +735,13 @@ const refreshCart = async () => {
   }
 
   .item-info {
-    width: calc(100% - 100px);
+    width: calc(100% - 120px);
     margin-bottom: 10px;
+  }
+
+  .item-checkbox-wrapper {
+    margin-left: 15px;
+    /* 移动端减少缩进 */
   }
 
   .item-quantity,
@@ -735,7 +762,6 @@ const refreshCart = async () => {
 
   .select-all {
     width: 100%;
-    margin-left: 0;
   }
 
   .cart-total {

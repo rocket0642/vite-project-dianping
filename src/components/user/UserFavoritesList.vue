@@ -2,7 +2,6 @@
 import { StarFilled } from '@element-plus/icons-vue'
 import { ElButton, ElIcon, ElSkeleton, ElSkeletonItem } from 'element-plus'
 import { computed } from 'vue'
-import { useRouter } from 'vue-router'
 import { useFravoriteStore } from '../../stores/fravorite'
 import ShopCard from '../ShopCard.vue'
 
@@ -13,11 +12,10 @@ const props = defineProps({
     },
     limit: {
         type: Number,
-        default: 3
+        default: 2
     }
 })
 
-const router = useRouter()
 const favoriteStore = useFravoriteStore()
 
 // 限制显示收藏数量
@@ -33,7 +31,7 @@ const recentFavorites = computed(() =>
             <el-button type="text" @click="$router.push('/user/favorites')">查看全部</el-button>
         </div>
 
-        <el-skeleton :loading="loading" animated :count="3">
+        <el-skeleton :loading="loading" animated :count="limit">
             <template #template>
                 <div class="skeleton-favorites">
                     <el-skeleton-item variant="image" style="width: 100%; height: 120px; margin-bottom: 8px;" />
@@ -80,8 +78,30 @@ const recentFavorites = computed(() =>
 
 .favorites-grid {
     display: grid;
-    grid-template-columns: repeat(3, 1fr);
+    grid-template-columns: repeat(2, 1fr);
     gap: 15px;
+}
+
+.favorites-grid :deep(.shop-card) {
+    height: 100%;
+    transition: transform 0.3s;
+}
+
+.favorites-grid :deep(.shop-card:hover) {
+    transform: translateY(-3px);
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+}
+
+.favorites-grid :deep(.shop-image) {
+    height: 120px;
+    object-fit: cover;
+}
+
+.favorites-grid :deep(.shop-name) {
+    font-size: 15px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
 }
 
 .skeleton-favorites {

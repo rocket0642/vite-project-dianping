@@ -62,7 +62,7 @@ const goToShopDetail = () => {
 }
 
 .shop-image {
-  height: 180px;
+  height: 150px;
   overflow: hidden;
 }
 
@@ -77,15 +77,15 @@ const goToShopDetail = () => {
 }
 
 .shop-info {
-  padding: 15px;
+  padding: 12px;
   flex: 1;
   display: flex;
   flex-direction: column;
 }
 
 .shop-name {
-  font-size: 18px;
-  margin-bottom: 8px;
+  font-size: 16px;
+  margin-bottom: 6px;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -94,13 +94,13 @@ const goToShopDetail = () => {
 .shop-meta {
   display: flex;
   justify-content: space-between;
-  margin-bottom: 8px;
-  font-size: 14px;
+  margin-bottom: 6px;
+  font-size: 13px;
   color: #666;
 }
 
 .shop-price {
-  margin-bottom: 8px;
+  margin-bottom: 6px;
 }
 
 .price {
@@ -111,7 +111,7 @@ const goToShopDetail = () => {
 .shop-stats {
   display: flex;
   justify-content: space-between;
-  font-size: 14px;
+  font-size: 13px;
   color: #999;
   margin-top: auto;
 }
