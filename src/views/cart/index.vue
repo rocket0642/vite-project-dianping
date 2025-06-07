@@ -73,7 +73,7 @@ const checkItemWithDebounce = debounce((shopId, item, checked) => {
     // 成功后更新shopCheckedMap
     updateShopCheckedState(shopId)
   })
-}, 200)
+}, 100)
 
 // 更新指定店铺的选中状态
 const updateShopCheckedState = (shopId) => {
@@ -103,7 +103,7 @@ const updateCountWithDebounce = debounce(async (shopId, item, count) => {
   } finally {
     loading.value = false
   }
-}, 200)
+}, 100)
 
 // 替换原来的updateCount函数
 const updateCount = (shopId, item, count) => {

@@ -61,7 +61,7 @@ const logout = () => {
         <el-skeleton :loading="loading" animated>
             <template #template>
                 <div class="skeleton-user-info">
-                    <el-skeleton-item variant="circle" style="width: 80px; height: 80px;" />
+                    <el-skeleton-item variant="circle" style="width: 100px; height: 100px;" />
                     <div class="skeleton-user-details">
                         <el-skeleton-item variant="text" style="width: 150px; height: 24px; margin-bottom: 12px;" />
                         <el-skeleton-item variant="text" style="width: 240px; height: 16px; margin-bottom: 8px;" />
@@ -72,116 +72,169 @@ const logout = () => {
 
             <template #default>
                 <div class="user-header">
-                    <div class="avatar-container">
-                        <el-avatar :size="100"
-                            :src="userInfo.icon || 'https://cube.elemecdn.com/3/7c/3ea6beec64369c2642b92c6726f1epng.png'" />
-                    </div>
-                    <div class="user-basic-info">
-                        <h2 class="user-name">{{ userInfo.nickName || '用户' }}</h2>
-                        <div class="edit-btn-container">
-                            <el-button type="primary" size="small" @click="openEditDialog" class="edit-btn">
-                                <el-icon>
-                                    <Edit />
-                                </el-icon>
-                                编辑资料
-                            </el-button>
+                    <div class="user-header-left">
+                        <div class="avatar-container">
+                            <el-avatar :size="100"
+                                :src="userInfo.icon || 'https://cube.elemecdn.com/3/7c/3ea6beec64369c2642b92c6726f1epng.png'" />
                         </div>
+                        <div class="user-basic-info">
+                            <h2 class="user-name">{{ userInfo.nickName || '用户' }}</h2>
+                            <div class="user-status">
+                                <div class="status-badge">{{ userInfo.vip ? 'VIP会员' : '普通会员' }}</div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="user-header-right">
+                        <el-button type="primary" size="small" @click="openEditDialog" class="edit-btn">
+                            <el-icon>
+                                <Edit />
+                            </el-icon>
+                            编辑资料
+                        </el-button>
+                        <el-button type="danger" size="small" @click="logout">退出登录</el-button>
                     </div>
                 </div>
 
-                <div class="user-info-grid">
-                    <div class="info-item">
-                        <div class="info-label">性别:</div>
-                        <div class="info-value">{{ userInfo.gender === 1 ? '女' : '男' }}</div>
+                <div class="user-info-container">
+                    <div class="user-info-grid">
+                        <div class="info-item">
+                            <div class="info-label">性别</div>
+                            <div class="info-value">{{ userInfo.gender === 1 ? '女' : '男' }}</div>
+                        </div>
+                        <div class="info-item">
+                            <div class="info-label">城市</div>
+                            <div class="info-value">{{ userInfo.city || '未设置' }}</div>
+                        </div>
+                        <div class="info-item">
+                            <div class="info-label">生日</div>
+                            <div class="info-value">{{ userInfo.birthday || '未设置' }}</div>
+                        </div>
+                        <div class="info-item">
+                            <div class="info-label">邮箱</div>
+                            <div class="info-value">{{ userInfo.email || '未设置' }}</div>
+                        </div>
                     </div>
-                    <div class="info-item">
-                        <div class="info-label">城市:</div>
-                        <div class="info-value">{{ userInfo.city || '未设置' }}</div>
-                    </div>
-                    <div class="info-item">
-                        <div class="info-label">生日:</div>
-                        <div class="info-value">{{ userInfo.birthday || '未设置' }}</div>
-                    </div>
-                    <div class="info-item">
-                        <div class="info-label">邮箱:</div>
-                        <div class="info-value">{{ userInfo.email || '未设置' }}</div>
-                    </div>
-                    <div class="info-item full-width">
-                        <div class="info-label">个人介绍:</div>
-                        <div class="info-value">{{ userInfo.introduce || '这个人很懒，什么都没留下' }}</div>
+                    <div class="user-introduce">
+                        <div class="info-label">个人介绍</div>
+                        <div class="info-value introduce-text">{{ userInfo.introduce || '这个人很懒，什么都没留下' }}</div>
                     </div>
                 </div>
             </template>
         </el-skeleton>
-
-        <div class="user-actions">
-            <el-button type="danger" @click="logout">退出登录</el-button>
-        </div>
     </div>
 </template>
 
 <style scoped>
 .user-card {
     background-color: #fff;
-    border-radius: 8px;
-    box-shadow: 0 2px 12px 0 rgba(0, 0, 0, 0.05);
-    padding: 20px;
+    border-radius: 12px;
+    box-shadow: 0 4px 16px rgba(0, 0, 0, 0.08);
+    padding: 24px;
     margin-bottom: 20px;
+    position: relative;
+    overflow: hidden;
 }
 
 .user-header {
     display: flex;
+    justify-content: space-between;
     align-items: center;
-    margin-bottom: 15px;
+    margin-bottom: 24px;
+    position: relative;
+}
+
+.user-header-left {
+    display: flex;
+    align-items: center;
+}
+
+.user-header-right {
+    display: flex;
+    gap: 10px;
 }
 
 .avatar-container {
     margin-right: 20px;
-}
-
-.user-basic-info {
-    flex: 1;
     position: relative;
 }
 
-.edit-btn-container {
+.avatar-container::after {
+    content: '';
     position: absolute;
-    top: 0;
+    bottom: 0;
     right: 0;
+    width: 24px;
+    height: 24px;
+    background-color: #67c23a;
+    border-radius: 50%;
+    border: 3px solid #fff;
+    display: none;
+    /* 可以根据用户在线状态显示 */
+}
+
+.user-basic-info {
+    display: flex;
+    flex-direction: column;
+}
+
+.user-name {
+    margin: 0 0 8px 0;
+    font-size: 24px;
+    color: #303133;
+}
+
+.user-status {
+    display: flex;
+    gap: 8px;
+    margin-bottom: 8px;
+}
+
+.status-badge {
+    background-color: #f2f6fc;
+    color: #409eff;
+    padding: 2px 8px;
+    border-radius: 12px;
+    font-size: 12px;
+    display: inline-block;
+}
+
+.user-info-container {
+    background-color: #f8f9fc;
+    border-radius: 8px;
+    padding: 20px;
 }
 
 .user-info-grid {
     display: grid;
-    grid-template-columns: repeat(2, 1fr);
-    gap: 15px;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 20px;
     margin-bottom: 20px;
-    border-top: 1px solid #ebeef5;
-    padding-top: 15px;
 }
 
 .info-item {
     display: flex;
-    align-items: baseline;
-}
-
-.full-width {
-    grid-column: span 2;
+    flex-direction: column;
 }
 
 .info-label {
-    width: 80px;
-    color: #606266;
-    font-weight: 500;
+    color: #909399;
+    font-size: 14px;
+    margin-bottom: 4px;
 }
 
 .info-value {
-    flex: 1;
     color: #303133;
+    font-weight: 500;
 }
 
-.user-actions {
-    display: flex;
-    justify-content: center;
+.user-introduce {
+    border-top: 1px dashed #e4e7ed;
+    padding-top: 16px;
+}
+
+.introduce-text {
+    margin-top: 8px;
+    line-height: 1.6;
 }
 
 .skeleton-user-info {
@@ -194,18 +247,42 @@ const logout = () => {
     margin-left: 20px;
 }
 
+/* 响应式设计 */
+@media (max-width: 992px) {
+    .user-info-grid {
+        grid-template-columns: repeat(2, 1fr);
+    }
+}
+
 @media (max-width: 768px) {
-    .edit-btn-container {
-        position: static;
-        margin-top: 10px;
+    .user-header {
+        flex-direction: column;
+        align-items: center;
+    }
+
+    .user-header-left {
+        flex-direction: column;
+        align-items: center;
+        margin-bottom: 16px;
+        text-align: center;
+    }
+
+    .avatar-container {
+        margin-right: 0;
+        margin-bottom: 16px;
+    }
+
+    .user-header-right {
+        width: 100%;
+        justify-content: center;
+    }
+
+    .user-basic-info {
+        align-items: center;
     }
 
     .user-info-grid {
         grid-template-columns: 1fr;
-    }
-
-    .full-width {
-        grid-column: span 1;
     }
 }
 </style>
