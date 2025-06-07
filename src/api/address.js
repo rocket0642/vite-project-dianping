@@ -44,7 +44,7 @@ export function updateUserAddress(addressData) {
  */
 export function deleteUserAddress(id) {
   return request({
-    url: `/address/delete/${id}`,
+    url: `/address/${id}`,
     method: 'delete'
   })
 }

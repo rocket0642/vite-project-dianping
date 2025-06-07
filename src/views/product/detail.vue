@@ -123,7 +123,7 @@ const debouncedAddToCart = debounce(async () => {
     ElMessage.error('加入购物车失败，请重试')
     return false
   }
-}, 300)
+}, 100)
 
 // 包装函数，调用防抖函数
 const addToCart = async () => {
@@ -153,7 +153,7 @@ const handleSkuSelected = (skuId) => {
 // 防抖处理的数量变更函数
 const handleQuantityChange = debounce((value) => {
   quantity.value = value
-}, 300)
+}, 100)
 
 // 组件挂载时加载数据
 onMounted(async () => {
