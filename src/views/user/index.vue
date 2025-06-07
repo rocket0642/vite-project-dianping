@@ -142,26 +142,48 @@ const refreshUserInfo = async () => {
 </script>
 
 <template>
-  <div class="user-center-container">
-    <!-- 添加返回按钮 -->
-    <div class="back-button">
-      <el-button type="text" icon="ArrowLeft" @click="$router.push('/')">返回首页</el-button>
+  <div class="user-center-wrapper">
+    <!-- 页面头部导航 -->
+    <div class="page-header">
+      <el-button class="back-button" type="primary" plain size="small" icon="ArrowLeft" @click="$router.push('/')">
+        返回首页
+      </el-button>
+      <h2 class="page-title">个人中心</h2>
     </div>
 
-    <!-- 用户信息卡片 -->
-    <user-info-card :loading="loading" @edit="openEditDialog" />
+    <!-- 用户信息卡片区域 -->
+    <div class="user-info-section">
+      <user-info-card :loading="loading" @edit="openEditDialog" />
+    </div>
 
-    <!-- 订单快捷入口 -->
-    <order-shortcuts />
+    <!-- 分为两列布局的主要内容区域 -->
+    <div class="two-column-layout">
+      <!-- 左侧列 - 订单相关 -->
+      <div class="left-column">
+        <!-- 订单快捷方式 -->
+        <div class="module-container">
+          <order-shortcuts />
+        </div>
 
-    <!-- 我的地址 -->
-    <user-address-list :loading="addressLoading" />
+        <!-- 统计数据 -->
+        <div class="module-container">
+          <order-statistics :loading="statisticsLoading" :order-statistics="orderStatistics" />
+        </div>
+      </div>
 
-    <!-- 我的收藏 -->
-    <user-favorites-list :loading="favoritesLoading" />
+      <!-- 右侧列 - 地址和收藏 -->
+      <div class="right-column">
+        <!-- 地址列表 -->
+        <div class="module-container">
+          <user-address-list :loading="addressLoading" />
+        </div>
 
-    <!-- 订单数据统计 -->
-    <order-statistics :loading="statisticsLoading" :order-statistics="orderStatistics" />
+        <!-- 收藏列表 - 确保宽度足够显示三个商品卡片 -->
+        <div class="module-container favorites-container">
+          <user-favorites-list :loading="favoritesLoading" />
+        </div>
+      </div>
+    </div>
 
     <!-- 用户编辑表单 -->
     <user-edit-form v-model:visible="editDialogVisible" :user-info="userInfo" @refresh="refreshUserInfo" />
@@ -169,14 +191,117 @@ const refreshUserInfo = async () => {
 </template>
 
 <style scoped>
-/* 添加返回按钮样式 */
-.back-button {
-  margin-bottom: 15px;
+/* 全局样式 */
+.user-center-wrapper {
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 20px;
+  background-color: #f5f7fa;
+  min-height: 100vh;
 }
 
-.user-center-container {
-  max-width: 800px;
-  margin: 20px auto;
-  padding: 0 15px;
+/* 页面头部 */
+.page-header {
+  display: flex;
+  align-items: center;
+  margin-bottom: 20px;
+  padding-bottom: 15px;
+  border-bottom: 1px solid #ebeef5;
+}
+
+.back-button {
+  margin-right: 15px;
+}
+
+.page-title {
+  margin: 0;
+  font-size: 22px;
+  font-weight: 600;
+  color: #303133;
+}
+
+/* 用户信息区域 */
+.user-info-section {
+  margin-bottom: 20px;
+}
+
+/* 两列布局 */
+.two-column-layout {
+  display: flex;
+  gap: 20px;
+  margin-bottom: 30px;
+}
+
+.left-column {
+  flex: 1.6;
+  /* 增加左栏宽度占比 */
+  min-width: 0;
+  /* 防止内容溢出 */
+}
+
+.right-column {
+  flex: 1;
+  /* 右栏宽度保持不变 */
+  min-width: 0;
+  /* 防止内容溢出 */
+}
+
+/* 模块容器 */
+.module-container {
+  margin-bottom: 20px;
+  background-color: #fff;
+  border-radius: 8px;
+  box-shadow: 0 2px 12px 0 rgba(0, 0, 0, 0.05);
+  overflow: hidden;
+}
+
+/* 收藏容器特殊处理 */
+.favorites-container {
+  /* 确保收藏列表有足够空间显示三个商品卡片 */
+  width: 100%;
+}
+
+/* 使组件内部样式与外部容器协调 */
+.module-container :deep(.section-card) {
+  /* 去除组件自带的卡片样式，由外部容器统一提供 */
+  box-shadow: none;
+  border-radius: 0;
+  margin-bottom: 0;
+}
+
+/* 响应式布局 */
+@media screen and (max-width: 992px) {
+  .two-column-layout {
+    flex-direction: column;
+  }
+
+  .left-column,
+  .right-column {
+    width: 100%;
+  }
+}
+
+@media screen and (max-width: 768px) {
+  .user-center-wrapper {
+    padding: 15px;
+  }
+
+  .page-header {
+    margin-bottom: 15px;
+  }
+
+  .module-container {
+    margin-bottom: 15px;
+  }
+}
+
+@media screen and (max-width: 480px) {
+  .user-center-wrapper {
+    padding: 10px;
+  }
+
+  .page-title {
+    font-size: 18px;
+  }
 }
 </style>

@@ -72,7 +72,10 @@ const goToCart = () => {
               <el-avatar :size="32" :src="userStore.userInfo.icon || defaultAvatar"></el-avatar>
               <span class="username">{{ userStore.userInfo.nickName || userStore.userPhone }}</span>
             </div>
-            <el-button type="primary" @click="$router.push('/admin')">返回管理员</el-button>
+            <!-- 返回管理员页面 -->
+            <el-button v-if="userStore.isAdmin" type="primary" @click="router.push('/admin')">
+              管理员
+            </el-button>
           </div>
           <div v-else class="login-btns">
             <el-button size="small" @click="goToLogin">登录</el-button>
@@ -181,7 +184,7 @@ const goToCart = () => {
 .user-info {
   display: flex;
   align-items: center;
-  gap: 8px;
+  cursor: pointer;
 }
 </style>
 

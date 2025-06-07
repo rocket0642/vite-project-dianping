@@ -169,6 +169,7 @@ export const useUserStore = defineStore('user', () => {
     userInfo.value = {}
     userPhone.value = null
     rememberMe.value = false
+    isAdmin.value = false
 
     try {
       // 切换到游客购物车
@@ -326,6 +327,6 @@ export const useUserStore = defineStore('user', () => {
         sessionStorage.removeItem(key)
       }
     },
-    paths: ['token', 'userPhone', 'userInfo', 'rememberMe']
+    paths: ['token', 'userPhone', 'userInfo', 'rememberMe', 'isAdmin']
   }
 })
